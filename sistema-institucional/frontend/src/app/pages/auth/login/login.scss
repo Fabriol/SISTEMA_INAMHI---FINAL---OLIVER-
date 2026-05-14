@@ -1,26 +1,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
 
+:host {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .login-container {
+  width: 100%;
+  height: 100vh;
   min-height: 100vh;
   display: flex;
-  justify-content: center; /* CENTRO REAL */
+  justify-content: center;
   align-items: center;
-  gap: 80px; /* separación balanceada */
-  padding: 40px;
+  gap: 80px;
+  padding: 28px;
+  box-sizing: border-box;
   font-family: 'Inter', sans-serif;
   position: relative;
   overflow: hidden;
-
-  /* 🔥 FONDO FULL */
-  width: 100%;
-  height: 100vh;
-
   background: linear-gradient(-45deg, #020617, #0f172a, #1e293b, #0ea5e9);
   background-size: 400% 400%;
   animation: fondoMove 12s ease infinite;
 }
 
-/* LUCES ANIMADAS */
 .login-container::before {
   content: "";
   position: absolute;
@@ -45,22 +49,17 @@
   animation: float 9s ease-in-out infinite reverse;
 }
 
-/* PANEL IZQUIERDO */
 .left-content {
   width: 480px;
   color: white;
   z-index: 2;
   animation: fadeLeft 1s ease;
-
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
 }
 
 .left-content h1 {
   font-size: 46px;
   font-weight: 800;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
   animation: glowText 3s infinite alternate;
 }
 
@@ -68,12 +67,13 @@
   font-size: 16px;
   line-height: 1.8;
   opacity: .92;
-  margin-bottom: 25px;
+  margin-bottom: 28px;
 }
 
 .left-content ul {
   list-style: none;
   padding: 0;
+  margin: 0;
 }
 
 .left-content li {
@@ -90,24 +90,23 @@
 .left-content li:nth-child(3) { animation-delay: .8s; }
 .left-content li:nth-child(4) { animation-delay: 1.2s; }
 
-/* TARJETA */
 .login-card {
   width: 420px;
+  max-height: 92vh;
   background: rgba(255,255,255,.96);
-  padding: 45px 38px;
+  padding: 38px;
   border-radius: 28px;
   box-shadow: 0 35px 85px rgba(0,0,0,.28);
   z-index: 3;
-
-  animation: cardEnter 1s ease, cardFloat 5s ease-in-out infinite 1s;
+  box-sizing: border-box;
+  animation: cardEnter 1s ease;
 }
 
-/* LOGO */
 .logo-box {
   background: white;
   padding: 16px;
   border-radius: 20px;
-  margin-bottom: 22px;
+  margin-bottom: 20px;
   text-align: center;
   box-shadow: 0 12px 30px rgba(0,0,0,.1);
   animation: logoPulse 3s infinite;
@@ -119,24 +118,15 @@
   object-fit: contain;
 }
 
-h2 {
-  font-size: 30px;
-  font-weight: 800;
-  color: #0f172a;
-  margin-bottom: 5px;
-  text-align: center;
-}
-
 .subtitle {
   color: #64748b;
-  margin-bottom: 25px;
+  margin-bottom: 24px;
   font-size: 14px;
   text-align: center;
 }
 
 .form-group {
-  margin-bottom: 18px;
-  animation: fadeUp .8s ease;
+  margin-bottom: 16px;
 }
 
 label {
@@ -149,22 +139,55 @@ label {
 
 input {
   width: 100%;
+  box-sizing: border-box;
   padding: 14px;
   border-radius: 14px;
   border: 1px solid #cbd5e1;
   background: #f8fafc;
-  transition: .3s;
+  transition: .25s;
   font-size: 14px;
 }
 
 input:focus {
+  outline: none;
   border-color: #2563eb;
   background: white;
   box-shadow: 0 0 0 4px rgba(37,99,235,.18);
-  transform: scale(1.02);
 }
 
-button {
+.input-error {
+  border-color: #ef4444 !important;
+  background: #fff1f2 !important;
+}
+
+.password-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-box input {
+  padding-right: 48px;
+}
+
+.toggle-pass {
+  position: absolute;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #334155;
+  font-size: 16px;
+}
+
+.toggle-pass:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-login {
   width: 100%;
   padding: 15px;
   border-radius: 15px;
@@ -174,20 +197,22 @@ button {
   color: white;
   font-weight: 800;
   cursor: pointer;
-  transition: .3s;
+  transition: .25s;
   box-shadow: 0 18px 35px rgba(37,99,235,.35);
   animation: buttonGlow 4s ease infinite;
 }
 
-button:hover {
-  transform: translateY(-4px) scale(1.02);
+.btn-login:hover {
+  transform: translateY(-3px);
   box-shadow: 0 25px 50px rgba(37,99,235,.5);
 }
 
-button:disabled {
+.btn-login:disabled {
   background: #94a3b8;
   cursor: not-allowed;
   transform: none;
+  opacity: .8;
+  box-shadow: none;
 }
 
 .error {
@@ -200,13 +225,16 @@ button:disabled {
 
 small {
   display: block;
-  margin-top: 25px;
+  margin-top: 10px;
   color: #64748b;
   font-size: 12px;
   text-align: center;
 }
 
-/* ANIMACIONES */
+.footer {
+  margin-top: 22px;
+}
+
 @keyframes fondoMove {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -218,30 +246,14 @@ small {
   to { opacity: 1; transform: translateX(0) scale(1); }
 }
 
-@keyframes cardFloat {
-  0%,100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-
 @keyframes fadeLeft {
-  from { 
-    opacity: 0; 
-    transform: translateX(-70px); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateX(0); 
-  }
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateX(-70px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes logoPulse {
   0%,100% { transform: scale(1); }
-  50% { transform: scale(1.06) rotate(1deg); }
+  50% { transform: scale(1.04); }
 }
 
 @keyframes float {
@@ -271,10 +283,9 @@ small {
   75% { transform: translateX(4px); }
 }
 
-/* RESPONSIVE */
 @media (max-width: 900px) {
   .login-container {
-    justify-content: center;
+    gap: 0;
     padding: 20px;
   }
 
@@ -285,13 +296,6 @@ small {
   .login-card {
     width: 100%;
     max-width: 430px;
+    padding: 32px;
   }
-
-  .left-content h1 {
-  margin-bottom: 25px;
-}
-
-.left-content ul {
-  margin-top: 20px;
-}
 }

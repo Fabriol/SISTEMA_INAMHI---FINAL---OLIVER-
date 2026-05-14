@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import Swal from 'sweetalert2';
 
@@ -26,12 +27,14 @@ export class Usuarios implements OnInit {
 
   private alertaActiva = false;
 
-  constructor(private usuariosService: UsuariosService) {}
+  constructor(
+    private usuariosService: UsuariosService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.usuarioActual = JSON.parse(localStorage.getItem('usuario') || '{}');
-    this.cargarUsuarios();
-    this.cargarRoles();
+    this.cargarDatosIniciales();
   }
 
   formVacio(): any {
@@ -43,6 +46,29 @@ export class Usuarios implements OnInit {
       rol: '',
       estado: 'ACTIVO'
     };
+  }
+
+  cargarDatosIniciales(): void {
+    this.cargando = true;
+
+    forkJoin({
+      usuarios: this.usuariosService.listar(),
+      roles: this.usuariosService.roles()
+    }).subscribe({
+      next: (res: any) => {
+        this.usuarios = res.usuarios || [];
+        this.roles = res.roles || [];
+        this.cargando = false;
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => {
+        this.usuarios = [];
+        this.roles = [];
+        this.cargando = false;
+        Swal.fire('Error', err.error?.mensaje || 'Error al cargar información', 'error');
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   alertaRapida(titulo: string, texto: string): void {
@@ -79,29 +105,14 @@ export class Usuarios implements OnInit {
     objeto[campo] = valor;
   }
 
-  validarSoloNumeros(event: any, objeto: any, campo: string): void {
-    const valor = event.target.value;
-
-    if (/[^0-9]/.test(valor)) {
-      this.alertaRapida('Solo números', 'No puedes ingresar letras ni símbolos.');
-    }
-
-    objeto[campo] = valor;
-  }
-
   soloUsuario(event: any, objeto: any): void {
     const valor = event.target.value.toLowerCase();
 
     if (/[^a-zA-Z0-9._-]/.test(valor)) {
-      this.alertaRapida(
-        'Usuario inválido',
-        'Solo se permiten letras, números, punto, guion y guion bajo.'
-      );
+      this.alertaRapida('Usuario inválido', 'Solo letras, números, punto, guion y guion bajo.');
     }
 
-    objeto.usuario = valor
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
+    objeto.usuario = valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
   onNombreApellidoNuevo(event: any, campo: 'nombres' | 'apellidos'): void {
@@ -117,18 +128,31 @@ export class Usuarios implements OnInit {
 
   onNombreApellidoEditar(event: any, campo: 'nombres' | 'apellidos'): void {
     this.validarSoloLetras(event, this.usuarioEditando, campo);
+
+    if (
+      this.campoSoloLetrasValido(this.usuarioEditando.nombres) &&
+      this.campoSoloLetrasValido(this.usuarioEditando.apellidos)
+    ) {
+      this.generarUsuarioEditar();
+    }
   }
 
   generarUsuario(): void {
     const nombres = this.normalizarUsuario(this.nuevo.nombres || '');
     const apellidos = this.normalizarUsuario(this.nuevo.apellidos || '');
 
-    if (!nombres || !apellidos) {
-      this.nuevo.usuario = '';
-      return;
-    }
+    this.nuevo.usuario = nombres && apellidos
+      ? nombres.charAt(0) + apellidos.replace(/\s/g, '')
+      : '';
+  }
 
-    this.nuevo.usuario = nombres.charAt(0) + apellidos.replace(/\s/g, '');
+  generarUsuarioEditar(): void {
+    const nombres = this.normalizarUsuario(this.usuarioEditando?.nombres || '');
+    const apellidos = this.normalizarUsuario(this.usuarioEditando?.apellidos || '');
+
+    this.usuarioEditando.usuario = nombres && apellidos
+      ? nombres.charAt(0) + apellidos.replace(/\s/g, '')
+      : '';
   }
 
   normalizarUsuario(texto: string): string {
@@ -181,17 +205,12 @@ export class Usuarios implements OnInit {
     }
 
     if (!this.campoSoloLetrasValido(this.nuevo.nombres)) {
-      Swal.fire('Error', 'El campo nombres solo permite letras. Corrige el valor.', 'error');
+      Swal.fire('Error', 'El campo nombres solo permite letras.', 'error');
       return false;
     }
 
     if (!this.campoSoloLetrasValido(this.nuevo.apellidos)) {
-      Swal.fire('Error', 'El campo apellidos solo permite letras. Corrige el valor.', 'error');
-      return false;
-    }
-
-    if (this.nuevo.nombres.length < 2 || this.nuevo.apellidos.length < 2) {
-      Swal.fire('Validación', 'Nombres y apellidos deben tener mínimo 2 letras.', 'warning');
+      Swal.fire('Error', 'El campo apellidos solo permite letras.', 'error');
       return false;
     }
 
@@ -229,6 +248,8 @@ export class Usuarios implements OnInit {
       return false;
     }
 
+    this.generarUsuarioEditar();
+
     if (!this.campoUsuarioValido(this.usuarioEditando.usuario)) {
       Swal.fire('Error', 'El usuario contiene caracteres inválidos.', 'error');
       return false;
@@ -240,20 +261,6 @@ export class Usuarios implements OnInit {
     }
 
     return true;
-  }
-
-  cargarUsuarios(): void {
-    this.usuariosService.listar().subscribe({
-      next: (data: any) => this.usuarios = data,
-      error: (err: any) => Swal.fire('Error', err.error?.mensaje || 'Error al cargar usuarios', 'error')
-    });
-  }
-
-  cargarRoles(): void {
-    this.usuariosService.roles().subscribe({
-      next: (data: any) => this.roles = data,
-      error: () => this.roles = []
-    });
   }
 
   guardar(): void {
@@ -271,7 +278,7 @@ export class Usuarios implements OnInit {
         this.cargando = false;
         Swal.fire('Creado', 'Usuario creado correctamente.', 'success');
         this.limpiar();
-        this.cargarUsuarios();
+        this.cargarDatosIniciales();
       },
       error: (err: any) => {
         this.cargando = false;
@@ -285,11 +292,6 @@ export class Usuarios implements OnInit {
   }
 
   abrirEditar(u: any): void {
-    if (!this.puedeEditar()) {
-      Swal.fire('Sin permisos', 'No puedes editar usuarios.', 'warning');
-      return;
-    }
-
     this.usuarioEditando = { ...u, password: '' };
     this.mostrarModal = true;
   }
@@ -306,18 +308,13 @@ export class Usuarios implements OnInit {
       next: () => {
         Swal.fire('Actualizado', 'Usuario actualizado correctamente.', 'success');
         this.cerrarModal();
-        this.cargarUsuarios();
+        this.cargarDatosIniciales();
       },
       error: (err: any) => Swal.fire('Error', err.error?.mensaje || 'Error al actualizar usuario', 'error')
     });
   }
 
   cambiarEstado(u: any): void {
-    if (!this.esAdmin()) {
-      Swal.fire('Sin permisos', 'Solo el Administrador puede cambiar estados.', 'warning');
-      return;
-    }
-
     const nuevoEstado = u.estado === 'ACTIVO' ? 'INHABILITADO' : 'ACTIVO';
 
     Swal.fire({
@@ -331,7 +328,7 @@ export class Usuarios implements OnInit {
         this.usuariosService.cambiarEstado(u.id, nuevoEstado).subscribe({
           next: () => {
             Swal.fire('Actualizado', `Usuario cambiado a ${nuevoEstado}.`, 'success');
-            this.cargarUsuarios();
+            this.cargarDatosIniciales();
           },
           error: (err: any) => Swal.fire('Error', err.error?.mensaje || 'Error al cambiar estado', 'error')
         });
@@ -340,11 +337,6 @@ export class Usuarios implements OnInit {
   }
 
   eliminar(id: number): void {
-    if (!this.puedeEliminar()) {
-      Swal.fire('Sin permisos', 'Solo el Administrador puede eliminar usuarios.', 'warning');
-      return;
-    }
-
     Swal.fire({
       title: '¿Eliminar usuario?',
       text: 'Esta acción no se puede deshacer.',
@@ -358,7 +350,7 @@ export class Usuarios implements OnInit {
         this.usuariosService.eliminar(id).subscribe({
           next: () => {
             Swal.fire('Eliminado', 'Usuario eliminado correctamente.', 'success');
-            this.cargarUsuarios();
+            this.cargarDatosIniciales();
           },
           error: (err: any) => Swal.fire('Error', err.error?.mensaje || 'Error al eliminar', 'error')
         });

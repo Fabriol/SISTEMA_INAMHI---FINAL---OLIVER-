@@ -160,7 +160,7 @@
           [(ngModel)]="usuarioEditando.nombres"
           (input)="onNombreApellidoEditar($event, 'nombres')"
           placeholder="Nombres">
-        <small>Solo letras</small>
+        
       </div>
 
       <div class="field">
@@ -168,7 +168,7 @@
           [(ngModel)]="usuarioEditando.apellidos"
           (input)="onNombreApellidoEditar($event, 'apellidos')"
           placeholder="Apellidos">
-        <small>Solo letras</small>
+        
       </div>
 
       <div class="field">
@@ -176,7 +176,7 @@
           [(ngModel)]="usuarioEditando.usuario"
           (input)="soloUsuario($event, usuarioEditando)"
           placeholder="Usuario">
-        <small>Letras, números, punto, guion</small>
+        
       </div>
 
       <div class="field">
@@ -184,7 +184,7 @@
           [(ngModel)]="usuarioEditando.password"
           type="password"
           placeholder="Nueva contraseña opcional">
-        <small>Opcional</small>
+
       </div>
 
       <div class="field">

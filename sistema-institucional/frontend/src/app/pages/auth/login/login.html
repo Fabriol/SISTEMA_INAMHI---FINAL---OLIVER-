@@ -33,26 +33,40 @@
         type="text"
         placeholder="Ingrese su usuario"
         [(ngModel)]="usuario"
+        (input)="error=''"
+        autocomplete="off"
+        [class.input-error]="error && !usuario"
       >
     </div>
 
     <!-- PASSWORD -->
     <div class="form-group">
       <label>Contraseña</label>
-      <input
-        type="password"
-        placeholder="Ingrese su contraseña"
-        [(ngModel)]="password"
-        (keyup.enter)="ingresar()"
-      >
+
+      <div class="password-box">
+        <input
+          [type]="mostrarPassword ? 'text' : 'password'"
+          placeholder="Ingrese su contraseña"
+          [(ngModel)]="password"
+          (keyup.enter)="ingresar()"
+          (input)="error=''"
+          [class.input-error]="error && !password"
+        >
+
+        
+      </div>
+
     </div>
 
-    <!-- BOTÓN -->
+    <!-- BOTÓN LOGIN -->
     <button
+      class="btn-login"
       (click)="ingresar()"
-      [disabled]="cargando"
+      [disabled]="cargando || !usuario || !password"
+      [class.loading]="cargando"
     >
-      {{ cargando ? 'Ingresando...' : 'Ingresar al sistema' }}
+      <span *ngIf="!cargando">Ingresar al sistema</span>
+      <span *ngIf="cargando">Ingresando...</span>
     </button>
 
     <!-- ERROR -->
@@ -61,13 +75,13 @@
     </p>
 
     <!-- FOOTER -->
-    <small>
+    <small class="footer">
       © INAMHI - Talento Humano
     </small>
 
   </div>
 
-  <!-- BURBUJAS (para animación fondo) -->
+  <!-- BURBUJAS -->
   <span></span>
   <span></span>
   <span></span>
