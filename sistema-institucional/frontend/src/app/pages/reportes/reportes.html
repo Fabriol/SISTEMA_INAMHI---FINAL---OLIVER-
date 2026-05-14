@@ -1,0 +1,31 @@
+<div class="page">
+
+    <button routerLink="/dashboard">← Volver</button>
+
+    <h1>Reportes del Sistema</h1>
+
+    <div class="cards">
+
+        <div class="card">
+            <h2>Usuarios</h2>
+            <p>{{ resumen.usuarios }}</p>
+        </div>
+
+        <div class="card">
+            <h2>Documentos</h2>
+            <p>{{ resumen.documentos }}</p>
+        </div>
+
+    </div>
+
+    <div class="card grafico">
+        <h2>Resumen gráfico</h2>
+        <canvas id="grafico"></canvas>
+    </div>
+
+    <div class="card grafico">
+        <h2>Documentos por estado</h2>
+        <canvas id="graficoEstado"></canvas>
+    </div>
+
+</div>

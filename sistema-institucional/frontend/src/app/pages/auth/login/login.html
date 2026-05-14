@@ -1,0 +1,75 @@
+<div class="login-container">
+
+  <!-- PANEL IZQUIERDO -->
+  <div class="left-content">
+    <h1>Sistema de Paz y Salvo</h1>
+
+    <p>
+      Plataforma institucional del INAMHI para la gestión documental,
+      validaciones interdepartamentales y control administrativo.
+    </p>
+
+    <ul>
+      <li>✔ Gestión centralizada de solicitudes</li>
+      <li>✔ Validación por áreas institucionales</li>
+      <li>✔ Control y seguimiento en tiempo real</li>
+      <li>✔ Auditoría y trazabilidad completa</li>
+    </ul>
+  </div>
+
+  <!-- TARJETA LOGIN -->
+  <div class="login-card">
+
+    <div class="logo-box">
+      <img src="/img/logo.png" alt="Logo INAMHI">
+    </div>
+
+    <p class="subtitle">Acceso al sistema institucional</p>
+
+    <!-- USUARIO -->
+    <div class="form-group">
+      <label>Usuario</label>
+      <input
+        type="text"
+        placeholder="Ingrese su usuario"
+        [(ngModel)]="usuario"
+      >
+    </div>
+
+    <!-- PASSWORD -->
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input
+        type="password"
+        placeholder="Ingrese su contraseña"
+        [(ngModel)]="password"
+        (keyup.enter)="ingresar()"
+      >
+    </div>
+
+    <!-- BOTÓN -->
+    <button
+      (click)="ingresar()"
+      [disabled]="cargando"
+    >
+      {{ cargando ? 'Ingresando...' : 'Ingresar al sistema' }}
+    </button>
+
+    <!-- ERROR -->
+    <p class="error" *ngIf="error">
+      {{ error }}
+    </p>
+
+    <!-- FOOTER -->
+    <small>
+      © INAMHI - Talento Humano
+    </small>
+
+  </div>
+
+  <!-- BURBUJAS (para animación fondo) -->
+  <span></span>
+  <span></span>
+  <span></span>
+
+</div>

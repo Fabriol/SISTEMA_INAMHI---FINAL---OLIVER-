@@ -1,0 +1,219 @@
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <span class="badge">Administración</span>
+      <h1>Gestión de Usuarios</h1>
+      <p>Control de usuarios, roles y estados.</p>
+    </div>
+
+    <button class="secondary" routerLink="/dashboard">
+      ← Volver
+    </button>
+  </div>
+
+  <section class="card">
+    <div class="card-title">
+      <h2>Crear usuario</h2>
+      <span>Nuevo registro</span>
+    </div>
+
+    <div class="form-grid">
+
+      <div class="field">
+        <input
+          [(ngModel)]="nuevo.nombres"
+          (input)="onNombreApellidoNuevo($event, 'nombres')"
+          placeholder="Nombres"
+          autocomplete="off">
+        
+      </div>
+
+      <div class="field">
+        <input
+          [(ngModel)]="nuevo.apellidos"
+          (input)="onNombreApellidoNuevo($event, 'apellidos')"
+          placeholder="Apellidos"
+          autocomplete="off">
+        
+      </div>
+
+      <div class="field">
+        <input
+          [(ngModel)]="nuevo.usuario"
+          (input)="soloUsuario($event, nuevo)"
+          placeholder="Usuario autogenerado"
+          autocomplete="off">
+        
+      </div>
+
+      <div class="field">
+        <input
+          [(ngModel)]="nuevo.password"
+          type="password"
+          placeholder="Contraseña">
+        
+      </div>
+
+      <div class="field">
+        <select [(ngModel)]="nuevo.rol">
+          <option value="">Seleccione un rol</option>
+          <option *ngFor="let r of roles" [value]="r.nombre">
+            {{ r.nombre }}
+          </option>
+        </select>
+        
+      </div>
+
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary" (click)="guardar()" [disabled]="cargando">
+        {{ cargando ? 'Guardando...' : 'Crear usuario' }}
+      </button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="list-header">
+      <div>
+        <h2>Lista de usuarios</h2>
+        <p>Total registrados: {{ usuariosFiltrados.length }}</p>
+      </div>
+
+      <div class="search-box">
+        <input
+          type="text"
+          placeholder="Buscar por nombre, usuario o rol..."
+          [(ngModel)]="filtro">
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre completo</th>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let u of usuariosFiltrados">
+            <td>#{{ u.id }}</td>
+            <td><strong>{{ u.nombres }} {{ u.apellidos }}</strong></td>
+            <td>{{ u.usuario }}</td>
+            <td><span class="role">{{ u.rol }}</span></td>
+
+            <td>
+              <span
+                class="status"
+                [class.activo]="u.estado === 'ACTIVO'"
+                [class.inactivo]="u.estado !== 'ACTIVO'">
+                {{ u.estado }}
+              </span>
+            </td>
+
+            <td class="acciones">
+              <button *ngIf="puedeEditar()" class="btn-edit" (click)="abrirEditar(u)">
+                Editar
+              </button>
+
+              <button *ngIf="esAdmin()" class="btn-warning" (click)="cambiarEstado(u)">
+                {{ u.estado === 'ACTIVO' ? 'Inhabilitar' : 'Activar' }}
+              </button>
+
+              <button *ngIf="puedeEliminar()" class="btn-danger" (click)="eliminar(u.id)">
+                Eliminar
+              </button>
+            </td>
+          </tr>
+
+          <tr *ngIf="usuariosFiltrados.length === 0">
+            <td colspan="6" class="empty">
+              No se encontraron usuarios.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<div class="modal-backdrop" *ngIf="mostrarModal">
+  <div class="modal-content-custom">
+
+    <div class="modal-header">
+      <h3>Editar usuario</h3>
+      <button class="close" (click)="cerrarModal()">×</button>
+    </div>
+
+    <div class="modal-grid">
+
+      <div class="field">
+        <input
+          [(ngModel)]="usuarioEditando.nombres"
+          (input)="onNombreApellidoEditar($event, 'nombres')"
+          placeholder="Nombres">
+        <small>Solo letras</small>
+      </div>
+
+      <div class="field">
+        <input
+          [(ngModel)]="usuarioEditando.apellidos"
+          (input)="onNombreApellidoEditar($event, 'apellidos')"
+          placeholder="Apellidos">
+        <small>Solo letras</small>
+      </div>
+
+      <div class="field">
+        <input
+          [(ngModel)]="usuarioEditando.usuario"
+          (input)="soloUsuario($event, usuarioEditando)"
+          placeholder="Usuario">
+        <small>Letras, números, punto, guion</small>
+      </div>
+
+      <div class="field">
+        <input
+          [(ngModel)]="usuarioEditando.password"
+          type="password"
+          placeholder="Nueva contraseña opcional">
+        <small>Opcional</small>
+      </div>
+
+      <div class="field">
+        <select [(ngModel)]="usuarioEditando.rol">
+          <option value="">Seleccione rol</option>
+          <option *ngFor="let r of roles" [value]="r.nombre">
+            {{ r.nombre }}
+          </option>
+        </select>
+      </div>
+
+      <div class="field">
+        <select [(ngModel)]="usuarioEditando.estado">
+          <option value="ACTIVO">ACTIVO</option>
+          <option value="INHABILITADO">INHABILITADO</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-success" (click)="guardarEdicion()">
+        Guardar cambios
+      </button>
+
+      <button class="btn-secondary" (click)="cerrarModal()">
+        Cancelar
+      </button>
+    </div>
+
+  </div>
+</div>

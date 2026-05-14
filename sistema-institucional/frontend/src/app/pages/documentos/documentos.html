@@ -1,0 +1,125 @@
+<div class="page">
+
+    <button class="back" routerLink="/dashboard">
+        ← Volver
+    </button>
+
+    <h1>Gestión de Documentos</h1>
+
+    <div class="card">
+        <h2>Crear Documento</h2>
+
+        <div class="form-grid">
+            <input [(ngModel)]="nuevo.titulo" placeholder="Título del documento">
+            <input [(ngModel)]="nuevo.descripcion" placeholder="Descripción">
+
+            <select [(ngModel)]="nuevo.estado">
+                <option value="BORRADOR">BORRADOR</option>
+                <option value="APROBADO">APROBADO</option>
+            </select>
+
+            <input type="file" accept="application/pdf,.pdf" (change)="seleccionarArchivo($event)">
+        </div>
+
+        <div class="actions">
+            <button (click)="guardar()" [disabled]="cargando">
+                {{ cargando ? 'Guardando...' : 'Crear documento' }}
+            </button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Lista de Documentos</h2>
+
+        <input class="search" [(ngModel)]="busqueda" placeholder="Buscar por título, descripción, estado o usuario...">
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Título</th>
+                        <th>Descripción</th>
+                        <th>Estado</th>
+                        <th>Creado por</th>
+                        <th>Archivo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr *ngFor="let d of documentosFiltrados()">
+                        <td>#{{ d.id }}</td>
+                        <td>{{ d.titulo }}</td>
+                        <td>{{ d.descripcion }}</td>
+
+                        <td>
+                            <span [class.aprobado]="d.estado === 'APROBADO'" [class.borrador]="d.estado === 'BORRADOR'">
+                                {{ d.estado }}
+                            </span>
+                        </td>
+
+                        <td>{{ d.creado_por_nombre }}</td>
+
+                        <td>
+                            <button *ngIf="d.archivo" (click)="verArchivo(d.archivo)">
+                                Ver
+                            </button>
+
+                            <button *ngIf="d.archivo" (click)="descargarArchivo(d.archivo)">
+                                Descargar
+                            </button>
+
+                            <span *ngIf="!d.archivo">Sin archivo</span>
+                        </td>
+
+                        <td>
+                            <button *ngIf="puedeEditarEliminar(d)" (click)="abrirEditar(d)">
+                                Editar
+                            </button>
+
+                            <button *ngIf="puedeEditarEliminar(d)" class="danger" (click)="eliminar(d.id)">
+                                Eliminar
+                            </button>
+
+                            <span *ngIf="!puedeEditarEliminar(d)">Sin permisos</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div *ngIf="archivoPreview" class="preview">
+        <h3>Vista previa</h3>
+
+        <iframe [src]="archivoPreview" width="100%" height="500px">
+        </iframe>
+
+        <button (click)="archivoPreview = null">
+            Cerrar vista previa
+        </button>
+    </div>
+
+    <div class="modal-backdrop" *ngIf="mostrarModal">
+        <div class="modal-content">
+
+            <h2>Editar Documento</h2>
+
+            <input [(ngModel)]="editando.titulo" placeholder="Título">
+            <input [(ngModel)]="editando.descripcion" placeholder="Descripción">
+
+            <select [(ngModel)]="editando.estado">
+                <option value="BORRADOR">BORRADOR</option>
+                <option value="APROBADO">APROBADO</option>
+            </select>
+
+            <div class="modal-actions">
+                <button (click)="guardarEdicion()">Guardar</button>
+                <button class="secondary" (click)="cerrarModal()">Cancelar</button>
+            </div>
+
+        </div>
+    </div>
+
+</div>

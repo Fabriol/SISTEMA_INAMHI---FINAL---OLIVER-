@@ -1,0 +1,83 @@
+<div class="page">
+
+    <!-- BOTÓN VOLVER -->
+    <button class="back" routerLink="/dashboard">
+        ← Volver
+    </button>
+
+    <h1>Auditoría del Sistema</h1>
+
+    <div class="card">
+
+        <!-- FILTROS -->
+        <div class="filtros">
+
+            <input type="text" placeholder="Buscar por usuario..." [(ngModel)]="filtroUsuario">
+
+            <input type="date" [(ngModel)]="fechaInicio">
+
+            <input type="date" [(ngModel)]="fechaFin">
+
+        </div>
+
+        <div class="acciones-top">
+            <button (click)="exportarExcel()">
+                Exportar Excel
+            </button>
+        </div>
+
+        <button class="pdf" (click)="exportarPDF()">
+            Exportar PDF
+        </button>
+
+        <!-- TABLA -->
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Módulo</th>
+                        <th>Acción</th>
+                        <th>Detalle</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr *ngFor="let a of auditoriaFiltrada">
+
+                        <td>#{{ a.id }}</td>
+
+                        <td>{{ a.usuario }}</td>
+
+                        <td>
+                            <span class="rol">
+                                {{ a.rol }}
+                            </span>
+                        </td>
+
+                        <td>{{ a.modulo }}</td>
+
+                        <td>
+                            <span class="accion">
+                                {{ a.accion }}
+                            </span>
+                        </td>
+
+                        <td class="detalle">
+                            {{ a.detalle }}
+                        </td>
+
+                        <td>
+                            {{ a.fecha | date:'short' }}
+                        </td>
+
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>

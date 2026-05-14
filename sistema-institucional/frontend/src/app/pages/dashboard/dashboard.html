@@ -1,0 +1,80 @@
+<div class="dashboard">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <h2>INAMHI</h2>
+    </div>
+
+    <nav>
+      <a *ngFor="let item of menu" [routerLink]="item.ruta" routerLinkActive="active">
+        {{ item.nombre }}
+      </a>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <div>
+        <span class="badge">Panel Institucional</span>
+        <h1>Bienvenido, {{ usuario?.nombres }} {{ usuario?.apellidos }}</h1>
+        <p>Rol actual: {{ usuario?.rol }}</p>
+      </div>
+
+      <button class="logout" (click)="logout()">
+        Cerrar sesión
+      </button>
+    </header>
+
+    <section class="cards">
+
+      <div class="card primary" routerLink="/usuarios">
+        <div class="icon">👥</div>
+        <div>
+          <h3>{{ resumen.usuarios }}</h3>
+          <p>Usuarios registrados</p>
+        </div>
+      </div>
+
+      <div class="card success" routerLink="/documentos">
+        <div class="icon">📄</div>
+        <div>
+          <h3>{{ resumen.documentos }}</h3>
+          <p>Documentos registrados</p>
+        </div>
+      </div>
+
+      <div class="card warning" routerLink="/reportes">
+        <div class="icon">📊</div>
+        <div>
+          <h3>Reportes</h3>
+          <p>Ver estadísticas</p>
+        </div>
+      </div>
+
+      <div class="card info">
+        <div class="icon">🛡️</div>
+        <div>
+          <h3>{{ usuario?.rol }}</h3>
+          <p>Rol actual</p>
+        </div>
+      </div>
+
+      <div class="card active">
+        <div class="icon">✅</div>
+        <div>
+          <h3>Activo</h3>
+          <p>Estado del sistema</p>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <h2>Resumen gráfico</h2>
+        <canvas id="grafico"></canvas>
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
