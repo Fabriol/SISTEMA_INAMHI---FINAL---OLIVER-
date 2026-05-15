@@ -1,125 +1,260 @@
 <div class="page">
 
+  <div class="page-header animate-down">
+    <div>
+      <span class="badge">Documentos</span>
+      <h1>Gestión de Documentos</h1>
+      <p>Crear, consultar, editar y visualizar documentos institucionales.</p>
+    </div>
+
     <button class="back" routerLink="/dashboard">
-        ← Volver
+      ← Volver
     </button>
+  </div>
 
-    <h1>Gestión de Documentos</h1>
-
-    <div class="card">
-        <h2>Crear Documento</h2>
-
-        <div class="form-grid">
-            <input [(ngModel)]="nuevo.titulo" placeholder="Título del documento">
-            <input [(ngModel)]="nuevo.descripcion" placeholder="Descripción">
-
-            <select [(ngModel)]="nuevo.estado">
-                <option value="BORRADOR">BORRADOR</option>
-                <option value="APROBADO">APROBADO</option>
-            </select>
-
-            <input type="file" accept="application/pdf,.pdf" (change)="seleccionarArchivo($event)">
-        </div>
-
-        <div class="actions">
-            <button (click)="guardar()" [disabled]="cargando">
-                {{ cargando ? 'Guardando...' : 'Crear documento' }}
-            </button>
-        </div>
+  <!-- CREAR DOCUMENTO -->
+  <section class="card animate-up">
+    <div class="card-title">
+      <h2>Crear documento</h2>
+      <span>Nuevo registro</span>
     </div>
 
-    <div class="card">
-        <h2>Lista de Documentos</h2>
+    <div class="form-grid">
 
-        <input class="search" [(ngModel)]="busqueda" placeholder="Buscar por título, descripción, estado o usuario...">
+      <div class="field">
+        <input
+          [(ngModel)]="nuevo.titulo"
+          (input)="validarTextoTiempoReal($event, nuevo, 'titulo')"
+          placeholder="Título del documento"
+          autocomplete="off"
+          [class.input-error]="nuevo.titulo && !campoTextoValido(nuevo.titulo)"
+        >
+      </div>
 
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Título</th>
-                        <th>Descripción</th>
-                        <th>Estado</th>
-                        <th>Creado por</th>
-                        <th>Archivo</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
+      <div class="field">
+        <input
+          [(ngModel)]="nuevo.descripcion"
+          (input)="validarTextoTiempoReal($event, nuevo, 'descripcion')"
+          placeholder="Descripción"
+          autocomplete="off"
+          [class.input-error]="nuevo.descripcion && !campoTextoValido(nuevo.descripcion)"
+        >
 
-                <tbody>
-                    <tr *ngFor="let d of documentosFiltrados()">
-                        <td>#{{ d.id }}</td>
-                        <td>{{ d.titulo }}</td>
-                        <td>{{ d.descripcion }}</td>
+      </div>
 
-                        <td>
-                            <span [class.aprobado]="d.estado === 'APROBADO'" [class.borrador]="d.estado === 'BORRADOR'">
-                                {{ d.estado }}
-                            </span>
-                        </td>
+      <div class="field">
+        <select [(ngModel)]="nuevo.estado">
+          <option value="BORRADOR">BORRADOR</option>
+          <option value="PENDIENTE">PENDIENTE</option>
+          <option value="APROBADO">APROBADO</option>
+          <option value="RECHAZADO">RECHAZADO</option>
+          <option value="FINALIZADO">FINALIZADO</option>
+        </select>
 
-                        <td>{{ d.creado_por_nombre }}</td>
+      </div>
 
-                        <td>
-                            <button *ngIf="d.archivo" (click)="verArchivo(d.archivo)">
-                                Ver
-                            </button>
+      <div class="field">
+        <input
+          type="file"
+          accept="application/pdf,.pdf"
+          (change)="seleccionarArchivo($event)"
+        >
 
-                            <button *ngIf="d.archivo" (click)="descargarArchivo(d.archivo)">
-                                Descargar
-                            </button>
+      </div>
 
-                            <span *ngIf="!d.archivo">Sin archivo</span>
-                        </td>
-
-                        <td>
-                            <button *ngIf="puedeEditarEliminar(d)" (click)="abrirEditar(d)">
-                                Editar
-                            </button>
-
-                            <button *ngIf="puedeEditarEliminar(d)" class="danger" (click)="eliminar(d.id)">
-                                Eliminar
-                            </button>
-
-                            <span *ngIf="!puedeEditarEliminar(d)">Sin permisos</span>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
     </div>
 
-    <div *ngIf="archivoPreview" class="preview">
-        <h3>Vista previa</h3>
+    <div class="actions">
+      <button
+        class="btn-primary"
+        (click)="guardar()"
+        [disabled]="
+          cargando ||
+          !nuevo.titulo ||
+          !nuevo.descripcion ||
+          !nuevo.estado ||
+          !campoTextoValido(nuevo.titulo) ||
+          !campoTextoValido(nuevo.descripcion) ||
+          nuevo.titulo.length < 3 ||
+          nuevo.descripcion.length < 5
+        ">
+        {{ cargando ? 'Guardando...' : 'Crear documento' }}
+      </button>
+    </div>
+  </section>
 
-        <iframe [src]="archivoPreview" width="100%" height="500px">
-        </iframe>
+  <!-- LISTA DOCUMENTOS -->
+  <section class="card animate-up delay">
+    <div class="list-header">
+      <div>
+        <h2>Lista de documentos</h2>
+        <p>Total registrados: {{ documentosFiltrados().length }}</p>
+      </div>
 
-        <button (click)="archivoPreview = null">
-            Cerrar vista previa
+      <div class="search-box">
+        <input
+          class="search"
+          [(ngModel)]="busqueda"
+          placeholder="Buscar por título, descripción, estado o usuario..."
+        >
+      </div>
+    </div>
+
+    <div class="loading-box" *ngIf="cargando">
+      Cargando información...
+    </div>
+
+    <div class="table-wrapper" *ngIf="!cargando">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Título</th>
+            <th>Descripción</th>
+            <th>Estado</th>
+            <th>Creado por</th>
+            <th>Archivo</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let d of documentosFiltrados()" class="row-animate">
+            <td>#{{ d.id }}</td>
+            <td><strong>{{ d.titulo }}</strong></td>
+            <td>{{ d.descripcion }}</td>
+
+            <td>
+              <span
+                class="status"
+                [class.aprobado]="d.estado === 'APROBADO'"
+                [class.borrador]="d.estado === 'BORRADOR'"
+                [class.pendiente]="d.estado === 'PENDIENTE'"
+                [class.rechazado]="d.estado === 'RECHAZADO'"
+                [class.finalizado]="d.estado === 'FINALIZADO'">
+                {{ d.estado }}
+              </span>
+            </td>
+
+            <td>{{ d.creado_por_nombre || 'Sin usuario' }}</td>
+
+            <td class="acciones">
+              <button *ngIf="d.archivo" class="btn-view" (click)="verArchivo(d.archivo)">
+                Ver
+              </button>
+
+              <button *ngIf="d.archivo" class="btn-download" (click)="descargarArchivo(d.archivo)">
+                Descargar
+              </button>
+
+              <span *ngIf="!d.archivo" class="muted">Sin archivo</span>
+            </td>
+
+            <td class="acciones">
+              <button *ngIf="puedeEditarEliminar(d)" class="btn-edit" (click)="abrirEditar(d)">
+                Editar
+              </button>
+
+              <button *ngIf="puedeEditarEliminar(d)" class="danger" (click)="eliminar(d.id)">
+                Eliminar
+              </button>
+
+              <span *ngIf="!puedeEditarEliminar(d)" class="muted">
+                Sin permisos
+              </span>
+            </td>
+          </tr>
+
+          <tr *ngIf="documentosFiltrados().length === 0">
+            <td colspan="7" class="empty">
+              No se encontraron documentos.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- PREVIEW PDF -->
+  <section *ngIf="archivoPreview" class="preview animate-up">
+    <div class="preview-header">
+      <h3>Vista previa del documento</h3>
+
+      <button class="secondary" (click)="cerrarPreview()">
+        Cerrar
+      </button>
+    </div>
+
+    <iframe [src]="archivoPreview" width="100%" height="500px"></iframe>
+  </section>
+
+  <!-- MODAL EDITAR -->
+  <div class="modal-backdrop" *ngIf="mostrarModal">
+    <div class="modal-content animate-modal">
+
+      <div class="modal-header">
+        <h2>Editar documento</h2>
+        <button class="close" (click)="cerrarModal()">×</button>
+      </div>
+
+      <div class="modal-grid">
+
+        <div class="field">
+          <input
+            [(ngModel)]="editando.titulo"
+            (input)="validarTextoTiempoReal($event, editando, 'titulo')"
+            placeholder="Título"
+            [class.input-error]="editando.titulo && !campoTextoValido(editando.titulo)"
+          >
+
+        </div>
+
+        <div class="field">
+          <input
+            [(ngModel)]="editando.descripcion"
+            (input)="validarTextoTiempoReal($event, editando, 'descripcion')"
+            placeholder="Descripción"
+            [class.input-error]="editando.descripcion && !campoTextoValido(editando.descripcion)"
+          >
+
+        </div>
+
+        <div class="field">
+          <select [(ngModel)]="editando.estado">
+            <option value="BORRADOR">BORRADOR</option>
+            <option value="PENDIENTE">PENDIENTE</option>
+            <option value="APROBADO">APROBADO</option>
+            <option value="RECHAZADO">RECHAZADO</option>
+            <option value="FINALIZADO">FINALIZADO</option>
+          </select>
+
+        </div>
+
+      </div>
+
+      <div class="modal-actions">
+        <button
+          class="btn-success"
+          (click)="guardarEdicion()"
+          [disabled]="
+            cargando ||
+            !editando.titulo ||
+            !editando.descripcion ||
+            !editando.estado ||
+            !campoTextoValido(editando.titulo) ||
+            !campoTextoValido(editando.descripcion) ||
+            editando.titulo.length < 3 ||
+            editando.descripcion.length < 5
+          ">
+          {{ cargando ? 'Guardando...' : 'Guardar cambios' }}
         </button>
+
+        <button class="secondary" (click)="cerrarModal()">
+          Cancelar
+        </button>
+      </div>
+
     </div>
-
-    <div class="modal-backdrop" *ngIf="mostrarModal">
-        <div class="modal-content">
-
-            <h2>Editar Documento</h2>
-
-            <input [(ngModel)]="editando.titulo" placeholder="Título">
-            <input [(ngModel)]="editando.descripcion" placeholder="Descripción">
-
-            <select [(ngModel)]="editando.estado">
-                <option value="BORRADOR">BORRADOR</option>
-                <option value="APROBADO">APROBADO</option>
-            </select>
-
-            <div class="modal-actions">
-                <button (click)="guardarEdicion()">Guardar</button>
-                <button class="secondary" (click)="cerrarModal()">Cancelar</button>
-            </div>
-
-        </div>
-    </div>
+  </div>
 
 </div>

@@ -5,17 +5,21 @@ import { AuthGuard } from './core/guards/auth.guard';
 import { RoleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
+
+  // 🔐 LOGIN
   {
     path: 'login',
     component: Login
   },
 
+  // 🏠 DASHBOARD (TODOS AUTENTICADOS)
   {
     path: 'dashboard',
     component: Dashboard,
     canActivate: [AuthGuard]
   },
 
+  // 👤 USUARIOS (SOLO ADMIN)
   {
     path: 'usuarios',
     loadComponent: () =>
@@ -26,6 +30,7 @@ export const routes: Routes = [
     }
   },
 
+  // 📊 AUDITORÍA (SOLO ADMIN)
   {
     path: 'auditoria',
     loadComponent: () =>
@@ -36,6 +41,18 @@ export const routes: Routes = [
     }
   },
 
+  // 📈 REPORTES (SOLO ADMIN)
+  {
+    path: 'reportes',
+    loadComponent: () =>
+      import('./pages/reportes/reportes').then(m => m.Reportes),
+    canActivate: [AuthGuard, RoleGuard],
+    data: {
+      roles: ['Administrador']
+    }
+  },
+
+  // 📄 DOCUMENTOS (TODOS LOS USUARIOS)
   {
     path: 'documentos',
     loadComponent: () =>
@@ -43,18 +60,22 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
 
+  // 🧩 FORMULARIOS DINÁMICOS (TODOS AUTENTICADOS)
   {
-    path: 'reportes',
+    path: 'formularios',
     loadComponent: () =>
-      import('./pages/reportes/reportes').then(m => m.Reportes)
+      import('./pages/formularios/formularios').then(m => m.Formularios),
+    canActivate: [AuthGuard]
   },
 
+  // 🔁 REDIRECCIÓN INICIAL
   {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full'
   },
 
+  // 🚫 RUTA NO ENCONTRADA
   {
     path: '**',
     redirectTo: 'dashboard'

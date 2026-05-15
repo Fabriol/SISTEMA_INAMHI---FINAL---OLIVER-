@@ -2,15 +2,17 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from mysql.connector import pooling
-import mysql.connector
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 import jwt
 import datetime
 import os
 import re
+import json
 
 app = Flask(__name__)
-
 app.config["SECRET_KEY"] = "clave_super_secreta_inamhi_2026_segura"
+
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +32,14 @@ ROLES_VALIDOS = [
 ]
 
 ESTADOS_VALIDOS = ["ACTIVO", "INHABILITADO"]
+
+ESTADOS_DOCUMENTO = [
+    "BORRADOR",
+    "PENDIENTE",
+    "APROBADO",
+    "RECHAZADO",
+    "FINALIZADO"
+]
 
 db_pool = pooling.MySQLConnectionPool(
     pool_name="inamhi_pool",
@@ -54,9 +64,6 @@ def close_db(cursor=None, conn=None):
     except Exception as e:
         print("Error cerrando conexión:", e)
 
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
 def limpiar_texto(texto):
     return re.sub(r"\s+", " ", (texto or "").strip())
 
@@ -65,17 +72,23 @@ def solo_letras(texto):
 
 def normalizar_usuario(texto):
     texto = (texto or "").strip().lower()
-    texto = texto.replace("á", "a").replace("é", "e").replace("í", "i")
-    texto = texto.replace("ó", "o").replace("ú", "u").replace("ñ", "n")
-    texto = re.sub(r"[^a-z0-9._-]", "", texto)
-    return texto
+    reemplazos = {
+        "á": "a", "é": "e", "í": "i",
+        "ó": "o", "ú": "u", "ñ": "n"
+    }
+
+    for a, b in reemplazos.items():
+        texto = texto.replace(a, b)
+
+    return re.sub(r"[^a-z0-9._-]", "", texto)
 
 def generar_usuario(nombres, apellidos):
     nombres = normalizar_usuario(nombres)
     apellidos = normalizar_usuario(apellidos).replace(" ", "")
-    if not nombres or not apellidos:
-        return ""
-    return nombres[0] + apellidos
+    return nombres[0] + apellidos if nombres and apellidos else ""
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def obtener_usuario_token():
     token = request.headers.get("Authorization")
@@ -94,6 +107,25 @@ def obtener_usuario_token():
         }
     except Exception:
         return None
+
+def validar_login():
+    user_token = obtener_usuario_token()
+
+    if not user_token:
+        return None, (jsonify({"mensaje": "No autorizado"}), 401)
+
+    return user_token, None
+
+def validar_admin():
+    user_token, error = validar_login()
+
+    if error:
+        return None, error
+
+    if user_token["rol"] != "Administrador":
+        return None, (jsonify({"mensaje": "Solo el Administrador puede acceder"}), 403)
+
+    return user_token, None
 
 def registrar_auditoria(usuario, rol, modulo, accion, detalle):
     conn = None
@@ -159,14 +191,6 @@ def login():
             "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=8)
         }, app.config["SECRET_KEY"], algorithm="HS256")
 
-        #----registrar_auditoria(
-        #    user["usuario"],
-        #    user["rol"],
-         #   "Login",
-         #   "Inicio de sesión",
-         #   f"Usuario {user['usuario']} inició sesión"
-        #)
-
         return jsonify({
             "mensaje": "Login correcto",
             "token": token,
@@ -181,6 +205,10 @@ def login():
 
 @app.route("/api/roles", methods=["GET"])
 def listar_roles():
+    user_token, error = validar_admin()
+    if error:
+        return error
+
     return jsonify([{"nombre": r} for r in ROLES_VALIDOS]), 200
 
 @app.route("/api/usuarios", methods=["GET"])
@@ -189,10 +217,9 @@ def listar_usuarios():
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
-
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
+        user_token, error = validar_admin()
+        if error:
+            return error
 
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
@@ -217,13 +244,9 @@ def crear_usuario():
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
-
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
-
-        if user_token["rol"] != "Administrador":
-            return jsonify({"mensaje": "No tiene permisos"}), 403
+        user_token, error = validar_admin()
+        if error:
+            return error
 
         data = request.get_json(silent=True) or {}
 
@@ -287,10 +310,9 @@ def actualizar_usuario(id):
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
-
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
+        user_token, error = validar_admin()
+        if error:
+            return error
 
         data = request.get_json(silent=True) or {}
 
@@ -368,13 +390,9 @@ def cambiar_estado_usuario(id):
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
-
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
-
-        if user_token["rol"] != "Administrador":
-            return jsonify({"mensaje": "No tiene permisos"}), 403
+        user_token, error = validar_admin()
+        if error:
+            return error
 
         data = request.get_json(silent=True) or {}
         estado = data.get("estado")
@@ -415,13 +433,9 @@ def eliminar_usuario(id):
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
-
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
-
-        if user_token["rol"] != "Administrador":
-            return jsonify({"mensaje": "No tiene permisos"}), 403
+        user_token, error = validar_admin()
+        if error:
+            return error
 
         conn = get_connection()
         cursor = conn.cursor()
@@ -447,10 +461,18 @@ def eliminar_usuario(id):
 
 @app.route("/api/documentos/ver/<path:nombre>", methods=["GET"])
 def ver_archivo(nombre):
+    user_token, error = validar_login()
+    if error:
+        return error
+
     return send_from_directory(UPLOAD_FOLDER, nombre)
 
 @app.route("/api/documentos/descargar/<path:nombre>", methods=["GET"])
 def descargar_archivo(nombre):
+    user_token, error = validar_login()
+    if error:
+        return error
+
     return send_from_directory(UPLOAD_FOLDER, nombre, as_attachment=True)
 
 @app.route("/api/documentos", methods=["GET"])
@@ -459,10 +481,9 @@ def listar_documentos():
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
-
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
+        user_token, error = validar_login()
+        if error:
+            return error
 
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
@@ -487,15 +508,16 @@ def crear_documento():
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
-
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
+        user_token, error = validar_login()
+        if error:
+            return error
 
         titulo = limpiar_texto(request.form.get("titulo"))
         descripcion = limpiar_texto(request.form.get("descripcion"))
         estado = request.form.get("estado", "BORRADOR")
-        creado_por = request.form.get("creado_por") or user_token["id"]
+
+        if estado not in ESTADOS_DOCUMENTO:
+            return jsonify({"mensaje": "Estado inválido"}), 400
 
         if not titulo or not descripcion:
             return jsonify({"mensaje": "Título y descripción son obligatorios"}), 400
@@ -510,7 +532,6 @@ def crear_documento():
             nombre_limpio = secure_filename(archivo.filename)
             fecha = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             nombre_archivo = f"{fecha}_{nombre_limpio}"
-
             archivo.save(os.path.join(UPLOAD_FOLDER, nombre_archivo))
 
         conn = get_connection()
@@ -523,7 +544,7 @@ def crear_documento():
             titulo,
             descripcion,
             estado,
-            creado_por,
+            user_token["id"],
             user_token["usuario"],
             nombre_archivo
         ))
@@ -546,25 +567,55 @@ def crear_documento():
     finally:
         close_db(cursor, conn)
 
+def puede_modificar_documento(user_token, documento_id):
+    if user_token["rol"] == "Administrador":
+        return True
+
+    conn = None
+    cursor = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT creado_por
+            FROM documentos
+            WHERE id = %s
+            LIMIT 1
+        """, (documento_id,))
+
+        documento = cursor.fetchone()
+
+        if not documento:
+            return False
+
+        return str(documento["creado_por"]) == str(user_token["id"])
+
+    finally:
+        close_db(cursor, conn)
+
 @app.route("/api/documentos/<int:id>", methods=["PUT"])
 def actualizar_documento(id):
     conn = None
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
+        user_token, error = validar_login()
+        if error:
+            return error
 
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
-
-        if user_token["rol"] != "Administrador":
-            return jsonify({"mensaje": "No tiene permisos"}), 403
+        if not puede_modificar_documento(user_token, id):
+            return jsonify({"mensaje": "No tiene permisos para editar este documento"}), 403
 
         data = request.get_json(silent=True) or {}
 
         titulo = limpiar_texto(data.get("titulo"))
         descripcion = limpiar_texto(data.get("descripcion"))
         estado = data.get("estado")
+
+        if estado not in ESTADOS_DOCUMENTO:
+            return jsonify({"mensaje": "Estado inválido"}), 400
 
         if not titulo or not descripcion or not estado:
             return jsonify({"mensaje": "Campos obligatorios"}), 400
@@ -602,13 +653,12 @@ def eliminar_documento(id):
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
+        user_token, error = validar_login()
+        if error:
+            return error
 
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
-
-        if user_token["rol"] != "Administrador":
-            return jsonify({"mensaje": "No tiene permisos"}), 403
+        if not puede_modificar_documento(user_token, id):
+            return jsonify({"mensaje": "No tiene permisos para eliminar este documento"}), 403
 
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
@@ -651,10 +701,9 @@ def reporte():
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
-
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
+        user_token, error = validar_login()
+        if error:
+            return error
 
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
@@ -678,19 +727,42 @@ def reporte():
     finally:
         close_db(cursor, conn)
 
+@app.route("/api/reportes/estado-documentos", methods=["GET"])
+def reporte_estado_documentos():
+    conn = None
+    cursor = None
+
+    try:
+        user_token, error = validar_admin()
+        if error:
+            return error
+
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT estado, COUNT(*) cantidad
+            FROM documentos
+            GROUP BY estado
+        """)
+
+        return jsonify(cursor.fetchall()), 200
+
+    except Exception as e:
+        return jsonify({"mensaje": "Error reporte documentos", "error": str(e)}), 500
+
+    finally:
+        close_db(cursor, conn)
+
 @app.route("/api/auditoria", methods=["GET"])
 def listar_auditoria():
     conn = None
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
-
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
-
-        if user_token["rol"] != "Administrador":
-            return jsonify({"mensaje": "No tiene permisos"}), 403
+        user_token, error = validar_admin()
+        if error:
+            return error
 
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
@@ -710,33 +782,425 @@ def listar_auditoria():
     finally:
         close_db(cursor, conn)
 
-@app.route("/api/reportes/estado-documentos", methods=["GET"])
-def reporte_estado_documentos():
+# =========================
+# FORMULARIOS DINÁMICOS
+# =========================
+
+@app.route("/api/formularios", methods=["GET"])
+def listar_formularios():
     conn = None
     cursor = None
 
     try:
-        user_token = obtener_usuario_token()
-
-        if not user_token:
-            return jsonify({"mensaje": "No autorizado"}), 401
+        user, error = validar_login()
+        if error:
+            return error
 
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
 
         cursor.execute("""
-            SELECT estado, COUNT(*) cantidad
-            FROM documentos
-            GROUP BY estado
+            SELECT *
+            FROM formularios
+            ORDER BY id DESC
         """)
 
         return jsonify(cursor.fetchall()), 200
 
     except Exception as e:
-        return jsonify({"mensaje": "Error reporte documentos", "error": str(e)}), 500
+        return jsonify({
+            "mensaje": "Error al listar formularios",
+            "error": str(e)
+        }), 500
+
+    finally:
+        close_db(cursor, conn)
+
+
+@app.route("/api/formularios", methods=["POST"])
+def crear_formulario():
+    conn = None
+    cursor = None
+    try:
+        user, error = validar_admin()
+        if error:
+            return error
+
+        data = request.get_json(silent=True) or {}
+
+        titulo = limpiar_texto(data.get("titulo"))
+        descripcion = limpiar_texto(data.get("descripcion"))
+
+        if not titulo:
+            return jsonify({"mensaje": "Título obligatorio"}), 400
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO formularios
+            (titulo, descripcion, estado, porcentaje, creado_por, creado_por_nombre)
+            VALUES (%s, %s, 'BORRADOR', 0, %s, %s)
+        """, (titulo, descripcion, user["id"], user["usuario"]))
+
+        conn.commit()
+
+        return jsonify({"mensaje": "Formulario creado correctamente"}), 201
+
+    except Exception as e:
+        return jsonify({"mensaje": "Error al crear formulario", "error": str(e)}), 500
+    finally:
+        close_db(cursor, conn)
+
+
+@app.route("/api/formularios/<int:id>", methods=["GET"])
+def ver_formulario(id):
+    conn = None
+    cursor = None
+    try:
+        user, error = validar_login()
+        if error:
+            return error
+
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT * FROM formularios WHERE id=%s", (id,))
+        formulario = cursor.fetchone()
+
+        if not formulario:
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        cursor.execute("""
+            SELECT 
+                p.*,
+                a.id AS asignacion_id,
+                a.asignado_usuario_id,
+                a.asignado_rol,
+                a.estado,
+                r.respuesta
+            FROM formulario_preguntas p
+            LEFT JOIN formulario_asignaciones a 
+                ON p.id = a.pregunta_id
+            LEFT JOIN formulario_respuestas r 
+                ON a.id = r.asignacion_id
+            WHERE p.formulario_id = %s
+            ORDER BY p.orden ASC, p.id ASC
+        """, (id,))
+
+        return jsonify({
+            "formulario": formulario,
+            "preguntas": cursor.fetchall()
+        }), 200
+
+    except Exception as e:
+        return jsonify({"mensaje": "Error al ver formulario", "error": str(e)}), 500
+    finally:
+        close_db(cursor, conn)
+
+
+@app.route("/api/formularios/<int:formulario_id>/preguntas", methods=["POST"])
+def agregar_pregunta(formulario_id):
+    conn = None
+    cursor = None
+    try:
+        user, error = validar_admin()
+        if error:
+            return error
+
+        data = request.get_json(silent=True) or {}
+
+        pregunta = limpiar_texto(data.get("pregunta"))
+        tipo = data.get("tipo", "TEXTO")
+        opciones = data.get("opciones")
+
+        tipos_validos = ["TEXTO", "NUMERO", "FECHA", "SELECT", "TEXTAREA", "CHECKBOX"]
+
+        if not pregunta:
+            return jsonify({"mensaje": "Pregunta obligatoria"}), 400
+
+        if tipo not in tipos_validos:
+            return jsonify({"mensaje": "Tipo de pregunta inválido"}), 400
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO formulario_preguntas
+            (formulario_id, pregunta, tipo, opciones)
+            VALUES (%s, %s, %s, %s)
+        """, (
+            formulario_id,
+            pregunta,
+            tipo,
+            json.dumps(opciones) if opciones else None
+        ))
+
+        cursor.execute("""
+            UPDATE formularios
+            SET estado='ENVIADO'
+            WHERE id=%s
+        """, (formulario_id,))
+
+        conn.commit()
+
+        return jsonify({"mensaje": "Pregunta agregada correctamente"}), 201
+
+    except Exception as e:
+        return jsonify({"mensaje": "Error al agregar pregunta", "error": str(e)}), 500
+    finally:
+        close_db(cursor, conn)
+
+
+@app.route("/api/formularios/asignar", methods=["POST"])
+def asignar_pregunta():
+    conn = None
+    cursor = None
+    try:
+        user, error = validar_admin()
+        if error:
+            return error
+
+        data = request.get_json(silent=True) or {}
+
+        formulario_id = data.get("formulario_id")
+        pregunta_id = data.get("pregunta_id")
+        usuario_id = data.get("usuario_id")
+        rol = data.get("rol")
+
+        if not formulario_id or not pregunta_id:
+            return jsonify({"mensaje": "Formulario y pregunta son obligatorios"}), 400
+
+        if not usuario_id and not rol:
+            return jsonify({"mensaje": "Debe asignar a usuario o rol"}), 400
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO formulario_asignaciones
+            (formulario_id, pregunta_id, asignado_usuario_id, asignado_rol, estado)
+            VALUES (%s, %s, %s, %s, 'ENVIADO')
+        """, (formulario_id, pregunta_id, usuario_id, rol))
+
+        cursor.execute("""
+            INSERT INTO notificaciones
+            (usuario_id, rol_destino, titulo, mensaje)
+            VALUES (%s, %s, %s, %s)
+        """, (
+            usuario_id,
+            rol,
+            "Formulario pendiente",
+            "Tiene campos pendientes por completar."
+        ))
+
+        conn.commit()
+
+        return jsonify({"mensaje": "Pregunta asignada correctamente"}), 201
+
+    except Exception as e:
+        return jsonify({"mensaje": "Error al asignar pregunta", "error": str(e)}), 500
+    finally:
+        close_db(cursor, conn)
+
+
+@app.route("/api/formularios/responder", methods=["POST"])
+def responder_formulario():
+    conn = None
+    cursor = None
+
+    try:
+        user, error = validar_login()
+        if error:
+            return error
+
+        data = request.get_json(silent=True) or {}
+
+        formulario_id = data.get("formulario_id")
+        pregunta_id = data.get("pregunta_id")
+        asignacion_id = data.get("asignacion_id")
+        respuesta = limpiar_texto(data.get("respuesta"))
+
+        if not formulario_id or not pregunta_id or not asignacion_id or not respuesta:
+            return jsonify({"mensaje": "Datos incompletos"}), 400
+
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT estado
+            FROM formularios
+            WHERE id = %s
+            LIMIT 1
+        """, (formulario_id,))
+
+        formulario = cursor.fetchone()
+
+        if not formulario:
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        if formulario["estado"] == "COMPLETADO":
+            return jsonify({"mensaje": "Formulario cerrado. Ya no se puede editar."}), 400
+
+        cursor.execute("""
+            SELECT *
+            FROM formulario_asignaciones
+            WHERE id = %s
+            AND formulario_id = %s
+            AND pregunta_id = %s
+            LIMIT 1
+        """, (asignacion_id, formulario_id, pregunta_id))
+
+        asignacion = cursor.fetchone()
+
+        if not asignacion:
+            return jsonify({"mensaje": "Asignación no encontrada"}), 404
+
+        if user["rol"] != "Administrador":
+            if asignacion["asignado_usuario_id"] != user["id"] and asignacion["asignado_rol"] != user["rol"]:
+                return jsonify({"mensaje": "No tiene permisos para responder"}), 403
+
+        cursor.execute("""
+            INSERT INTO formulario_respuestas
+            (formulario_id, pregunta_id, asignacion_id, respondido_por, respuesta)
+            VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                respuesta = VALUES(respuesta),
+                respondido_por = VALUES(respondido_por),
+                actualizado_en = CURRENT_TIMESTAMP
+        """, (formulario_id, pregunta_id, asignacion_id, user["id"], respuesta))
+
+        cursor.execute("""
+            UPDATE formulario_asignaciones
+            SET estado = 'CULMINADO',
+                fecha_culminado = NOW()
+            WHERE id = %s
+        """, (asignacion_id,))
+
+        cursor.execute("""
+            SELECT 
+                COUNT(*) AS total,
+                SUM(CASE WHEN estado = 'CULMINADO' THEN 1 ELSE 0 END) AS completados
+            FROM formulario_asignaciones
+            WHERE formulario_id = %s
+        """, (formulario_id,))
+
+        progreso = cursor.fetchone()
+
+        total = progreso["total"] or 0
+        completados = progreso["completados"] or 0
+        porcentaje = round((completados / total) * 100) if total > 0 else 0
+
+        nuevo_estado = "COMPLETADO" if porcentaje >= 100 else "EN_PROCESO"
+
+        cursor.execute("""
+            UPDATE formularios
+            SET porcentaje = %s,
+                estado = %s
+            WHERE id = %s
+        """, (porcentaje, nuevo_estado, formulario_id))
+
+        conn.commit()
+
+        return jsonify({
+            "mensaje": "Respuesta guardada correctamente",
+            "porcentaje": porcentaje,
+            "estado": nuevo_estado
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "mensaje": "Error al responder formulario",
+            "error": str(e)
+        }), 500
+
+    finally:
+        close_db(cursor, conn)
+
+
+@app.route("/api/formularios/<int:formulario_id>/pdf", methods=["GET"])
+def generar_pdf(formulario_id):
+    conn = None
+    cursor = None
+
+    try:
+        user, error = validar_login()
+        if error:
+            return error
+
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # obtener formulario
+        cursor.execute("""
+            SELECT *
+            FROM formularios
+            WHERE id = %s
+        """, (formulario_id,))
+        formulario = cursor.fetchone()
+
+        if not formulario:
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        if formulario["estado"] != "COMPLETADO":
+            return jsonify({"mensaje": "Formulario aún no está completo"}), 400
+
+        # obtener preguntas + respuestas
+        cursor.execute("""
+            SELECT p.pregunta, r.respuesta
+            FROM formulario_preguntas p
+            LEFT JOIN formulario_asignaciones a ON p.id = a.pregunta_id
+            LEFT JOIN formulario_respuestas r ON a.id = r.asignacion_id
+            WHERE p.formulario_id = %s
+        """, (formulario_id,))
+
+        data = cursor.fetchall()
+
+        # crear PDF
+        filename = f"formulario_{formulario_id}.pdf"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+
+        c = canvas.Canvas(filepath, pagesize=letter)
+        width, height = letter
+
+        y = height - 40
+
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(40, y, formulario["titulo"])
+        y -= 20
+
+        c.setFont("Helvetica", 10)
+        c.drawString(40, y, formulario.get("descripcion") or "")
+        y -= 30
+
+        for item in data:
+            pregunta = item.get("pregunta", "")
+            respuesta = item.get("respuesta", "Sin respuesta")
+
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(40, y, f"P: {pregunta}")
+            y -= 15
+
+            c.setFont("Helvetica", 10)
+            c.drawString(60, y, f"R: {respuesta}")
+            y -= 20
+
+            if y < 50:
+                c.showPage()
+                y = height - 40
+
+        c.save()
+
+        return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
+    except Exception as e:
+        return jsonify({
+            "mensaje": "Error al generar PDF",
+            "error": str(e)
+        }), 500
 
     finally:
         close_db(cursor, conn)
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, threaded=True, use_reloader=False) 
+    app.run(debug=False, port=5000, threaded=True, use_reloader=False)

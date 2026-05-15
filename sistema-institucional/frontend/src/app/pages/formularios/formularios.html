@@ -1,0 +1,243 @@
+<div class="page">
+
+  <div class="page-header fade-down">
+    <div>
+      <span class="badge">Formularios</span>
+      <h1>Formularios Dinámicos</h1>
+      <p>Formulario digital + hoja matriz espejo en tiempo real.</p>
+    </div>
+
+    <button class="back" routerLink="/dashboard">← Volver</button>
+  </div>
+
+  <div class="loading" *ngIf="cargando">
+    Cargando información...
+  </div>
+
+  <!-- FORMULARIOS DEL SISTEMA -->
+  <section class="card fade-in" *ngIf="esAdmin()">
+    <div class="card-title">
+      <h2>Crear formulario</h2>
+      <span>Solo administrador</span>
+    </div>
+
+    <div class="form-grid">
+      <div class="field">
+        <input [(ngModel)]="nuevoFormulario.titulo" placeholder="Título del formulario">
+        <small>Mínimo 3 caracteres</small>
+      </div>
+
+      <div class="field">
+        <input [(ngModel)]="nuevoFormulario.descripcion" placeholder="Descripción">
+        <small>Descripción opcional</small>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button
+        class="btn-primary"
+        (click)="crearFormulario()"
+        [disabled]="cargando || !nuevoFormulario.titulo || nuevoFormulario.titulo.length < 3">
+        {{ cargando ? 'Creando...' : 'Crear formulario' }}
+      </button>
+    </div>
+  </section>
+
+  <!-- LISTADO -->
+  <section class="card fade-in">
+    <div class="card-title">
+      <h2>Listado de formularios</h2>
+      <span>Total: {{ formularios.length }}</span>
+    </div>
+
+    <div class="lista" *ngIf="formularios.length > 0">
+      <div class="item hover-scale" *ngFor="let f of formularios" (click)="verFormulario(f)">
+        <h3>{{ f.titulo }}</h3>
+        <p>{{ f.descripcion || 'Sin descripción' }}</p>
+        <span class="estado">{{ f.estado || 'BORRADOR' }}</span>
+      </div>
+    </div>
+
+    <div class="empty" *ngIf="formularios.length === 0 && !cargando">
+      No hay formularios registrados.
+    </div>
+  </section>
+
+  <!-- FORMULARIO ESPEJO -->
+  <section class="mirror-layout fade-in">
+
+    <!-- PANEL DE LLENADO -->
+    <div class="panel-form">
+      <h2>Panel de Llenado</h2>
+      <p>Los datos se reflejan automáticamente en la hoja matriz.</p>
+
+      <h3>Datos personales</h3>
+
+      <div class="grid">
+        <input [(ngModel)]="formData.nombres" placeholder="Nombres y apellidos">
+        <input [(ngModel)]="formData.cedula" placeholder="Cédula de ciudadanía">
+        <input [(ngModel)]="formData.celular" placeholder="Número celular">
+        <input [(ngModel)]="formData.correo" placeholder="Email">
+        <input [(ngModel)]="formData.domicilio" placeholder="Dirección domiciliaria">
+        <input [(ngModel)]="formData.provincia" placeholder="Provincia">
+        <input [(ngModel)]="formData.canton" placeholder="Cantón">
+
+        <select [(ngModel)]="formData.modalidad">
+          <option value="">Modalidad laboral</option>
+          <option>Nombramiento permanente</option>
+          <option>Nombramiento provisional</option>
+          <option>Contrato ocasional</option>
+          <option>Código de trabajo</option>
+        </select>
+
+        <input type="date" [(ngModel)]="formData.fechaIngreso">
+        <input type="date" [(ngModel)]="formData.fechaSalida">
+      </div>
+
+      <h3>Datos de la unidad</h3>
+
+      <div class="grid">
+        <input [(ngModel)]="formData.lugarTrabajo" placeholder="Lugar de trabajo">
+        <input [(ngModel)]="formData.direccionUnidad" placeholder="Dirección / Unidad">
+        <input [(ngModel)]="formData.cargo" placeholder="Cargo que desempeña">
+        <input [(ngModel)]="formData.grupoOcupacional" placeholder="Grupo ocupacional">
+      </div>
+
+      <h3>Observaciones</h3>
+      <textarea [(ngModel)]="formData.observaciones" placeholder="Observaciones generales"></textarea>
+    </div>
+
+    <!-- HOJA MATRIZ -->
+    <div class="document-sheet">
+      <div class="doc-border">
+
+        <header class="doc-header">
+          <div class="logo-box">
+            <div class="sun">✦</div>
+            <div>
+              <h1>INAMHI</h1>
+              <small>Tiempo, clima y agua para todos</small>
+            </div>
+          </div>
+
+          <div class="title-box">
+            <h2>INSTITUTO NACIONAL DE METEOROLOGÍA E HIDROLOGÍA</h2>
+            <h3>DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</h3>
+            <h4>FORMULARIO PAZ Y SALVO PARA EL PAGO DE LIQUIDACIÓN DE HABERES</h4>
+          </div>
+        </header>
+
+        <div class="section-title">DATOS PERSONALES</div>
+
+        <table>
+          <tr>
+            <td class="label">Nombres y apellidos</td>
+            <td colspan="3">{{ formData.nombres || '____________________________' }}</td>
+            <td class="label">Cédula</td>
+            <td>{{ formData.cedula || '____________' }}</td>
+          </tr>
+
+          <tr>
+            <td class="label">Modalidad laboral</td>
+            <td colspan="3">{{ formData.modalidad || '____________________________' }}</td>
+            <td class="label">Celular</td>
+            <td>{{ formData.celular || '____________' }}</td>
+          </tr>
+
+          <tr>
+            <td class="label">Fecha ingreso</td>
+            <td>{{ formData.fechaIngreso || '____ / ____ / ____' }}</td>
+            <td class="label">Fecha salida</td>
+            <td>{{ formData.fechaSalida || '____ / ____ / ____' }}</td>
+            <td class="label">Email</td>
+            <td>{{ formData.correo || '____________' }}</td>
+          </tr>
+
+          <tr>
+            <td class="label">Dirección domiciliaria</td>
+            <td colspan="3">{{ formData.domicilio || '____________________________' }}</td>
+            <td class="label">Provincia / Cantón</td>
+            <td>{{ formData.provincia || '____' }} / {{ formData.canton || '____' }}</td>
+          </tr>
+        </table>
+
+        <div class="section-title">
+          DATOS DE LA DIRECCIÓN / UNIDAD EN LA QUE PRESTÓ SUS SERVICIOS
+        </div>
+
+        <table>
+          <tr>
+            <td class="label">Lugar de trabajo</td>
+            <td>{{ formData.lugarTrabajo || '________________' }}</td>
+            <td class="label">Dirección / Unidad</td>
+            <td>{{ formData.direccionUnidad || '________________' }}</td>
+          </tr>
+
+          <tr>
+            <td class="label">Cargo desempeñado</td>
+            <td>{{ formData.cargo || '________________' }}</td>
+            <td class="label">Grupo ocupacional</td>
+            <td>{{ formData.grupoOcupacional || '________________' }}</td>
+          </tr>
+        </table>
+
+        <div class="section-title">GESTIÓN ADMINISTRATIVA</div>
+
+        <table>
+          <tr>
+            <th>Detalle</th>
+            <th>Sí</th>
+            <th>No</th>
+            <th>Nombre responsable</th>
+            <th>Firma responsable</th>
+          </tr>
+
+          <tr>
+            <td>Entrega informe de fin de gestión</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+
+          <tr>
+            <td>Entrega bienes muebles y equipos</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+
+          <tr>
+            <td>Entrega archivo físico y digital</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+        </table>
+
+        <div class="section-title">OBSERVACIONES</div>
+
+        <div class="observaciones">
+          {{ formData.observaciones || '____________________________________________________________________________________________' }}
+        </div>
+
+        <div class="signature-row">
+          <div>
+            <span>Nombre del servidor saliente</span>
+            <strong>{{ formData.nombres || '____________________________' }}</strong>
+          </div>
+
+          <div>
+            <span>Firma</span>
+            <strong>____________________________</strong>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </section>
+
+</div>

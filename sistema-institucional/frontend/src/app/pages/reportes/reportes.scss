@@ -1,87 +1,207 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
 .page {
-  padding: 30px;
-  background: #f8fafc;
   min-height: 100vh;
+  padding: 32px;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(-45deg, #eef2ff, #f8fafc, #dbeafe, #f1f5f9);
+  background-size: 400% 400%;
+  animation: bgMove 12s ease infinite;
 }
 
-button {
-  margin-bottom: 20px;
-  background: #334155;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.badge {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
   color: white;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #1e293b;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 h1 {
-  margin-bottom: 25px;
-  font-size: 28px;
+  margin: 8px 0 4px;
   color: #0f172a;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+p {
+  color: #64748b;
+}
+
+button {
+  border: none;
+  padding: 11px 16px;
+  border-radius: 12px;
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+  transition: .25s;
+  background: linear-gradient(135deg, #334155, #1e293b);
+}
+
+button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 25px rgba(15,23,42,.18);
+}
+
+button:disabled {
+  background: #94a3b8 !important;
+  cursor: not-allowed;
+  transform: none;
+  opacity: .75;
 }
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
-  margin-bottom: 25px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 22px;
+  margin-bottom: 26px;
 }
 
 .card {
-  background: white;
-  border-radius: 16px;
-  padding: 22px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-  text-align: center;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(16px);
+  border-radius: 24px;
+  padding: 26px;
+  box-shadow: 0 20px 50px rgba(15,23,42,.12);
 }
 
-.card h2 {
-  font-size: 20px;
-  margin-bottom: 10px;
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  text-align: left;
+}
+
+.stat-card h2 {
   color: #64748b;
+  font-size: 15px;
+  margin: 0;
 }
 
-.card p {
-  font-size: 30px;
-  font-weight: bold;
+.stat-card p {
+  margin: 6px 0 0;
+  font-size: 34px;
+  font-weight: 800;
   color: #0f172a;
 }
 
-.card:nth-child(1) {
-  border-left: 6px solid #3b82f6;
+.icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
 }
 
-.card:nth-child(2) {
-  border-left: 6px solid #10b981;
+.usuarios {
+  background: #dbeafe;
 }
 
-.grafico {
-  max-width: 520px;
-  margin: 20px auto;
+.documentos {
+  background: #dcfce7;
 }
 
-.grafico canvas {
-  max-height: 260px !important;
+.grid-reportes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
 }
 
-@media (max-width: 600px) {
+.card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.card-title h2 {
+  margin: 0;
+  color: #1e293b;
+}
+
+.chart-box {
+  position: relative;
+  height: 320px;
+}
+
+.loading-box,
+.error-box {
+  background: white;
+  padding: 18px;
+  border-radius: 18px;
+  margin-bottom: 20px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.loading-box {
+  color: #2563eb;
+}
+
+.error-box {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.animate-down {
+  animation: fadeDown .7s ease;
+}
+
+.animate-up {
+  animation: fadeUp .7s ease both;
+}
+
+.delay {
+  animation-delay: .15s;
+}
+
+.delay-2 {
+  animation-delay: .3s;
+}
+
+@keyframes bgMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 900px) {
   .page {
-    padding: 15px;
+    padding: 20px;
   }
 
-  .card {
-    padding: 18px;
+  .page-header,
+  .card-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
   }
 
-  .grafico {
-    max-width: 100%;
+  .grid-reportes {
+    grid-template-columns: 1fr;
   }
 
-  .grafico canvas {
-    max-height: 220px !important;
+  .chart-box {
+    height: 260px;
   }
 }

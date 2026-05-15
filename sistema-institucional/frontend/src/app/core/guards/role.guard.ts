@@ -1,24 +1,41 @@
-import { Injectable } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { CanActivate, ActivatedRouteSnapshot, Router } from '@angular/router';
+import { isPlatformBrowser } from '@angular/common';
+import Swal from 'sweetalert2';
 
 @Injectable({
   providedIn: 'root'
 })
 export class RoleGuard implements CanActivate {
 
+  private platformId = inject(PLATFORM_ID);
+
   constructor(private router: Router) {}
 
   canActivate(route: ActivatedRouteSnapshot): boolean {
-    const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
-    const rolesPermitidos = route.data['roles'] as string[];
+    if (!isPlatformBrowser(this.platformId)) {
+      return false;
+    }
 
-    if (!usuario?.rol) {
+    const usuarioStorage = localStorage.getItem('usuario');
+
+    if (!usuarioStorage) {
       this.router.navigate(['/login']);
       return false;
     }
 
+    const usuario = JSON.parse(usuarioStorage);
+    const rolesPermitidos = route.data['roles'] as string[];
+
     if (!rolesPermitidos.includes(usuario.rol)) {
-      alert('No tienes permisos para acceder a esta sección.');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Acceso restringido',
+        text: 'Solo el Administrador puede ingresar a esta sección.',
+        timer: 1800,
+        showConfirmButton: false
+      });
+
       this.router.navigate(['/dashboard']);
       return false;
     }

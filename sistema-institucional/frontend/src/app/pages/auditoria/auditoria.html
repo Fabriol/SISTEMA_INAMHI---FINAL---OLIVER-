@@ -1,83 +1,137 @@
 <div class="page">
 
-    <!-- BOTÓN VOLVER -->
+  <div class="page-header animate-down">
+    <div>
+      <span class="badge">Auditoría</span>
+      <h1>Auditoría del Sistema</h1>
+      <p>Consulta acciones, usuarios, módulos y fechas registradas.</p>
+    </div>
+
     <button class="back" routerLink="/dashboard">
-        ← Volver
+      ← Volver
     </button>
+  </div>
 
-    <h1>Auditoría del Sistema</h1>
+  <section class="card animate-up">
 
-    <div class="card">
+    <div class="card-title">
+      <div>
+        <h2>Registros de auditoría</h2>
+        <span>Total: {{ auditoriaFiltrada.length }}</span>
+      </div>
 
-        <!-- FILTROS -->
-        <div class="filtros">
+      <button class="btn-refresh" (click)="cargarAuditoria()" [disabled]="cargando">
+        {{ cargando ? 'Cargando...' : 'Actualizar' }}
+      </button>
+    </div>
 
-            <input type="text" placeholder="Buscar por usuario..." [(ngModel)]="filtroUsuario">
+    <div class="filtros">
 
-            <input type="date" [(ngModel)]="fechaInicio">
+      <div class="field">
+        <input
+          type="text"
+          placeholder="Buscar por usuario..."
+          [(ngModel)]="filtroUsuario"
+          autocomplete="off">
+        <small>Filtro por usuario</small>
+      </div>
 
-            <input type="date" [(ngModel)]="fechaFin">
+      <div class="field">
+        <input type="date" [(ngModel)]="fechaInicio">
+        <small>Fecha inicio</small>
+      </div>
 
-        </div>
+      <div class="field">
+        <input type="date" [(ngModel)]="fechaFin">
+        <small>Fecha fin</small>
+      </div>
 
-        <div class="acciones-top">
-            <button (click)="exportarExcel()">
-                Exportar Excel
-            </button>
-        </div>
-
-        <button class="pdf" (click)="exportarPDF()">
-            Exportar PDF
+      <div class="field buttons-field">
+        <button class="secondary" (click)="limpiarFiltros()">
+          Limpiar filtros
         </button>
-
-        <!-- TABLA -->
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Usuario</th>
-                        <th>Rol</th>
-                        <th>Módulo</th>
-                        <th>Acción</th>
-                        <th>Detalle</th>
-                        <th>Fecha</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    <tr *ngFor="let a of auditoriaFiltrada">
-
-                        <td>#{{ a.id }}</td>
-
-                        <td>{{ a.usuario }}</td>
-
-                        <td>
-                            <span class="rol">
-                                {{ a.rol }}
-                            </span>
-                        </td>
-
-                        <td>{{ a.modulo }}</td>
-
-                        <td>
-                            <span class="accion">
-                                {{ a.accion }}
-                            </span>
-                        </td>
-
-                        <td class="detalle">
-                            {{ a.detalle }}
-                        </td>
-
-                        <td>
-                            {{ a.fecha | date:'short' }}
-                        </td>
-
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+      </div>
 
     </div>
+
+    <div class="acciones-top">
+      <button
+        class="btn-excel"
+        (click)="exportarExcel()"
+        [disabled]="auditoriaFiltrada.length === 0">
+        Exportar Excel
+      </button>
+
+      <button
+        class="btn-pdf"
+        (click)="exportarPDF()"
+        [disabled]="auditoriaFiltrada.length === 0">
+        Exportar PDF
+      </button>
+    </div>
+
+    <div class="loading-box animate-up" *ngIf="cargando">
+      Cargando auditoría...
+    </div>
+
+    <div class="error-box animate-up" *ngIf="error && !cargando">
+      {{ error }}
+    </div>
+
+    <div class="table-wrapper" *ngIf="!cargando">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Módulo</th>
+            <th>Acción</th>
+            <th>Detalle</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let a of auditoriaFiltrada" class="row-animate">
+            <td>#{{ a.id }}</td>
+
+            <td>
+              <strong>{{ a.usuario }}</strong>
+            </td>
+
+            <td>
+              <span class="rol">
+                {{ a.rol }}
+              </span>
+            </td>
+
+            <td>{{ a.modulo }}</td>
+
+            <td>
+              <span class="accion">
+                {{ a.accion }}
+              </span>
+            </td>
+
+            <td class="detalle">
+              {{ a.detalle }}
+            </td>
+
+            <td>
+              {{ a.fecha | date:'short' }}
+            </td>
+          </tr>
+
+          <tr *ngIf="auditoriaFiltrada.length === 0">
+            <td colspan="7" class="empty">
+              No se encontraron registros.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+
 </div>

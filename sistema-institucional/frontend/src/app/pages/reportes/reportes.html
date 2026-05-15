@@ -1,31 +1,70 @@
 <div class="page">
 
-    <button routerLink="/dashboard">← Volver</button>
-
-    <h1>Reportes del Sistema</h1>
-
-    <div class="cards">
-
-        <div class="card">
-            <h2>Usuarios</h2>
-            <p>{{ resumen.usuarios }}</p>
-        </div>
-
-        <div class="card">
-            <h2>Documentos</h2>
-            <p>{{ resumen.documentos }}</p>
-        </div>
-
+  <div class="page-header animate-down">
+    <div>
+      <span class="badge">Reportes</span>
+      <h1>Reportes del Sistema</h1>
+      <p>Resumen general y estadísticas del sistema institucional.</p>
     </div>
 
-    <div class="card grafico">
+    <button class="back" routerLink="/dashboard">
+      ← Volver
+    </button>
+  </div>
+
+  <div class="loading-box animate-up" *ngIf="cargando">
+    Cargando reportes...
+  </div>
+
+  <div class="error-box animate-up" *ngIf="error && !cargando">
+    {{ error }}
+  </div>
+
+  <div class="cards animate-up">
+
+    <div class="card stat-card">
+      <div class="icon usuarios">👥</div>
+      <div>
+        <h2>Usuarios</h2>
+        <p>{{ resumen.usuarios }}</p>
+      </div>
+    </div>
+
+    <div class="card stat-card">
+      <div class="icon documentos">📄</div>
+      <div>
+        <h2>Documentos</h2>
+        <p>{{ resumen.documentos }}</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="grid-reportes">
+
+    <section class="card grafico animate-up delay">
+      <div class="card-title">
         <h2>Resumen gráfico</h2>
-        <canvas id="grafico"></canvas>
-    </div>
+        <button class="btn-refresh" (click)="recargar()" [disabled]="cargando">
+          Actualizar
+        </button>
+      </div>
 
-    <div class="card grafico">
+      <div class="chart-box">
+        <canvas id="grafico"></canvas>
+      </div>
+    </section>
+
+    <section class="card grafico animate-up delay-2">
+      <div class="card-title">
         <h2>Documentos por estado</h2>
+      </div>
+
+      <div class="chart-box">
         <canvas id="graficoEstado"></canvas>
-    </div>
+      </div>
+    </section>
+
+  </div>
 
 </div>

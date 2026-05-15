@@ -10,6 +10,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { ReportesService } from '../../core/services/reportes.service';
 import { catchError, finalize, of, timeout } from 'rxjs';
+import Swal from 'sweetalert2';
 import Chart from 'chart.js/auto';
 
 @Component({
@@ -56,13 +57,53 @@ export class Dashboard implements OnInit, AfterViewInit {
     this.crearGrafico();
   }
 
+  esAdmin(): boolean {
+    return this.usuario?.rol === 'Administrador';
+  }
+
+  cargarMenu(): void {
+    if (this.esAdmin()) {
+      this.menu = [
+        { nombre: 'Dashboard', ruta: '/dashboard', bloqueado: false },
+        { nombre: 'Usuarios', ruta: '/usuarios', bloqueado: false },
+        { nombre: 'Documentos', ruta: '/documentos', bloqueado: false },
+        { nombre: 'Formularios', ruta: '/formularios', bloqueado: false },
+        { nombre: 'Reportes', ruta: '/reportes', bloqueado: false },
+        { nombre: 'Auditoría', ruta: '/auditoria', bloqueado: false }
+      ];
+    } else {
+      this.menu = [
+        { nombre: 'Dashboard', ruta: '/dashboard', bloqueado: false },
+        { nombre: 'Documentos', ruta: '/documentos', bloqueado: false },
+        { nombre: 'Formularios', ruta: '/formularios', bloqueado: false },
+        { nombre: 'Usuarios', ruta: '/usuarios', bloqueado: true },
+        { nombre: 'Reportes', ruta: '/reportes', bloqueado: true },
+        { nombre: 'Auditoría', ruta: '/auditoria', bloqueado: true }
+      ];
+    }
+  }
+
+  navegar(item: any): void {
+    if (item.bloqueado) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Acceso bloqueado',
+        text: 'Solo el Administrador puede ingresar a esta sección.',
+        timer: 1800,
+        showConfirmButton: false
+      });
+      return;
+    }
+
+    this.router.navigate([item.ruta]);
+  }
+
   cargarResumen(): void {
     this.cargando = true;
     this.error = '';
 
     this.reportesService.resumen().pipe(
       timeout(3000),
-
       catchError((err: any) => {
         if (err.status === 401) {
           this.error = 'Sesión expirada';
@@ -73,7 +114,6 @@ export class Dashboard implements OnInit, AfterViewInit {
 
         return of({ usuarios: 0, documentos: 0 });
       }),
-
       finalize(() => {
         this.cargando = false;
         this.cdr.detectChanges();
@@ -83,43 +123,6 @@ export class Dashboard implements OnInit, AfterViewInit {
       this.cdr.detectChanges();
       this.crearGrafico();
     });
-  }
-
-  cargarMenu(): void {
-    const rol = this.usuario?.rol;
-
-    if (rol === 'Administrador') {
-      this.menu = [
-        { nombre: 'Dashboard', ruta: '/dashboard' },
-        { nombre: 'Usuarios', ruta: '/usuarios' },
-        { nombre: 'Documentos', ruta: '/documentos' },
-        { nombre: 'Reportes', ruta: '/reportes' },
-        { nombre: 'Auditoría', ruta: '/auditoria' }
-      ];
-    } else if (rol === 'Talento Humano - Recepcion Documentos') {
-      this.menu = [
-        { nombre: 'Dashboard', ruta: '/dashboard' },
-        { nombre: 'Documentos', ruta: '/documentos' },
-        { nombre: 'Reportes', ruta: '/reportes' }
-      ];
-    } else if (rol === 'Ex Funcionario') {
-      this.menu = [
-        { nombre: 'Dashboard', ruta: '/dashboard' },
-        { nombre: 'Mis Documentos', ruta: '/documentos' }
-      ];
-    } else if (
-      rol === 'Administrativa' ||
-      rol === 'Financiera' ||
-      rol === 'TICs' ||
-      rol === 'Seguridad'
-    ) {
-      this.menu = [
-        { nombre: 'Dashboard', ruta: '/dashboard' },
-        { nombre: 'Documentos', ruta: '/documentos' }
-      ];
-    } else {
-      this.menu = [{ nombre: 'Dashboard', ruta: '/dashboard' }];
-    }
   }
 
   crearGrafico(): void {
