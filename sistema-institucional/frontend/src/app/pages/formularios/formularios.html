@@ -10,11 +10,23 @@
     <button class="back" routerLink="/dashboard">← Volver</button>
   </div>
 
-  <div class="loading" *ngIf="cargando">
-    Cargando información...
-  </div>
+  <div class="loading" *ngIf="cargando">Cargando información...</div>
 
-  <!-- FORMULARIOS DEL SISTEMA -->
+  <section class="card fade-in" *ngIf="notificaciones.length > 0">
+    <div class="card-title">
+      <h2>🔔 Notificaciones</h2>
+      <span>Total: {{ notificaciones.length }}</span>
+    </div>
+
+    <div class="lista">
+      <div class="item" *ngFor="let n of notificaciones" (click)="marcarNotificacionLeida(n)">
+        <h3>{{ n.titulo }}</h3>
+        <p>{{ n.mensaje }}</p>
+        <span class="estado">{{ n.leido ? 'LEÍDO' : 'NUEVO' }}</span>
+      </div>
+    </div>
+  </section>
+
   <section class="card fade-in" *ngIf="esAdmin()">
     <div class="card-title">
       <h2>Crear formulario</h2>
@@ -43,7 +55,6 @@
     </div>
   </section>
 
-  <!-- LISTADO -->
   <section class="card fade-in">
     <div class="card-title">
       <h2>Listado de formularios</h2>
@@ -51,7 +62,11 @@
     </div>
 
     <div class="lista" *ngIf="formularios.length > 0">
-      <div class="item hover-scale" *ngFor="let f of formularios" (click)="verFormulario(f)">
+      <div
+        class="item hover-scale"
+        *ngFor="let f of formularios"
+        (click)="verFormulario(f)"
+        [class.item-activo]="formularioSeleccionado?.id === f.id">
         <h3>{{ f.titulo }}</h3>
         <p>{{ f.descripcion || 'Sin descripción' }}</p>
         <span class="estado">{{ f.estado || 'BORRADOR' }}</span>
@@ -63,178 +78,345 @@
     </div>
   </section>
 
-  <!-- FORMULARIO ESPEJO -->
-  <section class="mirror-layout fade-in">
+  <div class="empty" *ngIf="!formularioSeleccionado">
+    Seleccione un formulario del listado para empezar.
+  </div>
 
-    <!-- PANEL DE LLENADO -->
-    <div class="panel-form">
-      <h2>Panel de Llenado</h2>
-      <p>Los datos se reflejan automáticamente en la hoja matriz.</p>
-
-      <h3>Datos personales</h3>
-
-      <div class="grid">
-        <input [(ngModel)]="formData.nombres" placeholder="Nombres y apellidos">
-        <input [(ngModel)]="formData.cedula" placeholder="Cédula de ciudadanía">
-        <input [(ngModel)]="formData.celular" placeholder="Número celular">
-        <input [(ngModel)]="formData.correo" placeholder="Email">
-        <input [(ngModel)]="formData.domicilio" placeholder="Dirección domiciliaria">
-        <input [(ngModel)]="formData.provincia" placeholder="Provincia">
-        <input [(ngModel)]="formData.canton" placeholder="Cantón">
-
-        <select [(ngModel)]="formData.modalidad">
-          <option value="">Modalidad laboral</option>
-          <option>Nombramiento permanente</option>
-          <option>Nombramiento provisional</option>
-          <option>Contrato ocasional</option>
-          <option>Código de trabajo</option>
-        </select>
-
-        <input type="date" [(ngModel)]="formData.fechaIngreso">
-        <input type="date" [(ngModel)]="formData.fechaSalida">
-      </div>
-
-      <h3>Datos de la unidad</h3>
-
-      <div class="grid">
-        <input [(ngModel)]="formData.lugarTrabajo" placeholder="Lugar de trabajo">
-        <input [(ngModel)]="formData.direccionUnidad" placeholder="Dirección / Unidad">
-        <input [(ngModel)]="formData.cargo" placeholder="Cargo que desempeña">
-        <input [(ngModel)]="formData.grupoOcupacional" placeholder="Grupo ocupacional">
-      </div>
-
-      <h3>Observaciones</h3>
-      <textarea [(ngModel)]="formData.observaciones" placeholder="Observaciones generales"></textarea>
+  <section *ngIf="formularioSeleccionado && esAdmin()" class="card fade-in">
+    <div class="card-title">
+      <h2>Designar campos del formulario</h2>
+      <span>{{ camposSeleccionados().length }} seleccionado(s)</span>
     </div>
 
-    <!-- HOJA MATRIZ -->
-    <div class="document-sheet">
-      <div class="doc-border">
+    <div class="actions">
+      <button type="button" (click)="seleccionarTodosCampos()">Seleccionar todos</button>
+      <button type="button" (click)="limpiarSeleccionCampos()">Limpiar selección</button>
+    </div>
 
-        <header class="doc-header">
-          <div class="logo-box">
-            <div class="sun">✦</div>
-            <div>
-              <h1>INAMHI</h1>
-              <small>Tiempo, clima y agua para todos</small>
+    <div class="lista" style="margin-top: 18px;">
+      <label class="item" *ngFor="let c of camposFormulario">
+        <input type="checkbox" [(ngModel)]="c.seleccionado">
+        <h3>{{ c.etiqueta }}</h3>
+        <p>{{ c.seccion }}</p>
+      </label>
+    </div>
+
+    <div class="form-grid" style="margin-top: 22px;">
+      <div class="field">
+        <label>Asignar a usuario</label>
+        <select [(ngModel)]="asignacion.usuario_id">
+          <option value="">Seleccione usuario</option>
+          <option *ngFor="let u of usuariosDisponibles" [value]="u.id">
+            {{ u.nombres }} {{ u.apellidos }} - {{ u.rol }}
+          </option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>O asignar a rol</label>
+        <select [(ngModel)]="asignacion.rol">
+          <option value="">Seleccione rol</option>
+          <option *ngFor="let r of rolesValidos" [value]="r">{{ r }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-success" type="button" (click)="designarCampos()">
+        Enviar / Designar campos
+      </button>
+    </div>
+  </section>
+
+  <section *ngIf="formularioSeleccionado" class="paz-salvo-container fade-in">
+
+    <div class="formulario-ingreso no-print">
+      <div class="header-titles">
+        <h2>{{ formularioSeleccionado?.titulo }}</h2>
+        <p>{{ formularioSeleccionado?.descripcion || 'Llene los campos asignados.' }}</p>
+      </div>
+
+      <form #pazSalvoForm="ngForm" class="form-grid-layout">
+
+        <div class="form-card-dark">
+          <h3 class="card-title">1. Datos Personales</h3>
+
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label>Nombres y Apellidos (*)</label>
+              <input maxlength="80" class="dark-input" name="nombres"
+                [(ngModel)]="formulario.nombres_apellidos"
+                [disabled]="!puedeEditarCampo('nombres_apellidos')" required>
+            </div>
+
+            <div class="input-group span-2">
+              <label>Modalidad Laboral (*)</label>
+              <select class="dark-input" name="modalidad"
+                [(ngModel)]="formulario.modalidad"
+                [disabled]="!puedeEditarCampo('modalidad')" required>
+                <option value="">Seleccione...</option>
+                <option value="PERMANENTE">Nombramiento Permanente</option>
+                <option value="PROVISIONAL">Nombramiento Provisional</option>
+                <option value="OCASIONAL">Contrato Ocasional</option>
+                <option value="TRABAJO">Contrato de Trabajo</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label>Cédula / Pasaporte (*)</label>
+              <input maxlength="10" class="dark-input" name="cedula"
+                [(ngModel)]="formulario.cedula"
+                [disabled]="!puedeEditarCampo('cedula')" required>
+            </div>
+
+            <div class="input-group">
+              <label>Fecha de Ingreso (*)</label>
+              <input type="date" class="dark-input" name="fecha_ingreso"
+                [(ngModel)]="formulario.fecha_ingreso"
+                [disabled]="!puedeEditarCampo('fecha_ingreso')" required>
+            </div>
+
+            <div class="input-group span-2">
+              <label>Dirección Domiciliaria (*)</label>
+              <input maxlength="100" class="dark-input" name="direccion"
+                [(ngModel)]="formulario.direccion"
+                [disabled]="!puedeEditarCampo('direccion')" required>
+            </div>
+
+            <div class="input-group">
+              <label>Fecha de Salida (*)</label>
+              <input type="date" class="dark-input" name="fecha_salida"
+                [(ngModel)]="formulario.fecha_salida"
+                [disabled]="!puedeEditarCampo('fecha_salida')" required>
+            </div>
+
+            <div class="input-group">
+              <label>Número Celular (*)</label>
+              <input maxlength="10" class="dark-input" name="celular"
+                [(ngModel)]="formulario.celular"
+                [disabled]="!puedeEditarCampo('celular')" required>
+            </div>
+
+            <div class="input-group">
+              <label>Email 1 (*)</label>
+              <input maxlength="60" type="email" class="dark-input" name="email1"
+                [(ngModel)]="formulario.email1"
+                [disabled]="!puedeEditarCampo('email1')" required>
+            </div>
+
+            <div class="input-group">
+              <label>Provincia (*)</label>
+              <input maxlength="30" class="dark-input" name="provincia"
+                [(ngModel)]="formulario.provincia"
+                [disabled]="!puedeEditarCampo('provincia')" required>
+            </div>
+
+            <div class="input-group">
+              <label>Cantón (*)</label>
+              <input maxlength="30" class="dark-input" name="canton"
+                [(ngModel)]="formulario.canton"
+                [disabled]="!puedeEditarCampo('canton')" required>
             </div>
           </div>
-
-          <div class="title-box">
-            <h2>INSTITUTO NACIONAL DE METEOROLOGÍA E HIDROLOGÍA</h2>
-            <h3>DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</h3>
-            <h4>FORMULARIO PAZ Y SALVO PARA EL PAGO DE LIQUIDACIÓN DE HABERES</h4>
-          </div>
-        </header>
-
-        <div class="section-title">DATOS PERSONALES</div>
-
-        <table>
-          <tr>
-            <td class="label">Nombres y apellidos</td>
-            <td colspan="3">{{ formData.nombres || '____________________________' }}</td>
-            <td class="label">Cédula</td>
-            <td>{{ formData.cedula || '____________' }}</td>
-          </tr>
-
-          <tr>
-            <td class="label">Modalidad laboral</td>
-            <td colspan="3">{{ formData.modalidad || '____________________________' }}</td>
-            <td class="label">Celular</td>
-            <td>{{ formData.celular || '____________' }}</td>
-          </tr>
-
-          <tr>
-            <td class="label">Fecha ingreso</td>
-            <td>{{ formData.fechaIngreso || '____ / ____ / ____' }}</td>
-            <td class="label">Fecha salida</td>
-            <td>{{ formData.fechaSalida || '____ / ____ / ____' }}</td>
-            <td class="label">Email</td>
-            <td>{{ formData.correo || '____________' }}</td>
-          </tr>
-
-          <tr>
-            <td class="label">Dirección domiciliaria</td>
-            <td colspan="3">{{ formData.domicilio || '____________________________' }}</td>
-            <td class="label">Provincia / Cantón</td>
-            <td>{{ formData.provincia || '____' }} / {{ formData.canton || '____' }}</td>
-          </tr>
-        </table>
-
-        <div class="section-title">
-          DATOS DE LA DIRECCIÓN / UNIDAD EN LA QUE PRESTÓ SUS SERVICIOS
         </div>
 
-        <table>
-          <tr>
-            <td class="label">Lugar de trabajo</td>
-            <td>{{ formData.lugarTrabajo || '________________' }}</td>
-            <td class="label">Dirección / Unidad</td>
-            <td>{{ formData.direccionUnidad || '________________' }}</td>
-          </tr>
+        <div class="form-card-dark">
+          <h3 class="card-title">2. Datos Dirección / Unidad</h3>
 
-          <tr>
-            <td class="label">Cargo desempeñado</td>
-            <td>{{ formData.cargo || '________________' }}</td>
-            <td class="label">Grupo ocupacional</td>
-            <td>{{ formData.grupoOcupacional || '________________' }}</td>
-          </tr>
-        </table>
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label>Lugar de Trabajo (*)</label>
+              <select class="dark-input" name="lugar_trabajo"
+                [(ngModel)]="formulario.lugar_trabajo"
+                [disabled]="!puedeEditarCampo('lugar_trabajo')" required>
+                <option value="">Seleccione...</option>
+                <option value="PLANTA">Planta Central</option>
+                <option value="DESCONCENTRADOS">Procesos Desconcentrados</option>
+              </select>
+            </div>
 
-        <div class="section-title">GESTIÓN ADMINISTRATIVA</div>
+            <div class="input-group span-2">
+              <label>Dirección / Unidad (*)</label>
+              <input maxlength="80" class="dark-input" name="unidad"
+                [(ngModel)]="formulario.unidad"
+                [disabled]="!puedeEditarCampo('unidad')" required>
+            </div>
 
-        <table>
-          <tr>
-            <th>Detalle</th>
-            <th>Sí</th>
-            <th>No</th>
-            <th>Nombre responsable</th>
-            <th>Firma responsable</th>
-          </tr>
+            <div class="input-group">
+              <label>Cargo Desempeñado (*)</label>
+              <input maxlength="50" class="dark-input" name="cargo"
+                [(ngModel)]="formulario.cargo"
+                [disabled]="!puedeEditarCampo('cargo')" required>
+            </div>
 
-          <tr>
-            <td>Entrega informe de fin de gestión</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-          </tr>
-
-          <tr>
-            <td>Entrega bienes muebles y equipos</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-          </tr>
-
-          <tr>
-            <td>Entrega archivo físico y digital</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-          </tr>
-        </table>
-
-        <div class="section-title">OBSERVACIONES</div>
-
-        <div class="observaciones">
-          {{ formData.observaciones || '____________________________________________________________________________________________' }}
-        </div>
-
-        <div class="signature-row">
-          <div>
-            <span>Nombre del servidor saliente</span>
-            <strong>{{ formData.nombres || '____________________________' }}</strong>
-          </div>
-
-          <div>
-            <span>Firma</span>
-            <strong>____________________________</strong>
+            <div class="input-group">
+              <label>Grupo Ocupacional (*)</label>
+              <input maxlength="50" class="dark-input" name="grupo_ocupacional"
+                [(ngModel)]="formulario.grupo_ocupacional"
+                [disabled]="!puedeEditarCampo('grupo_ocupacional')" required>
+            </div>
           </div>
         </div>
 
+        <div class="form-card-dark">
+          <h3 class="card-title">3. Responsables</h3>
+
+          <div class="form-grid">
+            <div class="input-group">
+              <label>Responsable Informe</label>
+              <input maxlength="60" class="dark-input" name="info_fin_resp"
+                [(ngModel)]="formulario.info_fin_resp"
+                [disabled]="!puedeEditarCampo('info_fin_resp')">
+            </div>
+
+            <div class="input-group">
+              <label>Responsable Bienes</label>
+              <input maxlength="60" class="dark-input" name="bienes_resp"
+                [(ngModel)]="formulario.bienes_resp"
+                [disabled]="!puedeEditarCampo('bienes_resp')">
+            </div>
+
+            <div class="input-group">
+              <label>Responsable TIC</label>
+              <input maxlength="60" class="dark-input" name="tic_equipo_resp"
+                [(ngModel)]="formulario.tic_equipo_resp"
+                [disabled]="!puedeEditarCampo('tic_equipo_resp')">
+            </div>
+
+            <div class="input-group">
+              <label>Responsable Financiero</label>
+              <input maxlength="60" class="dark-input" name="fin_saldos_resp"
+                [(ngModel)]="formulario.fin_saldos_resp"
+                [disabled]="!puedeEditarCampo('fin_saldos_resp')">
+            </div>
+
+            <div class="input-group">
+              <label>Responsable Seguridad</label>
+              <input maxlength="60" class="dark-input" name="seg_resp"
+                [(ngModel)]="formulario.seg_resp"
+                [disabled]="!puedeEditarCampo('seg_resp')">
+            </div>
+
+            <div class="input-group">
+              <label>Responsable Talento Humano</label>
+              <input maxlength="60" class="dark-input" name="rh_cursos_resp"
+                [(ngModel)]="formulario.rh_cursos_resp"
+                [disabled]="!puedeEditarCampo('rh_cursos_resp')">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions-dark">
+          <button class="btn-submit-dark" type="button" (click)="validarYActualizarEspejo()">
+            Validar Formulario
+          </button>
+
+          <button class="btn-submit-dark" type="button" (click)="exportarHojaEspejoPDF()">
+            📄 Exportar PDF
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+    <div class="hoja-espejo-preview">
+      <div id="hojaEspejo">
+        <div class="a4-page">
+
+          <table class="tabla-encabezado">
+            <tr>
+              <td rowspan="3" class="logo-cell">
+                <img src="/img/logo.png" alt="INAMHI" class="logo">
+              </td>
+              <td class="titulo-principal">INSTITUTO NACIONAL DE METEOROLOGÍA E HIDROLOGÍA</td>
+            </tr>
+            <tr><td class="subtitulo">DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</td></tr>
+            <tr><td class="titulo-documento">FORMULARIO PAZ Y SALVO PARA EL PAGO DE LIQUIDACIÓN DE HABERES</td></tr>
+          </table>
+
+          <table class="tabla-pdf mt-2">
+            <tr><th colspan="4" class="seccion-titulo">DATOS PERSONALES</th></tr>
+
+            <tr>
+              <td class="etiqueta">NOMBRES Y APELLIDOS:</td>
+              <td colspan="3" class="valor negrita">
+                <span class="texto-corto">{{ formulario.nombres_apellidos }}</span>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="etiqueta">MODALIDAD LABORAL:</td>
+              <td colspan="3">
+                NOMBRAMIENTO PERMANENTE <input type="checkbox" [checked]="formulario.modalidad === 'PERMANENTE'">
+                NOMBRAMIENTO PROVISIONAL <input type="checkbox" [checked]="formulario.modalidad === 'PROVISIONAL'">
+                CONTRATO OCASIONAL <input type="checkbox" [checked]="formulario.modalidad === 'OCASIONAL'">
+                CONTRATO DE TRABAJO <input type="checkbox" [checked]="formulario.modalidad === 'TRABAJO'">
+              </td>
+            </tr>
+
+            <tr>
+              <td class="etiqueta">CÉDULA / PASAPORTE:</td>
+              <td class="valor negrita">{{ formulario.cedula }}</td>
+              <td class="etiqueta">FECHA INGRESO:</td>
+              <td class="valor negrita">{{ formulario.fecha_ingreso }}</td>
+            </tr>
+
+            <tr>
+              <td class="etiqueta">DIRECCIÓN DOMICILIARIA:</td>
+              <td class="valor"><span class="texto-corto">{{ formulario.direccion }}</span></td>
+              <td class="etiqueta">FECHA SALIDA:</td>
+              <td class="valor negrita">{{ formulario.fecha_salida }}</td>
+            </tr>
+
+            <tr>
+              <td class="etiqueta">NÚMERO CELULAR:</td>
+              <td class="valor">{{ formulario.celular }}</td>
+              <td class="etiqueta">CONTACTO EMERGENCIA:</td>
+              <td class="valor">{{ formulario.emergencia }}</td>
+            </tr>
+
+            <tr>
+              <td class="etiqueta">EMAIL 1:</td>
+              <td class="valor"><span class="texto-corto">{{ formulario.email1 }}</span></td>
+              <td class="etiqueta">EMAIL 2:</td>
+              <td class="valor"><span class="texto-corto">{{ formulario.email2 }}</span></td>
+            </tr>
+
+            <tr>
+              <td class="etiqueta">PROVINCIA:</td>
+              <td class="valor">{{ formulario.provincia }}</td>
+              <td class="etiqueta">CANTÓN:</td>
+              <td class="valor">{{ formulario.canton }}</td>
+            </tr>
+          </table>
+
+          <table class="tabla-pdf mt-1">
+            <tr><th colspan="4" class="seccion-titulo">DATOS DE LA DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS</th></tr>
+
+            <tr>
+              <td class="etiqueta">LUGAR DE TRABAJO:</td>
+              <td colspan="3">
+                PLANTA CENTRAL <input type="checkbox" [checked]="formulario.lugar_trabajo === 'PLANTA'">
+                PROCESOS DESCONCENTRADOS <input type="checkbox" [checked]="formulario.lugar_trabajo === 'DESCONCENTRADOS'">
+              </td>
+            </tr>
+
+            <tr>
+              <td class="etiqueta">DIRECCIÓN / UNIDAD:</td>
+              <td colspan="3" class="valor negrita">
+                <span class="texto-corto">{{ formulario.unidad }}</span>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="etiqueta">CARGO DESEMPEÑADO:</td>
+              <td class="valor"><span class="texto-corto">{{ formulario.cargo }}</span></td>
+              <td class="etiqueta">GRUPO OCUPACIONAL:</td>
+              <td class="valor"><span class="texto-corto">{{ formulario.grupo_ocupacional }}</span></td>
+            </tr>
+          </table>
+
+        </div>
       </div>
     </div>
 

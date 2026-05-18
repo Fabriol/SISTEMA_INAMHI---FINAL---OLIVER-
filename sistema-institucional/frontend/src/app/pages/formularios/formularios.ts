@@ -17,43 +17,87 @@ export class Formularios implements OnInit {
 
   formularios: any[] = [];
   formularioSeleccionado: any = null;
-  preguntas: any[] = [];
+
+  usuariosDisponibles: any[] = [];
+  notificaciones: any[] = [];
+  pendientes: any[] = [];
 
   usuario: any = {};
   cargando = false;
-  error = '';
+  private alertaActiva = false;
 
-  formData: any = {
-    nombres: '',
+  rolesValidos = [
+    'Talento Humano - Recepcion Documentos',
+    'Ex Funcionario',
+    'Administrativa',
+    'Financiera',
+    'TICs',
+    'Seguridad'
+  ];
+
+  asignacion = {
+    usuario_id: '',
+    rol: ''
+  };
+
+  camposFormulario: any[] = [
+    { id: 'nombres_apellidos', etiqueta: 'Nombres y Apellidos', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'modalidad', etiqueta: 'Modalidad Laboral', seccion: 'Datos Personales', tipo: 'SELECT', seleccionado: false },
+    { id: 'cedula', etiqueta: 'Cédula / Pasaporte', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'fecha_ingreso', etiqueta: 'Fecha de Ingreso', seccion: 'Datos Personales', tipo: 'FECHA', seleccionado: false },
+    { id: 'direccion', etiqueta: 'Dirección Domiciliaria', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'fecha_salida', etiqueta: 'Fecha de Salida', seccion: 'Datos Personales', tipo: 'FECHA', seleccionado: false },
+    { id: 'celular', etiqueta: 'Número Celular', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'emergencia', etiqueta: 'Contacto Emergencia', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'email1', etiqueta: 'Email 1', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'email2', etiqueta: 'Email 2', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'provincia', etiqueta: 'Provincia', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'canton', etiqueta: 'Cantón', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+
+    { id: 'lugar_trabajo', etiqueta: 'Lugar de Trabajo', seccion: 'Dirección / Unidad', tipo: 'SELECT', seleccionado: false },
+    { id: 'unidad', etiqueta: 'Dirección / Unidad', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'cargo', etiqueta: 'Cargo Desempeñado', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'grupo_ocupacional', etiqueta: 'Grupo Ocupacional', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
+
+    { id: 'info_fin_resp', etiqueta: 'Responsable Informe Fin Gestión', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false },
+    { id: 'bienes_resp', etiqueta: 'Responsable Bienes', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false },
+    { id: 'tic_equipo_resp', etiqueta: 'Responsable TIC', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false },
+    { id: 'fin_saldos_resp', etiqueta: 'Responsable Financiero', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false },
+    { id: 'seg_resp', etiqueta: 'Responsable Seguridad', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false },
+    { id: 'rh_cursos_resp', etiqueta: 'Responsable Talento Humano', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false }
+  ];
+
+  camposAsignadosUsuario: string[] = [];
+
+  formulario: any = {
+    nombres_apellidos: '',
+    modalidad: '',
     cedula: '',
+    fecha_ingreso: '',
+    direccion: '',
+    fecha_salida: '',
     celular: '',
-    correo: '',
-    domicilio: '',
+    emergencia: '',
+    email1: '',
+    email2: '',
     provincia: '',
     canton: '',
-    modalidad: '',
-    fechaIngreso: '',
-    fechaSalida: '',
-    lugarTrabajo: '',
-    direccionUnidad: '',
+    lugar_trabajo: '',
+    unidad: '',
     cargo: '',
-    grupoOcupacional: '',
-    observaciones: ''
+    grupo_ocupacional: '',
+    info_fin_resp: '',
+    bienes_resp: '',
+    tic_equipo_resp: '',
+    fin_saldos_resp: '',
+    seg_resp: '',
+    rh_cursos_resp: ''
   };
 
   nuevoFormulario = {
     titulo: '',
     descripcion: ''
   };
-
-  nuevaPregunta: any = {
-    pregunta: '',
-    tipo: 'TEXTO',
-    opciones: ''
-  };
-
-  respuestas: any = {};
-  private alertaActiva = false;
 
   constructor(
     private formulariosService: FormulariosService,
@@ -62,24 +106,23 @@ export class Formularios implements OnInit {
 
   ngOnInit(): void {
     this.usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+
     this.cargarFormularios();
+    this.cargarNotificaciones();
+
+    if (this.esAdmin()) {
+      this.cargarUsuariosDisponibles();
+    } else {
+      this.cargarPendientes();
+    }
   }
 
   esAdmin(): boolean {
     return this.usuario?.rol === 'Administrador';
   }
 
-  puedeResponder(p: any): boolean {
-    if (this.formularioSeleccionado?.estado === 'COMPLETADO') return false;
-    if (this.esAdmin()) return true;
-    if (!p.asignacion_id) return false;
-    if (p.asignado_usuario_id == this.usuario?.id) return true;
-    if (p.asignado_rol == this.usuario?.rol) return true;
-    return false;
-  }
-
-  limpiarTexto(texto: string): string {
-    return (texto || '').trim().replace(/\s+/g, ' ');
+  limpiarTexto(texto: any): string {
+    return String(texto || '').trim().replace(/\s+/g, ' ');
   }
 
   alertaRapida(titulo: string, texto: string): void {
@@ -91,43 +134,41 @@ export class Formularios implements OnInit {
       icon: 'warning',
       title: titulo,
       text: texto,
-      timer: 1500,
+      timer: 1800,
       showConfirmButton: false
-    }).then(() => {
-      this.alertaActiva = false;
-    });
+    }).then(() => this.alertaActiva = false);
   }
 
-  obtenerOpciones(opciones: any): string[] {
-    if (!opciones) return [];
+  soloLetras(texto: string): boolean {
+    return /^[a-zA-ZÁÉÍÓÚáéíóúÑñ\s]+$/.test(texto || '');
+  }
 
-    if (Array.isArray(opciones)) {
-      return opciones.map(o => String(o).trim()).filter(o => o);
-    }
+  validarEmail(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
+  }
 
-    try {
-      const data = JSON.parse(opciones);
-      if (Array.isArray(data)) {
-        return data.map(o => String(o).trim()).filter(o => o);
-      }
-    } catch {}
+  validarCedula(cedula: string): boolean {
+    return /^[0-9]{10}$/.test(cedula || '');
+  }
 
-    return String(opciones)
-      .split(',')
-      .map(o => o.trim().replaceAll('"', '').replaceAll('[', '').replaceAll(']', ''))
-      .filter(o => o);
+  validarCelular(celular: string): boolean {
+    return /^[0-9]{10}$/.test(celular || '');
+  }
+
+  validarFechas(): boolean {
+    if (!this.formulario.fecha_ingreso || !this.formulario.fecha_salida) return false;
+
+    const ingreso = new Date(this.formulario.fecha_ingreso);
+    const salida = new Date(this.formulario.fecha_salida);
+
+    return salida >= ingreso;
   }
 
   validarFormulario(): boolean {
     this.nuevoFormulario.titulo = this.limpiarTexto(this.nuevoFormulario.titulo);
     this.nuevoFormulario.descripcion = this.limpiarTexto(this.nuevoFormulario.descripcion);
 
-    if (!this.nuevoFormulario.titulo) {
-      this.alertaRapida('Validación', 'Ingrese el título del formulario.');
-      return false;
-    }
-
-    if (this.nuevoFormulario.titulo.length < 3) {
+    if (!this.nuevoFormulario.titulo || this.nuevoFormulario.titulo.length < 3) {
       this.alertaRapida('Validación', 'El título debe tener mínimo 3 caracteres.');
       return false;
     }
@@ -135,42 +176,13 @@ export class Formularios implements OnInit {
     return true;
   }
 
-  validarPregunta(): boolean {
-    this.nuevaPregunta.pregunta = this.limpiarTexto(this.nuevaPregunta.pregunta);
-
-    if (!this.nuevaPregunta.pregunta) {
-      this.alertaRapida('Validación', 'Ingrese la pregunta.');
-      return false;
-    }
-
-    if (this.nuevaPregunta.pregunta.length < 3) {
-      this.alertaRapida('Validación', 'La pregunta debe tener mínimo 3 caracteres.');
-      return false;
-    }
-
-    if (this.nuevaPregunta.tipo === 'SELECT') {
-      const opciones = this.obtenerOpciones(this.nuevaPregunta.opciones);
-
-      if (opciones.length < 2) {
-        this.alertaRapida('Validación', 'Ingrese mínimo 2 opciones separadas por coma.');
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   cargarFormularios(): void {
-    if (this.cargando) return;
-
     this.cargando = true;
-    this.error = '';
 
     this.formulariosService.listar().pipe(
       timeout(4000),
       catchError((err: any) => {
-        this.error = err.error?.mensaje || 'Error al cargar formularios';
-        Swal.fire('Error', this.error, 'error');
+        Swal.fire('Error', err.error?.mensaje || 'Error al cargar formularios', 'error');
         return of([]);
       }),
       finalize(() => {
@@ -179,7 +191,6 @@ export class Formularios implements OnInit {
       })
     ).subscribe((data: any[]) => {
       this.formularios = data || [];
-      this.cdr.detectChanges();
     });
   }
 
@@ -218,6 +229,11 @@ export class Formularios implements OnInit {
   }
 
   verFormulario(f: any): void {
+    this.formularioSeleccionado = f;
+    this.cargarDetalleFormulario(f);
+  }
+
+  cargarDetalleFormulario(f: any): void {
     this.cargando = true;
 
     this.formulariosService.ver(f.id).pipe(
@@ -234,12 +250,19 @@ export class Formularios implements OnInit {
       if (!data) return;
 
       this.formularioSeleccionado = data.formulario;
-      this.preguntas = data.preguntas || [];
-      this.respuestas = {};
+      this.camposAsignadosUsuario = [];
 
-      this.preguntas.forEach((p: any) => {
-        if (p.respuesta) {
-          this.respuestas[p.id] = p.respuesta;
+      const preguntas = data.preguntas || [];
+
+      preguntas.forEach((p: any) => {
+        const codigoCampo = p.codigo || p.campo || p.pregunta;
+
+        if (codigoCampo && this.formulario.hasOwnProperty(codigoCampo)) {
+          this.camposAsignadosUsuario.push(codigoCampo);
+
+          if (p.respuesta) {
+            this.formulario[codigoCampo] = p.respuesta;
+          }
         }
       });
 
@@ -247,9 +270,68 @@ export class Formularios implements OnInit {
     });
   }
 
-  agregarPregunta(): void {
+  cargarUsuariosDisponibles(): void {
+    this.formulariosService.usuariosDisponibles().pipe(
+      timeout(4000),
+      catchError((err: any) => {
+        Swal.fire('Error', err.error?.mensaje || 'No se pudieron cargar usuarios.', 'error');
+        return of([]);
+      })
+    ).subscribe((data: any[]) => {
+      this.usuariosDisponibles = data || [];
+      this.cdr.detectChanges();
+    });
+  }
+
+  cargarPendientes(): void {
+    this.formulariosService.misPendientes().pipe(
+      catchError(() => of([]))
+    ).subscribe((data: any[]) => {
+      this.pendientes = data || [];
+    });
+  }
+
+  cargarNotificaciones(): void {
+    this.formulariosService.notificaciones().pipe(
+      catchError(() => of([]))
+    ).subscribe((data: any[]) => {
+      this.notificaciones = data || [];
+
+      const noLeidas = this.notificaciones.filter(n => !n.leido);
+
+      if (noLeidas.length > 0) {
+        Swal.fire({
+          icon: 'info',
+          title: 'Notificación',
+          text: noLeidas[0].mensaje,
+          timer: 2500,
+          showConfirmButton: false
+        });
+      }
+    });
+  }
+
+  marcarNotificacionLeida(n: any): void {
+    this.formulariosService.marcarNotificacionLeida(n.id).subscribe(() => {
+      n.leido = 1;
+    });
+  }
+
+  camposSeleccionados(): any[] {
+    return this.camposFormulario.filter(c => c.seleccionado);
+  }
+
+  seleccionarTodosCampos(): void {
+    this.camposFormulario.forEach(c => c.seleccionado = true);
+  }
+
+  limpiarSeleccionCampos(): void {
+    this.camposFormulario.forEach(c => c.seleccionado = false);
+  }
+
+  designarCampos(): void {
     if (!this.esAdmin()) {
-      this.alertaRapida('Sin permisos', 'Solo el Administrador puede agregar preguntas.');
+      this.alertaRapida('Sin permisos', 'Solo el Administrador puede designar campos.');
       return;
     }
 
@@ -258,22 +340,36 @@ export class Formularios implements OnInit {
       return;
     }
 
-    if (!this.validarPregunta()) return;
+    const seleccionados = this.camposSeleccionados();
+
+    if (seleccionados.length === 0) {
+      this.alertaRapida('Validación', 'Seleccione al menos un campo del formulario.');
+      return;
+    }
+
+    if (!this.asignacion.usuario_id && !this.asignacion.rol) {
+      this.alertaRapida('Validación', 'Seleccione usuario o rol destino.');
+      return;
+    }
 
     const data = {
-      pregunta: this.nuevaPregunta.pregunta,
-      tipo: this.nuevaPregunta.tipo,
-      opciones: this.nuevaPregunta.tipo === 'SELECT'
-        ? this.obtenerOpciones(this.nuevaPregunta.opciones)
-        : null
+      formulario_id: this.formularioSeleccionado.id,
+      campos: seleccionados.map(c => ({
+        codigo: c.id,
+        pregunta: c.etiqueta,
+        seccion: c.seccion,
+        tipo: c.tipo
+      })),
+      usuario_id: this.asignacion.usuario_id || null,
+      rol: this.asignacion.rol || null
     };
 
     this.cargando = true;
 
-    this.formulariosService.agregarPregunta(this.formularioSeleccionado.id, data).pipe(
+    this.formulariosService.asignar(data).pipe(
       timeout(4000),
       catchError((err: any) => {
-        Swal.fire('Error', err.error?.mensaje || 'Error al agregar pregunta', 'error');
+        Swal.fire('Error', err.error?.mensaje || 'Error al designar campos', 'error');
         return of(null);
       }),
       finalize(() => {
@@ -283,90 +379,213 @@ export class Formularios implements OnInit {
     ).subscribe((res: any) => {
       if (!res) return;
 
-      Swal.fire('Agregado', 'Pregunta agregada correctamente.', 'success');
+      Swal.fire('Enviado', res.mensaje || 'Campos designados correctamente.', 'success');
 
-      this.nuevaPregunta = {
-        pregunta: '',
-        tipo: 'TEXTO',
-        opciones: ''
+      this.asignacion = {
+        usuario_id: '',
+        rol: ''
       };
 
-      this.verFormulario(this.formularioSeleccionado);
+      this.limpiarSeleccionCampos();
+      this.cargarDetalleFormulario(this.formularioSeleccionado);
     });
   }
 
-  guardarRespuesta(p: any): void {
-    if (!this.puedeResponder(p)) {
-      this.alertaRapida('Sin permisos', 'No puede responder esta pregunta.');
+  puedeEditarCampo(campo: string): boolean {
+    if (this.esAdmin()) return true;
+    return this.camposAsignadosUsuario.includes(campo);
+  }
+
+  guardarCampo(campo: string): void {
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Validación', 'Seleccione un formulario primero.');
       return;
     }
 
-    const respuesta = this.respuestas[p.id];
+    if (!this.puedeEditarCampo(campo)) {
+      this.alertaRapida('Sin permisos', 'No puede llenar este campo.');
+      return;
+    }
 
-    if (!respuesta || String(respuesta).trim() === '') {
-      this.alertaRapida('Validación', 'Ingrese una respuesta.');
+    const valor = this.limpiarTexto(this.formulario[campo]);
+
+    if (!valor) {
+      this.alertaRapida('Validación', 'Ingrese un valor antes de guardar.');
       return;
     }
 
     const data = {
       formulario_id: this.formularioSeleccionado.id,
-      pregunta_id: p.id,
-      asignacion_id: p.asignacion_id,
-      respuesta: String(respuesta).trim()
+      campo,
+      respuesta: valor
     };
 
-    this.cargando = true;
-
-    this.formulariosService.responder(data).pipe(
-      timeout(4000),
-      catchError((err: any) => {
-        Swal.fire('Error', err.error?.mensaje || 'Error al guardar respuesta', 'error');
-        return of(null);
-      }),
-      finalize(() => {
-        this.cargando = false;
-        this.cdr.detectChanges();
-      })
-    ).subscribe((res: any) => {
-      if (!res) return;
-
-      Swal.fire('Guardado', 'Respuesta guardada correctamente.', 'success');
-      this.verFormulario(this.formularioSeleccionado);
-    });
-  }
-
-  asignarPregunta(p: any): void {
-    if (!this.esAdmin()) return;
-
-    if (!p.asignar_usuario && !p.asignar_rol) {
-      Swal.fire('Validación', 'Debe asignar usuario o rol', 'warning');
-      return;
-    }
-
-    const data = {
-      formulario_id: this.formularioSeleccionado.id,
-      pregunta_id: p.id,
-      usuario_id: p.asignar_usuario || null,
-      rol: p.asignar_rol || null
-    };
-
-    this.formulariosService.asignar(data).subscribe({
+    this.formulariosService.responder(data).subscribe({
       next: () => {
-        Swal.fire('OK', 'Asignado correctamente', 'success');
-
-        p.asignar_usuario = '';
-        p.asignar_rol = '';
-
-        this.verFormulario(this.formularioSeleccionado);
+        Swal.fire('Guardado', 'Campo guardado correctamente.', 'success');
+        this.cargarDetalleFormulario(this.formularioSeleccionado);
+        this.cargarPendientes();
       },
       error: (err) => {
-        Swal.fire('Error', err.error?.mensaje || 'Error', 'error');
+        Swal.fire('Error', err.error?.mensaje || 'Error al guardar campo', 'error');
       }
     });
   }
 
+  validarPazSalvo(): boolean {
+    const f = this.formulario;
+
+    f.nombres_apellidos = this.limpiarTexto(f.nombres_apellidos);
+    f.direccion = this.limpiarTexto(f.direccion);
+    f.provincia = this.limpiarTexto(f.provincia);
+    f.canton = this.limpiarTexto(f.canton);
+    f.unidad = this.limpiarTexto(f.unidad);
+    f.cargo = this.limpiarTexto(f.cargo);
+    f.grupo_ocupacional = this.limpiarTexto(f.grupo_ocupacional);
+
+    if (!f.nombres_apellidos || !this.soloLetras(f.nombres_apellidos)) {
+      this.alertaRapida('Validación', 'Ingrese nombres y apellidos válidos.');
+      return false;
+    }
+
+    if (!f.modalidad) {
+      this.alertaRapida('Validación', 'Seleccione modalidad laboral.');
+      return false;
+    }
+
+    if (!this.validarCedula(f.cedula)) {
+      this.alertaRapida('Validación', 'La cédula debe tener 10 números.');
+      return false;
+    }
+
+    if (!f.fecha_ingreso || !f.fecha_salida) {
+      this.alertaRapida('Validación', 'Ingrese fecha de ingreso y salida.');
+      return false;
+    }
+
+    if (!this.validarFechas()) {
+      this.alertaRapida('Validación', 'La fecha de salida no puede ser menor a la fecha de ingreso.');
+      return false;
+    }
+
+    if (!f.direccion || f.direccion.length < 5) {
+      this.alertaRapida('Validación', 'Ingrese una dirección válida.');
+      return false;
+    }
+
+    if (!this.validarCelular(f.celular)) {
+      this.alertaRapida('Validación', 'El celular debe tener 10 números.');
+      return false;
+    }
+
+    if (f.emergencia && !this.validarCelular(f.emergencia)) {
+      this.alertaRapida('Validación', 'El contacto de emergencia debe tener 10 números.');
+      return false;
+    }
+
+    if (!this.validarEmail(f.email1)) {
+      this.alertaRapida('Validación', 'Ingrese un Email 1 válido.');
+      return false;
+    }
+
+    if (f.email2 && !this.validarEmail(f.email2)) {
+      this.alertaRapida('Validación', 'Ingrese un Email 2 válido.');
+      return false;
+    }
+
+    if (!f.provincia || !this.soloLetras(f.provincia)) {
+      this.alertaRapida('Validación', 'Ingrese una provincia válida.');
+      return false;
+    }
+
+    if (!f.canton || !this.soloLetras(f.canton)) {
+      this.alertaRapida('Validación', 'Ingrese un cantón válido.');
+      return false;
+    }
+
+    if (!f.lugar_trabajo) {
+      this.alertaRapida('Validación', 'Seleccione lugar de trabajo.');
+      return false;
+    }
+
+    if (!f.unidad || f.unidad.length < 3) {
+      this.alertaRapida('Validación', 'Ingrese dirección/unidad válida.');
+      return false;
+    }
+
+    if (!f.cargo || f.cargo.length < 3) {
+      this.alertaRapida('Validación', 'Ingrese cargo válido.');
+      return false;
+    }
+
+    if (!f.grupo_ocupacional || f.grupo_ocupacional.length < 3) {
+      this.alertaRapida('Validación', 'Ingrese grupo ocupacional válido.');
+      return false;
+    }
+
+    return true;
+  }
+
+  validarYActualizarEspejo(): void {
+    if (!this.validarPazSalvo()) return;
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Formulario válido',
+      text: 'La hoja espejo fue actualizada correctamente.',
+      timer: 1600,
+      showConfirmButton: false
+    });
+  }
+
+  async exportarHojaEspejoPDF(): Promise<void> {
+    if (!this.validarPazSalvo()) return;
+
+    const html2canvas = (await import('html2canvas')).default;
+    const jsPDF = (await import('jspdf')).default;
+
+    const element = document.getElementById('hojaEspejo');
+
+    if (!element) {
+      Swal.fire('Error', 'No se encontró la hoja espejo', 'error');
+      return;
+    }
+
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff'
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+
+    const pdfWidth = 210;
+    const pdfHeight = 297;
+    const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+    heightLeft -= pdfHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+      heightLeft -= pdfHeight;
+    }
+
+    pdf.save('formulario-paz-y-salvo.pdf');
+  }
+
   descargarPDF(): void {
-    const id = this.formularioSeleccionado.id;
-    window.open(`http://localhost:5000/api/formularios/${id}/pdf`, '_blank');
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Validación', 'Seleccione un formulario primero.');
+      return;
+    }
+
+    window.open(`http://localhost:5000/api/formularios/${this.formularioSeleccionado.id}/pdf`, '_blank');
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 @Injectable({
@@ -11,34 +11,107 @@ export class FormulariosService {
 
   constructor(private http: HttpClient) { }
 
-  // 🔹 LISTAR FORMULARIOS
+  // 🔐 HEADERS CON TOKEN
+  private getHeaders() {
+    const token = localStorage.getItem('token') || '';
+
+    return {
+      headers: new HttpHeaders({
+        Authorization: `Bearer ${token}`
+      })
+    };
+  }
+
+  // ===============================
+  // 🔹 FORMULARIOS
+  // ===============================
+
   listar(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.api}/formularios`);
+    return this.http.get<any[]>(`${this.api}/formularios`, this.getHeaders());
   }
 
-  // 🔹 CREAR FORMULARIO
   crear(data: any): Observable<any> {
-    return this.http.post(`${this.api}/formularios`, data);
+    return this.http.post(`${this.api}/formularios`, data, this.getHeaders());
   }
 
-  // 🔹 VER FORMULARIO + PREGUNTAS
   ver(id: number): Observable<any> {
-    return this.http.get(`${this.api}/formularios/${id}`);
+    return this.http.get(`${this.api}/formularios/${id}`, this.getHeaders());
   }
 
-  // 🔹 AGREGAR PREGUNTA
+  descargarPDF(id: number): void {
+    window.open(`${this.api}/formularios/${id}/pdf`, '_blank');
+  }
+
+  // ===============================
+  // 🔹 PREGUNTAS
+  // ===============================
+
   agregarPregunta(formularioId: number, data: any): Observable<any> {
-    return this.http.post(`${this.api}/formularios/${formularioId}/preguntas`, data);
+    return this.http.post(
+      `${this.api}/formularios/${formularioId}/preguntas`,
+      data,
+      this.getHeaders()
+    );
   }
 
-  // 🔹 RESPONDER
+  // ===============================
+  // 🔹 ASIGNACIONES (ADMIN)
+  // ===============================
+
+  asignar(data: any): Observable<any> {
+    return this.http.post(
+      `${this.api}/formularios/asignar`,
+      data,
+      this.getHeaders()
+    );
+  }
+
+  usuariosDisponibles(): Observable<any[]> {
+    return this.http.get<any[]>(
+      `${this.api}/formularios/usuarios-disponibles`,
+      this.getHeaders()
+    );
+  }
+
+  // ===============================
+  // 🔹 RESPUESTAS
+  // ===============================
+
   responder(data: any): Observable<any> {
-    return this.http.post(`${this.api}/respuestas`, data);
+    return this.http.post(
+      `${this.api}/formularios/responder`,
+      data,
+      this.getHeaders()
+    );
   }
 
-  // * ASIGNAR
-  asignar(data: any) {
-    return this.http.post('http://localhost:5000/api/formularios/asignar', data);
+  // ===============================
+  // 🔹 USUARIO (PENDIENTES)
+  // ===============================
+
+  misPendientes(): Observable<any[]> {
+    return this.http.get<any[]>(
+      `${this.api}/formularios/mis-pendientes`,
+      this.getHeaders()
+    );
   }
 
+  // ===============================
+  // 🔹 NOTIFICACIONES
+  // ===============================
+
+  notificaciones(): Observable<any[]> {
+    return this.http.get<any[]>(
+      `${this.api}/notificaciones`,
+      this.getHeaders()
+    );
+  }
+
+  marcarNotificacionLeida(id: number): Observable<any> {
+    return this.http.put(
+      `${this.api}/notificaciones/${id}/leer`,
+      {},
+      this.getHeaders()
+    );
+  }
 }
