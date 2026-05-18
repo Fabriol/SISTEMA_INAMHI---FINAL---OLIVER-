@@ -111,14 +111,6 @@
           </option>
         </select>
       </div>
-
-      <div class="field">
-        <label>O asignar a rol</label>
-        <select [(ngModel)]="asignacion.rol">
-          <option value="">Seleccione rol</option>
-          <option *ngFor="let r of rolesValidos" [value]="r">{{ r }}</option>
-        </select>
-      </div>
     </div>
 
     <div class="actions">
@@ -142,6 +134,7 @@
           <h3 class="card-title">1. Datos Personales</h3>
 
           <div class="form-grid">
+
             <div class="input-group span-2">
               <label>Nombres y Apellidos (*)</label>
               <input maxlength="80" class="dark-input" name="nombres"
@@ -198,10 +191,24 @@
             </div>
 
             <div class="input-group">
+              <label>Contacto Emergencia</label>
+              <input maxlength="10" class="dark-input" name="emergencia"
+                [(ngModel)]="formulario.emergencia"
+                [disabled]="!puedeEditarCampo('emergencia')">
+            </div>
+
+            <div class="input-group">
               <label>Email 1 (*)</label>
               <input maxlength="60" type="email" class="dark-input" name="email1"
                 [(ngModel)]="formulario.email1"
                 [disabled]="!puedeEditarCampo('email1')" required>
+            </div>
+
+            <div class="input-group">
+              <label>Email 2</label>
+              <input maxlength="60" type="email" class="dark-input" name="email2"
+                [(ngModel)]="formulario.email2"
+                [disabled]="!puedeEditarCampo('email2')">
             </div>
 
             <div class="input-group">
@@ -217,6 +224,7 @@
                 [(ngModel)]="formulario.canton"
                 [disabled]="!puedeEditarCampo('canton')" required>
             </div>
+
           </div>
         </div>
 
@@ -308,7 +316,7 @@
 
         <div class="form-actions-dark">
           <button class="btn-submit-dark" type="button" (click)="validarYActualizarEspejo()">
-            Validar Formulario
+            Guardar / Validar Formulario
           </button>
 
           <button class="btn-submit-dark" type="button" (click)="exportarHojaEspejoPDF()">

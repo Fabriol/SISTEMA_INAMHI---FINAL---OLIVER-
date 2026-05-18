@@ -26,18 +26,8 @@ export class Formularios implements OnInit {
   cargando = false;
   private alertaActiva = false;
 
-  rolesValidos = [
-    'Talento Humano - Recepcion Documentos',
-    'Ex Funcionario',
-    'Administrativa',
-    'Financiera',
-    'TICs',
-    'Seguridad'
-  ];
-
   asignacion = {
-    usuario_id: '',
-    rol: ''
+    usuario_id: ''
   };
 
   camposFormulario: any[] = [
@@ -347,8 +337,8 @@ export class Formularios implements OnInit {
       return;
     }
 
-    if (!this.asignacion.usuario_id && !this.asignacion.rol) {
-      this.alertaRapida('Validación', 'Seleccione usuario o rol destino.');
+    if (!this.asignacion.usuario_id) {
+      this.alertaRapida('Validación', 'Seleccione un usuario destino.');
       return;
     }
 
@@ -360,8 +350,8 @@ export class Formularios implements OnInit {
         seccion: c.seccion,
         tipo: c.tipo
       })),
-      usuario_id: this.asignacion.usuario_id || null,
-      rol: this.asignacion.rol || null
+      usuario_id: this.asignacion.usuario_id,
+      rol: null
     };
 
     this.cargando = true;
@@ -382,8 +372,7 @@ export class Formularios implements OnInit {
       Swal.fire('Enviado', res.mensaje || 'Campos designados correctamente.', 'success');
 
       this.asignacion = {
-        usuario_id: '',
-        rol: ''
+        usuario_id: ''
       };
 
       this.limpiarSeleccionCampos();

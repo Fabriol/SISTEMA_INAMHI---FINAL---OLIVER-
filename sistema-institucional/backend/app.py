@@ -13,8 +13,20 @@ import json
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "clave_super_secreta_inamhi_2026_segura"
 
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(
+    app,
+    resources={r"/api/*": {"origins": "http://localhost:4200"}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
 
+@app.after_request
+def after_request(response):
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:4200")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+    return response
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -1021,6 +1033,7 @@ def agregar_pregunta(formulario_id):
 def asignar_pregunta():
     conn = None
     cursor = None
+
     try:
         user, error = validar_admin()
         if error:
@@ -1029,124 +1042,125 @@ def asignar_pregunta():
         data = request.get_json(silent=True) or {}
 
         formulario_id = data.get("formulario_id")
-        pregunta_ids = data.get("pregunta_ids", [])
+        campos = data.get("campos", [])
         usuario_id = data.get("usuario_id")
-        rol = data.get("rol")
 
         if not formulario_id:
             return jsonify({"mensaje": "Formulario obligatorio"}), 400
 
-        if not pregunta_ids or not isinstance(pregunta_ids, list):
-            return jsonify({"mensaje": "Debe seleccionar al menos una pregunta"}), 400
+        if not campos or not isinstance(campos, list):
+            return jsonify({"mensaje": "Debe seleccionar al menos un campo"}), 400
 
-        if not usuario_id and not rol:
-            return jsonify({"mensaje": "Debe asignar a usuario o rol"}), 400
-
-        if rol and rol not in ROLES_VALIDOS:
-            return jsonify({"mensaje": "Rol inválido"}), 400
+        if not usuario_id:
+            return jsonify({"mensaje": "Debe seleccionar un usuario destino"}), 400
 
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
 
-        nombre_destino = None
+        cursor.execute("""
+            SELECT id, nombres, apellidos, rol
+            FROM usuarios
+            WHERE id = %s AND estado = 'ACTIVO'
+            LIMIT 1
+        """, (usuario_id,))
 
-        if usuario_id:
-            cursor.execute("""
-                SELECT id, nombres, apellidos, rol
-                FROM usuarios
-                WHERE id=%s AND estado='ACTIVO'
-                LIMIT 1
-            """, (usuario_id,))
-            usuario_destino = cursor.fetchone()
+        usuario_destino = cursor.fetchone()
 
-            if not usuario_destino:
-                return jsonify({"mensaje": "Usuario destino no encontrado o inactivo"}), 404
-
-            nombre_destino = f"{usuario_destino['nombres']} {usuario_destino['apellidos']}"
-        else:
-            nombre_destino = rol
+        if not usuario_destino:
+            return jsonify({"mensaje": "Usuario destino no encontrado o inactivo"}), 404
 
         asignadas = 0
 
-        for pregunta_id in pregunta_ids:
-            cursor.execute("""
-                SELECT id
-                FROM formulario_preguntas
-                WHERE id=%s AND formulario_id=%s
-                LIMIT 1
-            """, (pregunta_id, formulario_id))
+        for campo in campos:
+            codigo = limpiar_texto(campo.get("codigo"))
+            pregunta = limpiar_texto(campo.get("pregunta"))
+            tipo = campo.get("tipo", "TEXTO")
+            seccion = limpiar_texto(campo.get("seccion"))
 
-            if not cursor.fetchone():
+            if not codigo or not pregunta:
                 continue
 
             cursor.execute("""
                 SELECT id
-                FROM formulario_asignaciones
-                WHERE formulario_id=%s
-                AND pregunta_id=%s
-                AND (
-                    (asignado_usuario_id <=> %s)
-                    OR
-                    (asignado_rol <=> %s)
-                )
+                FROM formulario_preguntas
+                WHERE formulario_id = %s AND codigo = %s
                 LIMIT 1
-            """, (formulario_id, pregunta_id, usuario_id, rol))
+            """, (formulario_id, codigo))
+
+            pregunta_db = cursor.fetchone()
+
+            if pregunta_db:
+                pregunta_id = pregunta_db["id"]
+            else:
+                cursor.execute("""
+                    INSERT INTO formulario_preguntas
+                    (formulario_id, codigo, pregunta, tipo, seccion, opciones, orden)
+                    VALUES (%s, %s, %s, %s, %s, NULL, 0)
+                """, (formulario_id, codigo, pregunta, tipo, seccion))
+
+                pregunta_id = cursor.lastrowid
+
+            cursor.execute("""
+                SELECT id
+                FROM formulario_asignaciones
+                WHERE formulario_id = %s
+                AND pregunta_id = %s
+                AND asignado_usuario_id = %s
+                LIMIT 1
+            """, (formulario_id, pregunta_id, usuario_id))
 
             existe = cursor.fetchone()
 
             if existe:
                 cursor.execute("""
                     UPDATE formulario_asignaciones
-                    SET estado='ENVIADO',
-                        fecha_culminado=NULL
-                    WHERE id=%s
+                    SET estado = 'ENVIADO',
+                        fecha_culminado = NULL
+                    WHERE id = %s
                 """, (existe["id"],))
             else:
                 cursor.execute("""
                     INSERT INTO formulario_asignaciones
                     (formulario_id, pregunta_id, asignado_usuario_id, asignado_rol, estado)
-                    VALUES (%s, %s, %s, %s, 'ENVIADO')
-                """, (formulario_id, pregunta_id, usuario_id, rol))
+                    VALUES (%s, %s, %s, NULL, 'ENVIADO')
+                """, (formulario_id, pregunta_id, usuario_id))
 
             asignadas += 1
 
+        if asignadas == 0:
+            return jsonify({"mensaje": "No se pudo asignar ningún campo"}), 400
+
         cursor.execute("""
             UPDATE formularios
-            SET estado='ENVIADO'
-            WHERE id=%s
+            SET estado = 'ENVIADO'
+            WHERE id = %s
         """, (formulario_id,))
 
         cursor.execute("""
             INSERT INTO notificaciones
             (usuario_id, rol_destino, titulo, mensaje, leido)
-            VALUES (%s, %s, %s, %s, 0)
+            VALUES (%s, NULL, %s, %s, 0)
         """, (
             usuario_id,
-            rol,
             "Formulario pendiente",
-            f"Tiene preguntas pendientes por llenar en el formulario #{formulario_id}."
+            f"Tiene {asignadas} campo(s) pendientes por llenar."
         ))
 
         conn.commit()
 
-        registrar_auditoria(
-            user["usuario"],
-            user["rol"],
-            "Formularios",
-            "Asignar preguntas",
-            f"Se asignaron {asignadas} preguntas a {nombre_destino}"
-        )
-
         return jsonify({
-            "mensaje": f"{asignadas} pregunta(s) asignada(s) correctamente",
+            "mensaje": f"{asignadas} campo(s) designado(s) correctamente",
             "asignadas": asignadas
         }), 201
 
     except Exception as e:
-        return jsonify({"mensaje": "Error al asignar preguntas", "error": str(e)}), 500
+        return jsonify({
+            "mensaje": "Error al asignar campos",
+            "error": str(e)
+        }), 500
+
     finally:
         close_db(cursor, conn)
-
 
 @app.route("/api/formularios/mis-pendientes", methods=["GET"])
 def mis_formularios_pendientes():
