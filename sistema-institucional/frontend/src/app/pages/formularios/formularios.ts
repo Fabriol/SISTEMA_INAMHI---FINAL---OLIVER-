@@ -1,6 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { catchError, finalize, of, timeout } from 'rxjs';
 import Swal from 'sweetalert2';
@@ -9,7 +9,7 @@ import { FormulariosService } from '../../core/services/formularios';
 @Component({
   selector: 'app-formularios',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule],
   templateUrl: './formularios.html',
   styleUrl: './formularios.scss'
 })
@@ -17,18 +17,14 @@ export class Formularios implements OnInit {
 
   formularios: any[] = [];
   formularioSeleccionado: any = null;
-
   usuariosDisponibles: any[] = [];
   notificaciones: any[] = [];
   pendientes: any[] = [];
-
   usuario: any = {};
   cargando = false;
   private alertaActiva = false;
 
-  asignacion = {
-    usuario_id: ''
-  };
+  asignacion = { usuario_id: '' };
 
   camposFormulario: any[] = [
     { id: 'nombres_apellidos', etiqueta: 'Nombres y Apellidos', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
@@ -43,60 +39,34 @@ export class Formularios implements OnInit {
     { id: 'email2', etiqueta: 'Email 2', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
     { id: 'provincia', etiqueta: 'Provincia', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
     { id: 'canton', etiqueta: 'Cantón', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
-
     { id: 'lugar_trabajo', etiqueta: 'Lugar de Trabajo', seccion: 'Dirección / Unidad', tipo: 'SELECT', seleccionado: false },
     { id: 'unidad', etiqueta: 'Dirección / Unidad', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
     { id: 'cargo', etiqueta: 'Cargo Desempeñado', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
     { id: 'grupo_ocupacional', etiqueta: 'Grupo Ocupacional', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
-
-    { id: 'info_fin_resp', etiqueta: 'Responsable Informe Fin Gestión', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false },
-    { id: 'bienes_resp', etiqueta: 'Responsable Bienes', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false },
-    { id: 'tic_equipo_resp', etiqueta: 'Responsable TIC', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false },
-    { id: 'fin_saldos_resp', etiqueta: 'Responsable Financiero', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false },
-    { id: 'seg_resp', etiqueta: 'Responsable Seguridad', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false },
-    { id: 'rh_cursos_resp', etiqueta: 'Responsable Talento Humano', seccion: 'Responsables', tipo: 'TEXTO', seleccionado: false }
+    { id: 'admin_deducibles', etiqueta: '¿Tiene Deducibles?', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false },
+    { id: 'admin_deducibles_valor', etiqueta: 'Valor Deducibles', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false }
   ];
 
   camposAsignadosUsuario: string[] = [];
-
-  formulario: any = {
-    nombres_apellidos: '',
-    modalidad: '',
-    cedula: '',
-    fecha_ingreso: '',
-    direccion: '',
-    fecha_salida: '',
-    celular: '',
-    emergencia: '',
-    email1: '',
-    email2: '',
-    provincia: '',
-    canton: '',
-    lugar_trabajo: '',
-    unidad: '',
-    cargo: '',
-    grupo_ocupacional: '',
-    info_fin_resp: '',
-    bienes_resp: '',
-    tic_equipo_resp: '',
-    fin_saldos_resp: '',
-    seg_resp: '',
-    rh_cursos_resp: ''
-  };
 
   nuevoFormulario = {
     titulo: '',
     descripcion: ''
   };
 
+  // FormGroup principal que reemplaza al objeto "formulario: any"
+  formularioPazSalvo!: FormGroup;
+
   constructor(
     private formulariosService: FormulariosService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private fb: FormBuilder
   ) {}
 
   ngOnInit(): void {
     this.usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
-
+    
+    this.inicializarFormularioReactivo();
     this.cargarFormularios();
     this.cargarNotificaciones();
 
@@ -107,6 +77,78 @@ export class Formularios implements OnInit {
     }
   }
 
+  // ========================================================
+  // INICIALIZACIÓN Y LÓGICA REACTIVA (NUEVO MOTOR)
+  // ========================================================
+  inicializarFormularioReactivo(): void {
+    this.formularioPazSalvo = this.fb.group({
+      nombres_apellidos: ['', [Validators.required, this.validadorLetras.bind(this)]],
+      modalidad: ['', Validators.required],
+      cedula: ['', [Validators.required, this.validadorCedula.bind(this)]],
+      fecha_ingreso: ['', Validators.required],
+      direccion: ['', [Validators.required, Validators.minLength(5)]],
+      fecha_salida: ['', Validators.required],
+      celular: ['', [Validators.required, this.validadorCelular.bind(this)]],
+      emergencia: ['', [this.validadorCelular.bind(this)]], 
+      email1: ['', [Validators.required, Validators.email]],
+      email2: ['', [Validators.email]],
+      provincia: ['', [Validators.required, this.validadorLetras.bind(this)]],
+      canton: ['', [Validators.required, this.validadorLetras.bind(this)]],
+      
+      lugar_trabajo: ['', Validators.required],
+      unidad: ['', [Validators.required, Validators.minLength(3)]],
+      cargo: ['', [Validators.required, Validators.minLength(3)]],
+      grupo_ocupacional: ['', [Validators.required, Validators.minLength(3)]],
+
+      admin_deducibles: ['NO'],
+      admin_deducibles_valor: [{ value: '', disabled: true }]
+    }, { validators: this.validadorFechasGrupo.bind(this) });
+
+    // Listener reactivo: Activa/Desactiva obligatoriedad dinámicamente
+    this.formularioPazSalvo.get('admin_deducibles')?.valueChanges.subscribe(val => {
+      const campoValor = this.formularioPazSalvo.get('admin_deducibles_valor');
+      if (val === 'SI') {
+        campoValor?.enable();
+        campoValor?.setValidators([Validators.required, Validators.min(0.01)]);
+      } else {
+        campoValor?.disable();
+        campoValor?.clearValidators();
+        campoValor?.setValue('');
+      }
+      campoValor?.updateValueAndValidity();
+    });
+  }
+
+  // ========================================================
+  // VALIDACIONES PERSONALIZADAS (CUSTOM VALIDATORS)
+  // ========================================================
+  validadorLetras(control: AbstractControl): { [key: string]: boolean } | null {
+    if (!control.value) return null;
+    return /^[a-zA-ZÁÉÍÓÚáéíóúÑñ\s]+$/.test(control.value) ? null : { soloLetras: true };
+  }
+
+  validadorCedula(control: AbstractControl): { [key: string]: boolean } | null {
+    if (!control.value) return null;
+    return /^[0-9]{10}$/.test(control.value) ? null : { cedulaInvalida: true };
+  }
+
+  validadorCelular(control: AbstractControl): { [key: string]: boolean } | null {
+    if (!control.value) return null;
+    return /^[0-9]{10}$/.test(control.value) ? null : { celularInvalido: true };
+  }
+
+  validadorFechasGrupo(group: AbstractControl): { [key: string]: boolean } | null {
+    const ingreso = group.get('fecha_ingreso')?.value;
+    const salida = group.get('fecha_salida')?.value;
+    if (ingreso && salida) {
+      return new Date(salida) >= new Date(ingreso) ? null : { fechasInvalidas: true };
+    }
+    return null;
+  }
+
+  // ========================================================
+  // UTILIDADES GLOBALES
+  // ========================================================
   esAdmin(): boolean {
     return this.usuario?.rol === 'Administrador';
   }
@@ -117,9 +159,7 @@ export class Formularios implements OnInit {
 
   alertaRapida(titulo: string, texto: string): void {
     if (this.alertaActiva) return;
-
     this.alertaActiva = true;
-
     Swal.fire({
       icon: 'warning',
       title: titulo,
@@ -129,46 +169,21 @@ export class Formularios implements OnInit {
     }).then(() => this.alertaActiva = false);
   }
 
-  soloLetras(texto: string): boolean {
-    return /^[a-zA-ZÁÉÍÓÚáéíóúÑñ\s]+$/.test(texto || '');
-  }
-
-  validarEmail(email: string): boolean {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
-  }
-
-  validarCedula(cedula: string): boolean {
-    return /^[0-9]{10}$/.test(cedula || '');
-  }
-
-  validarCelular(celular: string): boolean {
-    return /^[0-9]{10}$/.test(celular || '');
-  }
-
-  validarFechas(): boolean {
-    if (!this.formulario.fecha_ingreso || !this.formulario.fecha_salida) return false;
-
-    const ingreso = new Date(this.formulario.fecha_ingreso);
-    const salida = new Date(this.formulario.fecha_salida);
-
-    return salida >= ingreso;
-  }
-
+  // ========================================================
+  // LÓGICA DE NEGOCIO Y API (ADMIN / ASIGNACIÓN)
+  // ========================================================
   validarFormulario(): boolean {
     this.nuevoFormulario.titulo = this.limpiarTexto(this.nuevoFormulario.titulo);
     this.nuevoFormulario.descripcion = this.limpiarTexto(this.nuevoFormulario.descripcion);
-
     if (!this.nuevoFormulario.titulo || this.nuevoFormulario.titulo.length < 3) {
       this.alertaRapida('Validación', 'El título debe tener mínimo 3 caracteres.');
       return false;
     }
-
     return true;
   }
 
   cargarFormularios(): void {
     this.cargando = true;
-
     this.formulariosService.listar().pipe(
       timeout(4000),
       catchError((err: any) => {
@@ -189,9 +204,7 @@ export class Formularios implements OnInit {
       this.alertaRapida('Sin permisos', 'Solo el Administrador puede crear formularios.');
       return;
     }
-
     if (!this.validarFormulario()) return;
-
     this.cargando = true;
 
     this.formulariosService.crear(this.nuevoFormulario).pipe(
@@ -206,14 +219,8 @@ export class Formularios implements OnInit {
       })
     ).subscribe((res: any) => {
       if (!res) return;
-
       Swal.fire('Creado', 'Formulario creado correctamente.', 'success');
-
-      this.nuevoFormulario = {
-        titulo: '',
-        descripcion: ''
-      };
-
+      this.nuevoFormulario = { titulo: '', descripcion: '' };
       this.cargarFormularios();
     });
   }
@@ -225,6 +232,7 @@ export class Formularios implements OnInit {
 
   cargarDetalleFormulario(f: any): void {
     this.cargando = true;
+    this.formularioPazSalvo.reset({ admin_deducibles: 'NO' }); // Limpiar estado previo
 
     this.formulariosService.ver(f.id).pipe(
       timeout(4000),
@@ -241,21 +249,21 @@ export class Formularios implements OnInit {
 
       this.formularioSeleccionado = data.formulario;
       this.camposAsignadosUsuario = [];
-
       const preguntas = data.preguntas || [];
+      const parchesDeValores: any = {};
 
       preguntas.forEach((p: any) => {
         const codigoCampo = p.codigo || p.campo || p.pregunta;
-
-        if (codigoCampo && this.formulario.hasOwnProperty(codigoCampo)) {
+        if (codigoCampo && this.formularioPazSalvo.controls.hasOwnProperty(codigoCampo)) {
           this.camposAsignadosUsuario.push(codigoCampo);
-
           if (p.respuesta) {
-            this.formulario[codigoCampo] = p.respuesta;
+            parchesDeValores[codigoCampo] = p.respuesta;
           }
         }
       });
 
+      // Mapeo automático de backend hacia FormGroup
+      this.formularioPazSalvo.patchValue(parchesDeValores);
       this.cdr.detectChanges();
     });
   }
@@ -286,9 +294,7 @@ export class Formularios implements OnInit {
       catchError(() => of([]))
     ).subscribe((data: any[]) => {
       this.notificaciones = data || [];
-
       const noLeidas = this.notificaciones.filter(n => !n.leido);
-
       if (noLeidas.length > 0) {
         Swal.fire({
           icon: 'info',
@@ -324,19 +330,15 @@ export class Formularios implements OnInit {
       this.alertaRapida('Sin permisos', 'Solo el Administrador puede designar campos.');
       return;
     }
-
     if (!this.formularioSeleccionado?.id) {
       this.alertaRapida('Validación', 'Seleccione un formulario primero.');
       return;
     }
-
     const seleccionados = this.camposSeleccionados();
-
     if (seleccionados.length === 0) {
       this.alertaRapida('Validación', 'Seleccione al menos un campo del formulario.');
       return;
     }
-
     if (!this.asignacion.usuario_id) {
       this.alertaRapida('Validación', 'Seleccione un usuario destino.');
       return;
@@ -355,7 +357,6 @@ export class Formularios implements OnInit {
     };
 
     this.cargando = true;
-
     this.formulariosService.asignar(data).pipe(
       timeout(4000),
       catchError((err: any) => {
@@ -368,18 +369,16 @@ export class Formularios implements OnInit {
       })
     ).subscribe((res: any) => {
       if (!res) return;
-
       Swal.fire('Enviado', res.mensaje || 'Campos designados correctamente.', 'success');
-
-      this.asignacion = {
-        usuario_id: ''
-      };
-
+      this.asignacion = { usuario_id: '' };
       this.limpiarSeleccionCampos();
       this.cargarDetalleFormulario(this.formularioSeleccionado);
     });
   }
 
+  // ========================================================
+  // GUARDADO DE CAMPOS REACTIVOS Y EXPORTACIÓN PDF
+  // ========================================================
   puedeEditarCampo(campo: string): boolean {
     if (this.esAdmin()) return true;
     return this.camposAsignadosUsuario.includes(campo);
@@ -390,14 +389,18 @@ export class Formularios implements OnInit {
       this.alertaRapida('Validación', 'Seleccione un formulario primero.');
       return;
     }
-
     if (!this.puedeEditarCampo(campo)) {
       this.alertaRapida('Sin permisos', 'No puede llenar este campo.');
       return;
     }
 
-    const valor = this.limpiarTexto(this.formulario[campo]);
+    const control = this.formularioPazSalvo.get(campo);
+    if (control?.invalid) {
+      this.alertaRapida('Validación', 'El formato del campo no es válido o está incompleto.');
+      return;
+    }
 
+    const valor = this.limpiarTexto(control?.value);
     if (!valor) {
       this.alertaRapida('Validación', 'Ingrese un valor antes de guardar.');
       return;
@@ -422,93 +425,16 @@ export class Formularios implements OnInit {
   }
 
   validarPazSalvo(): boolean {
-    const f = this.formulario;
-
-    f.nombres_apellidos = this.limpiarTexto(f.nombres_apellidos);
-    f.direccion = this.limpiarTexto(f.direccion);
-    f.provincia = this.limpiarTexto(f.provincia);
-    f.canton = this.limpiarTexto(f.canton);
-    f.unidad = this.limpiarTexto(f.unidad);
-    f.cargo = this.limpiarTexto(f.cargo);
-    f.grupo_ocupacional = this.limpiarTexto(f.grupo_ocupacional);
-
-    if (!f.nombres_apellidos || !this.soloLetras(f.nombres_apellidos)) {
-      this.alertaRapida('Validación', 'Ingrese nombres y apellidos válidos.');
+    // La nueva validación reactiva es en una sola línea
+    if (this.formularioPazSalvo.invalid) {
+      this.formularioPazSalvo.markAllAsTouched();
+      this.alertaRapida('Validación', 'Por favor, revise y complete correctamente todos los campos marcados en rojo.');
       return false;
     }
-
-    if (!f.modalidad) {
-      this.alertaRapida('Validación', 'Seleccione modalidad laboral.');
-      return false;
-    }
-
-    if (!this.validarCedula(f.cedula)) {
-      this.alertaRapida('Validación', 'La cédula debe tener 10 números.');
-      return false;
-    }
-
-    if (!f.fecha_ingreso || !f.fecha_salida) {
-      this.alertaRapida('Validación', 'Ingrese fecha de ingreso y salida.');
-      return false;
-    }
-
-    if (!this.validarFechas()) {
+    
+    // Validar error custom de fechas
+    if (this.formularioPazSalvo.hasError('fechasInvalidas')) {
       this.alertaRapida('Validación', 'La fecha de salida no puede ser menor a la fecha de ingreso.');
-      return false;
-    }
-
-    if (!f.direccion || f.direccion.length < 5) {
-      this.alertaRapida('Validación', 'Ingrese una dirección válida.');
-      return false;
-    }
-
-    if (!this.validarCelular(f.celular)) {
-      this.alertaRapida('Validación', 'El celular debe tener 10 números.');
-      return false;
-    }
-
-    if (f.emergencia && !this.validarCelular(f.emergencia)) {
-      this.alertaRapida('Validación', 'El contacto de emergencia debe tener 10 números.');
-      return false;
-    }
-
-    if (!this.validarEmail(f.email1)) {
-      this.alertaRapida('Validación', 'Ingrese un Email 1 válido.');
-      return false;
-    }
-
-    if (f.email2 && !this.validarEmail(f.email2)) {
-      this.alertaRapida('Validación', 'Ingrese un Email 2 válido.');
-      return false;
-    }
-
-    if (!f.provincia || !this.soloLetras(f.provincia)) {
-      this.alertaRapida('Validación', 'Ingrese una provincia válida.');
-      return false;
-    }
-
-    if (!f.canton || !this.soloLetras(f.canton)) {
-      this.alertaRapida('Validación', 'Ingrese un cantón válido.');
-      return false;
-    }
-
-    if (!f.lugar_trabajo) {
-      this.alertaRapida('Validación', 'Seleccione lugar de trabajo.');
-      return false;
-    }
-
-    if (!f.unidad || f.unidad.length < 3) {
-      this.alertaRapida('Validación', 'Ingrese dirección/unidad válida.');
-      return false;
-    }
-
-    if (!f.cargo || f.cargo.length < 3) {
-      this.alertaRapida('Validación', 'Ingrese cargo válido.');
-      return false;
-    }
-
-    if (!f.grupo_ocupacional || f.grupo_ocupacional.length < 3) {
-      this.alertaRapida('Validación', 'Ingrese grupo ocupacional válido.');
       return false;
     }
 
@@ -521,7 +447,7 @@ export class Formularios implements OnInit {
     Swal.fire({
       icon: 'success',
       title: 'Formulario válido',
-      text: 'La hoja espejo fue actualizada correctamente.',
+      text: 'La hoja espejo está lista y sincronizada correctamente.',
       timer: 1600,
       showConfirmButton: false
     });
@@ -534,7 +460,6 @@ export class Formularios implements OnInit {
     const jsPDF = (await import('jspdf')).default;
 
     const element = document.getElementById('hojaEspejo');
-
     if (!element) {
       Swal.fire('Error', 'No se encontró la hoja espejo', 'error');
       return;
@@ -574,7 +499,6 @@ export class Formularios implements OnInit {
       this.alertaRapida('Validación', 'Seleccione un formulario primero.');
       return;
     }
-
     window.open(`http://localhost:5000/api/formularios/${this.formularioSeleccionado.id}/pdf`, '_blank');
   }
 }
