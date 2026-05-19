@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from mysql.connector import pooling
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 import jwt
 import datetime
@@ -909,6 +909,47 @@ def crear_formulario():
     finally:
         close_db(cursor, conn)
 
+@app.route("/api/formularios/<int:id>", methods=["DELETE"])
+def eliminar_formulario(id):
+    conn = None
+    cursor = None
+
+    try:
+        user, error = validar_admin()
+        if error:
+            return error
+
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT id FROM formularios WHERE id=%s", (id,))
+        formulario = cursor.fetchone()
+
+        if not formulario:
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        cursor.execute("""
+            DELETE r FROM formulario_respuestas r
+            INNER JOIN formulario_preguntas p ON r.pregunta_id = p.id
+            WHERE p.formulario_id = %s
+        """, (id,))
+
+        cursor.execute("DELETE FROM formulario_asignaciones WHERE formulario_id=%s", (id,))
+        cursor.execute("DELETE FROM formulario_preguntas WHERE formulario_id=%s", (id,))
+        cursor.execute("DELETE FROM formularios WHERE id=%s", (id,))
+
+        conn.commit()
+
+        return jsonify({"mensaje": "Formulario eliminado correctamente"}), 200
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"mensaje": "Error al eliminar formulario", "error": str(e)}), 500
+
+    finally:
+        close_db(cursor, conn)
+
 
 @app.route("/api/formularios/<int:id>", methods=["GET"])
 def ver_formulario(id):
@@ -938,11 +979,12 @@ def ver_formulario(id):
                     a.estado AS estado_asignacion,
                     u.nombres AS asignado_nombres,
                     u.apellidos AS asignado_apellidos,
-                    r.respuesta
+                    r.respuesta,
+                    CASE WHEN a.id IS NOT NULL THEN 1 ELSE 0 END AS ya_asignado
                 FROM formulario_preguntas p
                 LEFT JOIN formulario_asignaciones a ON p.id = a.pregunta_id
                 LEFT JOIN usuarios u ON a.asignado_usuario_id = u.id
-                LEFT JOIN formulario_respuestas r ON a.id = r.asignacion_id
+                LEFT JOIN formulario_respuestas r ON p.id = r.pregunta_id
                 WHERE p.formulario_id = %s
                 ORDER BY p.orden ASC, p.id ASC
             """, (id,))
@@ -952,16 +994,15 @@ def ver_formulario(id):
                     p.*,
                     a.id AS asignacion_id,
                     a.asignado_usuario_id,
-                    a.asignado_rol,
                     a.estado AS estado_asignacion,
                     r.respuesta
                 FROM formulario_preguntas p
                 INNER JOIN formulario_asignaciones a ON p.id = a.pregunta_id
-                LEFT JOIN formulario_respuestas r ON a.id = r.asignacion_id
+                LEFT JOIN formulario_respuestas r ON p.id = r.pregunta_id
                 WHERE p.formulario_id = %s
-                AND (a.asignado_usuario_id = %s OR a.asignado_rol = %s)
+                AND a.asignado_usuario_id = %s
                 ORDER BY p.orden ASC, p.id ASC
-            """, (id, user["id"], user["rol"]))
+            """, (id, user["id"]))
 
         return jsonify({
             "formulario": formulario,
@@ -1058,23 +1099,23 @@ def asignar_pregunta():
         cursor = conn.cursor(dictionary=True)
 
         cursor.execute("""
-            SELECT id, nombres, apellidos, rol
+            SELECT id, nombres, apellidos
             FROM usuarios
-            WHERE id = %s AND estado = 'ACTIVO'
+            WHERE id=%s AND estado='ACTIVO'
             LIMIT 1
         """, (usuario_id,))
-
         usuario_destino = cursor.fetchone()
 
         if not usuario_destino:
             return jsonify({"mensaje": "Usuario destino no encontrado o inactivo"}), 404
 
-        asignadas = 0
+        nuevas = 0
+        bloqueadas = []
 
         for campo in campos:
             codigo = limpiar_texto(campo.get("codigo"))
             pregunta = limpiar_texto(campo.get("pregunta"))
-            tipo = campo.get("tipo", "TEXTO")
+            tipo = limpiar_texto(campo.get("tipo") or "TEXTO")
             seccion = limpiar_texto(campo.get("seccion"))
 
             if not codigo or not pregunta:
@@ -1083,10 +1124,9 @@ def asignar_pregunta():
             cursor.execute("""
                 SELECT id
                 FROM formulario_preguntas
-                WHERE formulario_id = %s AND codigo = %s
+                WHERE formulario_id=%s AND codigo=%s
                 LIMIT 1
             """, (formulario_id, codigo))
-
             pregunta_db = cursor.fetchone()
 
             if pregunta_db:
@@ -1094,46 +1134,47 @@ def asignar_pregunta():
             else:
                 cursor.execute("""
                     INSERT INTO formulario_preguntas
-                    (formulario_id, codigo, pregunta, tipo, seccion, opciones, orden)
-                    VALUES (%s, %s, %s, %s, %s, NULL, 0)
+                    (formulario_id, codigo, pregunta, tipo, seccion, opciones, obligatorio, orden)
+                    VALUES (%s, %s, %s, %s, %s, NULL, 0, 0)
                 """, (formulario_id, codigo, pregunta, tipo, seccion))
-
                 pregunta_id = cursor.lastrowid
 
             cursor.execute("""
-                SELECT id
-                FROM formulario_asignaciones
-                WHERE formulario_id = %s
-                AND pregunta_id = %s
-                AND asignado_usuario_id = %s
+                SELECT 
+                    a.id,
+                    u.nombres,
+                    u.apellidos
+                FROM formulario_asignaciones a
+                LEFT JOIN usuarios u ON a.asignado_usuario_id = u.id
+                WHERE a.formulario_id=%s
+                AND a.pregunta_id=%s
                 LIMIT 1
+            """, (formulario_id, pregunta_id))
+            ya_asignada = cursor.fetchone()
+
+            if ya_asignada:
+                nombre = f"{ya_asignada.get('nombres') or ''} {ya_asignada.get('apellidos') or ''}".strip()
+                bloqueadas.append(f"{pregunta} → ya asignada a {nombre}")
+                continue
+
+            cursor.execute("""
+                INSERT INTO formulario_asignaciones
+                (formulario_id, pregunta_id, asignado_usuario_id, asignado_rol, estado)
+                VALUES (%s, %s, %s, NULL, 'ENVIADO')
             """, (formulario_id, pregunta_id, usuario_id))
 
-            existe = cursor.fetchone()
+            nuevas += 1
 
-            if existe:
-                cursor.execute("""
-                    UPDATE formulario_asignaciones
-                    SET estado = 'ENVIADO',
-                        fecha_culminado = NULL
-                    WHERE id = %s
-                """, (existe["id"],))
-            else:
-                cursor.execute("""
-                    INSERT INTO formulario_asignaciones
-                    (formulario_id, pregunta_id, asignado_usuario_id, asignado_rol, estado)
-                    VALUES (%s, %s, %s, NULL, 'ENVIADO')
-                """, (formulario_id, pregunta_id, usuario_id))
-
-            asignadas += 1
-
-        if asignadas == 0:
-            return jsonify({"mensaje": "No se pudo asignar ningún campo"}), 400
+        if nuevas == 0:
+            return jsonify({
+                "mensaje": "No se asignó ningún campo. Las preguntas seleccionadas ya están designadas.",
+                "bloqueadas": bloqueadas
+            }), 400
 
         cursor.execute("""
             UPDATE formularios
-            SET estado = 'ENVIADO'
-            WHERE id = %s
+            SET estado='ENVIADO'
+            WHERE id=%s
         """, (formulario_id,))
 
         cursor.execute("""
@@ -1143,55 +1184,22 @@ def asignar_pregunta():
         """, (
             usuario_id,
             "Formulario pendiente",
-            f"Tiene {asignadas} campo(s) pendientes por llenar."
+            f"Tiene {nuevas} campo(s) nuevo(s) por llenar."
         ))
 
         conn.commit()
 
         return jsonify({
-            "mensaje": f"{asignadas} campo(s) designado(s) correctamente",
-            "asignadas": asignadas
+            "mensaje": f"{nuevas} campo(s) asignado(s). Las ya designadas fueron bloqueadas.",
+            "nuevas": nuevas,
+            "bloqueadas": bloqueadas
         }), 201
 
     except Exception as e:
-        return jsonify({
-            "mensaje": "Error al asignar campos",
-            "error": str(e)
-        }), 500
+        if conn:
+            conn.rollback()
+        return jsonify({"mensaje": "Error al asignar campos", "error": str(e)}), 500
 
-    finally:
-        close_db(cursor, conn)
-
-@app.route("/api/formularios/mis-pendientes", methods=["GET"])
-def mis_formularios_pendientes():
-    conn = None
-    cursor = None
-    try:
-        user, error = validar_login()
-        if error:
-            return error
-
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("""
-            SELECT DISTINCT
-                f.id,
-                f.titulo,
-                f.descripcion,
-                f.estado,
-                f.porcentaje
-            FROM formularios f
-            INNER JOIN formulario_asignaciones a ON f.id = a.formulario_id
-            WHERE a.estado != 'CULMINADO'
-            AND (a.asignado_usuario_id = %s OR a.asignado_rol = %s)
-            ORDER BY f.id DESC
-        """, (user["id"], user["rol"]))
-
-        return jsonify(cursor.fetchall()), 200
-
-    except Exception as e:
-        return jsonify({"mensaje": "Error al listar pendientes", "error": str(e)}), 500
     finally:
         close_db(cursor, conn)
 
@@ -1266,65 +1274,73 @@ def responder_formulario():
         data = request.get_json(silent=True) or {}
 
         formulario_id = data.get("formulario_id")
-        pregunta_id = data.get("pregunta_id")
-        asignacion_id = data.get("asignacion_id")
+        campo = limpiar_texto(data.get("campo"))
         respuesta = limpiar_texto(data.get("respuesta"))
 
-        if not formulario_id or not pregunta_id or not asignacion_id or not respuesta:
+        if not formulario_id or not campo or respuesta == "":
             return jsonify({"mensaje": "Datos incompletos"}), 400
 
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
 
         cursor.execute("""
-            SELECT estado
-            FROM formularios
-            WHERE id = %s
+            SELECT id
+            FROM formulario_preguntas
+            WHERE formulario_id = %s AND codigo = %s
             LIMIT 1
-        """, (formulario_id,))
+        """, (formulario_id, campo))
 
-        formulario = cursor.fetchone()
+        pregunta = cursor.fetchone()
 
-        if not formulario:
-            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+        if not pregunta:
+            return jsonify({"mensaje": "Campo no encontrado en el formulario"}), 404
 
-        if formulario["estado"] == "COMPLETADO":
-            return jsonify({"mensaje": "Formulario cerrado. Ya no se puede editar."}), 400
+        pregunta_id = pregunta["id"]
 
         cursor.execute("""
-            SELECT *
+            SELECT id, estado
             FROM formulario_asignaciones
-            WHERE id = %s
-            AND formulario_id = %s
+            WHERE formulario_id = %s
             AND pregunta_id = %s
+            AND asignado_usuario_id = %s
             LIMIT 1
-        """, (asignacion_id, formulario_id, pregunta_id))
+        """, (formulario_id, pregunta_id, user["id"]))
 
         asignacion = cursor.fetchone()
 
-        if not asignacion:
-            return jsonify({"mensaje": "Asignación no encontrada"}), 404
+        if user["rol"] != "Administrador" and not asignacion:
+            return jsonify({"mensaje": "Este campo no fue asignado a usted"}), 403
 
-        if user["rol"] != "Administrador":
-            if asignacion["asignado_usuario_id"] != user["id"] and asignacion["asignado_rol"] != user["rol"]:
-                return jsonify({"mensaje": "No tiene permisos para responder"}), 403
+        asignacion_id = asignacion["id"] if asignacion else None
+
+        cursor.execute("""
+            SELECT id
+            FROM formulario_respuestas
+            WHERE formulario_id = %s
+            AND pregunta_id = %s
+            LIMIT 1
+        """, (formulario_id, pregunta_id))
+
+        ya_respondido = cursor.fetchone()
+
+        if ya_respondido:
+            return jsonify({
+                "mensaje": "Este campo ya fue llenado y no se puede editar."
+            }), 400
 
         cursor.execute("""
             INSERT INTO formulario_respuestas
             (formulario_id, pregunta_id, asignacion_id, respondido_por, respuesta)
             VALUES (%s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                respuesta = VALUES(respuesta),
-                respondido_por = VALUES(respondido_por),
-                actualizado_en = CURRENT_TIMESTAMP
         """, (formulario_id, pregunta_id, asignacion_id, user["id"], respuesta))
 
-        cursor.execute("""
-            UPDATE formulario_asignaciones
-            SET estado = 'CULMINADO',
-                fecha_culminado = NOW()
-            WHERE id = %s
-        """, (asignacion_id,))
+        if asignacion_id:
+            cursor.execute("""
+                UPDATE formulario_asignaciones
+                SET estado = 'CULMINADO',
+                    fecha_culminado = NOW()
+                WHERE id = %s
+            """, (asignacion_id,))
 
         cursor.execute("""
             SELECT
@@ -1338,25 +1354,28 @@ def responder_formulario():
         total = progreso["total"] or 0
         completados = progreso["completados"] or 0
         porcentaje = round((completados / total) * 100) if total > 0 else 0
-        nuevo_estado = "COMPLETADO" if porcentaje >= 100 else "EN_PROCESO"
+        estado = "COMPLETADO" if total > 0 and porcentaje == 100 else "EN_PROCESO"
 
         cursor.execute("""
             UPDATE formularios
             SET porcentaje = %s,
                 estado = %s
             WHERE id = %s
-        """, (porcentaje, nuevo_estado, formulario_id))
+        """, (porcentaje, estado, formulario_id))
 
         conn.commit()
 
         return jsonify({
-            "mensaje": "Respuesta guardada correctamente",
+            "mensaje": "Campo guardado correctamente",
             "porcentaje": porcentaje,
-            "estado": nuevo_estado
+            "estado": estado
         }), 200
 
     except Exception as e:
-        return jsonify({"mensaje": "Error al responder formulario", "error": str(e)}), 500
+        if conn:
+            conn.rollback()
+        return jsonify({"mensaje": "Error al guardar campo", "error": str(e)}), 500
+
     finally:
         close_db(cursor, conn)
 
@@ -1401,8 +1420,8 @@ def generar_pdf(formulario_id):
         filename = f"formulario_{formulario_id}.pdf"
         filepath = os.path.join(UPLOAD_FOLDER, filename)
 
-        c = canvas.Canvas(filepath, pagesize=letter)
-        width, height = letter
+        c = canvas.Canvas(filepath, pagesize=A4)
+        width, height = A4
 
         y = height - 40
 

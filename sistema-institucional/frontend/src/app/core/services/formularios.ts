@@ -114,4 +114,8 @@ export class FormulariosService {
       this.getHeaders()
     );
   }
+
+  eliminar(id: number): Observable<any> {
+    return this.http.delete(`${this.api}/formularios/${id}`);
+  }
 }

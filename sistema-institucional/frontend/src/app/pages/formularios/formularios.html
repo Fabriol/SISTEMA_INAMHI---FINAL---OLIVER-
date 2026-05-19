@@ -16,6 +16,7 @@
       <h2>🔔 Notificaciones</h2>
       <span>Total: {{ notificaciones.length }}</span>
     </div>
+
     <div class="lista">
       <div class="item" *ngFor="let n of notificaciones" (click)="marcarNotificacionLeida(n)">
         <h3>{{ n.titulo }}</h3>
@@ -27,22 +28,16 @@
 
   <section class="card fade-in" *ngIf="esAdmin()">
     <div class="card-title">
-      <h2>Crear formulario</h2>
+      <div>
+        <h2>Crear formulario Paz y Salvo</h2>
+        <p>Se creará automáticamente el formulario oficial.</p>
+      </div>
       <span>Solo administrador</span>
     </div>
-    <div class="form-grid">
-      <div class="field">
-        <input [(ngModel)]="nuevoFormulario.titulo" placeholder="Título del formulario">
-        <small>Mínimo 3 caracteres</small>
-      </div>
-      <div class="field">
-        <input [(ngModel)]="nuevoFormulario.descripcion" placeholder="Descripción">
-        <small>Descripción opcional</small>
-      </div>
-    </div>
+
     <div class="actions">
-      <button class="btn-primary" (click)="crearFormulario()" [disabled]="cargando || !nuevoFormulario.titulo || nuevoFormulario.titulo.length < 3">
-        {{ cargando ? 'Creando...' : 'Crear formulario' }}
+      <button class="btn-primary" type="button" (click)="crearFormulario()" [disabled]="cargando">
+        {{ cargando ? 'Creando...' : 'Crear formulario Paz y Salvo' }}
       </button>
     </div>
   </section>
@@ -52,13 +47,28 @@
       <h2>Listado de formularios</h2>
       <span>Total: {{ formularios.length }}</span>
     </div>
+
     <div class="lista" *ngIf="formularios.length > 0">
-      <div class="item hover-scale" *ngFor="let f of formularios" (click)="verFormulario(f)" [class.item-activo]="formularioSeleccionado?.id === f.id">
-        <h3>{{ f.titulo }}</h3>
-        <p>{{ f.descripcion || 'Sin descripción' }}</p>
+      <div class="item hover-scale" *ngFor="let f of formularios" (click)="verFormulario(f)"
+        [class.item-activo]="formularioSeleccionado?.id === f.id">
+
+        <div class="card-title">
+          <h3>{{ f.titulo }}</h3>
+
+          <button *ngIf="esAdmin()" type="button" class="btn-danger" (click)="eliminarFormulario(f, $event)">
+            Eliminar
+          </button>
+        </div>
+
+        <p>{{ f.descripcion || 'Formulario Paz y Salvo' }}</p>
+
         <span class="estado">{{ f.estado || 'BORRADOR' }}</span>
+        <span class="estado activo-label" *ngIf="formularioSeleccionado?.id === f.id">
+          SELECCIONADO
+        </span>
       </div>
     </div>
+
     <div class="empty" *ngIf="formularios.length === 0 && !cargando">
       No hay formularios registrados.
     </div>
@@ -69,21 +79,191 @@
   </div>
 
   <section *ngIf="formularioSeleccionado && esAdmin()" class="card fade-in">
+
     <div class="card-title">
       <h2>Designar campos del formulario</h2>
       <span>{{ camposSeleccionados().length }} seleccionado(s)</span>
     </div>
+
     <div class="actions">
-      <button type="button" (click)="seleccionarTodosCampos()">Seleccionar todos</button>
+      <button type="button" (click)="seleccionarTodosCampos()">Seleccionar disponibles</button>
       <button type="button" (click)="limpiarSeleccionCampos()">Limpiar selección</button>
     </div>
-    <div class="lista" style="margin-top: 18px;">
-      <label class="item" *ngFor="let c of camposFormulario">
-        <input type="checkbox" [(ngModel)]="c.seleccionado">
-        <h3>{{ c.etiqueta }}</h3>
-        <p>{{ c.seccion }}</p>
-      </label>
+
+    <div class="accordion">
+
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('personales')">
+          <h3>1. Datos Personales</h3>
+          <span>{{ isOpen('personales') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('personales')">
+          <div class="grid-campos">
+            <label class="campo-card" *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Datos Personales')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('direccion')">
+          <h3>2. Dirección / Unidad</h3>
+          <span>{{ isOpen('direccion') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('direccion')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Dirección / Unidad')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('tramites')">
+          <h3>3. Trámites y Unidad</h3>
+          <span>{{ isOpen('tramites') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('tramites')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Trámites y Unidad')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('admin')">
+          <h3>4. Gestión Administrativa</h3>
+          <span>{{ isOpen('admin') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('admin')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Administrativa')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('tic')">
+          <h3>5. Gestión TIC</h3>
+          <span>{{ isOpen('tic') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('tic')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión TIC')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('financiero')">
+          <h3>6. Gestión Financiera</h3>
+          <span>{{ isOpen('financiero') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('financiero')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Financiera')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('seguridad')">
+          <h3>7. Seguridad de la Información</h3>
+          <span>{{ isOpen('seguridad') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('seguridad')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Seguridad')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('rrhh')">
+          <h3>8. Recursos Humanos</h3>
+          <span>{{ isOpen('rrhh') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('rrhh')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recursos Humanos')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('recepcion')">
+          <h3>9. Recepción de Documentos</h3>
+          <span>{{ isOpen('recepcion') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('recepcion')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recepción')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
     </div>
+
     <div class="form-grid" style="margin-top: 22px;">
       <div class="field">
         <label>Asignar a usuario</label>
@@ -95,11 +275,14 @@
         </select>
       </div>
     </div>
+
     <div class="actions">
-      <button class="btn-success" type="button" (click)="designarCampos()">
+      <button class="btn-success" type="button" (click)="designarCampos()"
+        [disabled]="camposSeleccionados().length === 0 || !asignacion.usuario_id">
         Enviar / Designar campos
       </button>
     </div>
+
   </section>
 
   <section *ngIf="formularioSeleccionado" class="paz-salvo-container fade-in">
@@ -117,11 +300,13 @@
           <div class="form-grid">
             <div class="input-group span-2">
               <label>Nombres y Apellidos (*)</label>
-              <input maxlength="80" class="dark-input" formControlName="nombres_apellidos" [readonly]="!puedeEditarCampo('nombres_apellidos')">
+              <input maxlength="80" class="dark-input" formControlName="nombres_apellidos"
+                [readonly]="!puedeEditarCampo('nombres_apellidos')">
             </div>
             <div class="input-group span-2">
               <label>Modalidad Laboral (*)</label>
-              <select class="dark-input" formControlName="modalidad" [attr.disabled]="!puedeEditarCampo('modalidad') ? true : null">
+              <select class="dark-input" formControlName="modalidad"
+                [attr.disabled]="!puedeEditarCampo('modalidad') ? true : null">
                 <option value="">Seleccione...</option>
                 <option value="PERMANENTE">Nombramiento Permanente</option>
                 <option value="PROVISIONAL">Nombramiento Provisional</option>
@@ -131,43 +316,58 @@
             </div>
             <div class="input-group">
               <label>Cédula / Pasaporte (*)</label>
-              <input maxlength="10" class="dark-input" formControlName="cedula" [readonly]="!puedeEditarCampo('cedula')">
+              <input maxlength="15" class="dark-input" formControlName="cedula"
+                [readonly]="!puedeEditarCampo('cedula')">
             </div>
             <div class="input-group">
               <label>Fecha de Ingreso (*)</label>
-              <input type="date" class="dark-input" formControlName="fecha_ingreso" [readonly]="!puedeEditarCampo('fecha_ingreso')">
+              <input type="date" class="dark-input" formControlName="fecha_ingreso"
+                [readonly]="!puedeEditarCampo('fecha_ingreso')">
             </div>
             <div class="input-group span-2">
               <label>Dirección Domiciliaria (*)</label>
-              <input maxlength="100" class="dark-input" formControlName="direccion" [readonly]="!puedeEditarCampo('direccion')">
+              <input maxlength="100" class="dark-input" formControlName="direccion"
+                [readonly]="!puedeEditarCampo('direccion')">
             </div>
             <div class="input-group">
-              <label>Fecha de Salida (*)</label>
-              <input type="date" class="dark-input" formControlName="fecha_salida" [readonly]="!puedeEditarCampo('fecha_salida')">
+              <label>Número Domicilio</label>
+              <input maxlength="10" class="dark-input" formControlName="numero_domicilio"
+                [readonly]="!puedeEditarCampo('numero_domicilio')">
             </div>
             <div class="input-group">
               <label>Número Celular (*)</label>
-              <input maxlength="10" class="dark-input" formControlName="celular" [readonly]="!puedeEditarCampo('celular')">
+              <input maxlength="10" class="dark-input" formControlName="celular"
+                [readonly]="!puedeEditarCampo('celular')">
             </div>
             <div class="input-group">
               <label>Contacto Emergencia</label>
-              <input maxlength="10" class="dark-input" formControlName="emergencia" [readonly]="!puedeEditarCampo('emergencia')">
+              <input maxlength="10" class="dark-input" formControlName="emergencia"
+                [readonly]="!puedeEditarCampo('emergencia')">
+            </div>
+            <div class="input-group">
+              <label>Fecha de Salida (*)</label>
+              <input type="date" class="dark-input" formControlName="fecha_salida"
+                [readonly]="!puedeEditarCampo('fecha_salida')">
             </div>
             <div class="input-group">
               <label>Email 1 (*)</label>
-              <input maxlength="60" type="email" class="dark-input" formControlName="email1" [readonly]="!puedeEditarCampo('email1')">
+              <input maxlength="60" type="email" class="dark-input" formControlName="email1"
+                [readonly]="!puedeEditarCampo('email1')">
             </div>
             <div class="input-group">
               <label>Email 2</label>
-              <input maxlength="60" type="email" class="dark-input" formControlName="email2" [readonly]="!puedeEditarCampo('email2')">
+              <input maxlength="60" type="email" class="dark-input" formControlName="email2"
+                [readonly]="!puedeEditarCampo('email2')">
             </div>
             <div class="input-group">
               <label>Provincia (*)</label>
-              <input maxlength="30" class="dark-input" formControlName="provincia" [readonly]="!puedeEditarCampo('provincia')">
+              <input maxlength="30" class="dark-input" formControlName="provincia"
+                [readonly]="!puedeEditarCampo('provincia')">
             </div>
             <div class="input-group">
               <label>Cantón (*)</label>
-              <input maxlength="30" class="dark-input" formControlName="canton" [readonly]="!puedeEditarCampo('canton')">
+              <input maxlength="30" class="dark-input" formControlName="canton"
+                [readonly]="!puedeEditarCampo('canton')">
             </div>
           </div>
         </div>
@@ -177,7 +377,8 @@
           <div class="form-grid">
             <div class="input-group span-2">
               <label>Lugar de Trabajo (*)</label>
-              <select class="dark-input" formControlName="lugar_trabajo" [attr.disabled]="!puedeEditarCampo('lugar_trabajo') ? true : null">
+              <select class="dark-input" formControlName="lugar_trabajo"
+                [attr.disabled]="!puedeEditarCampo('lugar_trabajo') ? true : null">
                 <option value="">Seleccione...</option>
                 <option value="PLANTA">Planta Central</option>
                 <option value="DESCONCENTRADOS">Procesos Desconcentrados</option>
@@ -185,39 +386,247 @@
             </div>
             <div class="input-group span-2">
               <label>Dirección / Unidad (*)</label>
-              <input maxlength="80" class="dark-input" formControlName="unidad" [readonly]="!puedeEditarCampo('unidad')">
+              <input maxlength="80" class="dark-input" formControlName="unidad"
+                [readonly]="!puedeEditarCampo('unidad')">
             </div>
             <div class="input-group">
               <label>Cargo Desempeñado (*)</label>
-              <input maxlength="50" class="dark-input" formControlName="cargo" [readonly]="!puedeEditarCampo('cargo')">
+              <input maxlength="50" class="dark-input" formControlName="cargo"
+                [readonly]="!puedeEditarCampo('cargo')">
             </div>
             <div class="input-group">
               <label>Grupo Ocupacional (*)</label>
-              <input maxlength="50" class="dark-input" formControlName="grupo_ocupacional" [readonly]="!puedeEditarCampo('grupo_ocupacional')">
+              <input maxlength="50" class="dark-input" formControlName="grupo_ocupacional"
+                [readonly]="!puedeEditarCampo('grupo_ocupacional')">
             </div>
           </div>
         </div>
 
         <div class="form-card-dark">
-          <h3 class="card-title">3. Gestión Administrativa</h3>
+          <h3 class="card-title">3. Trámites y Unidad</h3>
           <div class="form-grid">
-             <div class="input-group span-2">
-              <label>¿Valores pendientes por deducibles?</label>
-              <select class="dark-input" formControlName="admin_deducibles" [attr.disabled]="!puedeEditarCampo('admin_deducibles') ? true : null">
-                <option value="NO">NO</option>
-                <option value="SI">SÍ</option>
+            <div class="input-group span-2">
+              <label>Entrega informe de fin de gestión y entrega física/digital</label>
+              <select class="dark-input" formControlName="tramites_informe" [attr.disabled]="!puedeEditarCampo('tramites_informe') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
               </select>
             </div>
-            <div class="input-group" *ngIf="formularioPazSalvo.get('admin_deducibles')?.value === 'SI'">
-              <label>Valor a Descontar ($)</label>
-              <input type="number" class="dark-input" formControlName="admin_deducibles_valor" [readonly]="!puedeEditarCampo('admin_deducibles')">
+            <div class="input-group span-2">
+              <label>¿Es Administrador de Contrato?</label>
+              <select class="dark-input" formControlName="tramites_admin_contrato" [attr.disabled]="!puedeEditarCampo('tramites_admin_contrato') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group" *ngIf="formularioPazSalvo.get('tramites_admin_contrato')?.value === 'SI'">
+              <label>Descripción del contrato</label>
+              <input class="dark-input" formControlName="tramites_desc_contrato" [readonly]="!puedeEditarCampo('tramites_desc_contrato')">
+            </div>
+            <div class="input-group" *ngIf="formularioPazSalvo.get('tramites_admin_contrato')?.value === 'SI'">
+              <label>Número Memorando</label>
+              <input class="dark-input" formControlName="tramites_memo" [readonly]="!puedeEditarCampo('tramites_memo')">
+            </div>
+            <div class="input-group span-2">
+              <label>Nombre del Jefe Inmediato</label>
+              <input class="dark-input" formControlName="tramites_jefe_inmediato" [readonly]="!puedeEditarCampo('tramites_jefe_inmediato')">
+            </div>
+            <div class="input-group span-2">
+              <label>Trámites en Quipux (Bandeja Cero) / Claves Acceso</label>
+              <select class="dark-input" formControlName="tramites_quipux_cero" [attr.disabled]="!puedeEditarCampo('tramites_quipux_cero') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group span-2">
+              <label>Nombre servidor que recibe trámites</label>
+              <input class="dark-input" formControlName="tramites_servidor_recibe" [readonly]="!puedeEditarCampo('tramites_servidor_recibe')">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card-dark">
+          <h3 class="card-title">4. Gestión Administrativa</h3>
+          <div class="form-grid">
+            <div class="input-group">
+              <label>¿Realizó entrega de informe?</label>
+              <select class="dark-input" formControlName="admin_informe" [attr.disabled]="!puedeEditarCampo('admin_informe') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>¿Entregó bienes y muebles?</label>
+              <select class="dark-input" formControlName="admin_bienes" [attr.disabled]="!puedeEditarCampo('admin_bienes') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Número de Acta</label>
+              <input class="dark-input" formControlName="admin_acta_bienes" [readonly]="!puedeEditarCampo('admin_acta_bienes')">
+            </div>
+            <div class="input-group">
+              <label>Valor a Descontar (Bienes)</label>
+              <input type="number" class="dark-input" formControlName="admin_valor_bienes" [readonly]="!puedeEditarCampo('admin_valor_bienes')">
+            </div>
+            <div class="input-group">
+              <label>¿Valores pendientes por deducibles?</label>
+              <select class="dark-input" formControlName="admin_deducibles" [attr.disabled]="!puedeEditarCampo('admin_deducibles') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Valor a Descontar (Deducibles)</label>
+              <input type="number" class="dark-input" formControlName="admin_deducibles_valor" [readonly]="!puedeEditarCampo('admin_deducibles_valor')">
+            </div>
+            <div class="input-group">
+              <label>¿Pasajes aéreos por justificar?</label>
+              <select class="dark-input" formControlName="admin_pasajes" [attr.disabled]="!puedeEditarCampo('admin_pasajes') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Nombre Responsable</label>
+              <input class="dark-input" formControlName="admin_responsable" [readonly]="!puedeEditarCampo('admin_responsable')">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card-dark">
+          <h3 class="card-title">5. Gestión TIC</h3>
+          <div class="form-grid">
+            <div class="input-group">
+              <label>Verificación de Equipo / IP / Acceso</label>
+              <select class="dark-input" formControlName="tic_verificacion" [attr.disabled]="!puedeEditarCampo('tic_verificacion') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Entrega Backup</label>
+              <select class="dark-input" formControlName="tic_backup" [attr.disabled]="!puedeEditarCampo('tic_backup') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Ruta Backup</label>
+              <input class="dark-input" formControlName="tic_ruta_backup" [readonly]="!puedeEditarCampo('tic_ruta_backup')">
+            </div>
+            <div class="input-group">
+              <label>Entrega Tarjeta Acceso / Cierre Cuentas</label>
+              <select class="dark-input" formControlName="tic_tarjeta_cuentas" [attr.disabled]="!puedeEditarCampo('tic_tarjeta_cuentas') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group span-2">
+              <label>Nombre Responsable TIC</label>
+              <input class="dark-input" formControlName="tic_responsable" [readonly]="!puedeEditarCampo('tic_responsable')">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card-dark">
+          <h3 class="card-title">6. Gestión Financiera</h3>
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label>¿Valores pendientes (Saldos contables, Anticipos)?</label>
+              <select class="dark-input" formControlName="fin_saldos" [attr.disabled]="!puedeEditarCampo('fin_saldos') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group span-2">
+              <label>¿Valores pendientes (Recuperación, Devolución muebles)?</label>
+              <select class="dark-input" formControlName="fin_recuperacion" [attr.disabled]="!puedeEditarCampo('fin_recuperacion') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group span-2">
+              <label>Nombre Director/a Administrativo/a Financiero/a</label>
+              <input class="dark-input" formControlName="fin_director" [readonly]="!puedeEditarCampo('fin_director')">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card-dark">
+          <h3 class="card-title">7. Seguridad de la Información</h3>
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label>Archivos Digitales / Físicos / Verificación de info</label>
+              <select class="dark-input" formControlName="seg_archivos" [attr.disabled]="!puedeEditarCampo('seg_archivos') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Oficial de Seguridad</label>
+              <input class="dark-input" formControlName="seg_oficial" [readonly]="!puedeEditarCampo('seg_oficial')">
+            </div>
+            <div class="input-group">
+              <label>Responsable</label>
+              <input class="dark-input" formControlName="seg_responsable" [readonly]="!puedeEditarCampo('seg_responsable')">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card-dark">
+          <h3 class="card-title">8. Recursos Humanos</h3>
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label>Devengó cursos / Aplicó evaluación / Desvinculado SIITH</label>
+              <select class="dark-input" formControlName="rrhh_cursos_eval" [attr.disabled]="!puedeEditarCampo('rrhh_cursos_eval') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Días de Vacaciones Acumuladas</label>
+              <input type="number" class="dark-input" formControlName="rrhh_vacaciones" [readonly]="!puedeEditarCampo('rrhh_vacaciones')">
+            </div>
+            <div class="input-group">
+              <label>Entrega Constancia Juramentada</label>
+              <select class="dark-input" formControlName="rrhh_juramentada" [attr.disabled]="!puedeEditarCampo('rrhh_juramentada') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Número Certificado Emitido</label>
+              <input class="dark-input" formControlName="rrhh_num_certificado" [readonly]="!puedeEditarCampo('rrhh_num_certificado')">
+            </div>
+            <div class="input-group">
+              <label>Número Declaración</label>
+              <input class="dark-input" formControlName="rrhh_num_declaracion" [readonly]="!puedeEditarCampo('rrhh_num_declaracion')">
+            </div>
+            <div class="input-group span-2">
+              <label>Entrega Credencial / Copia Actividades / Acta Bienes Custodio</label>
+              <select class="dark-input" formControlName="rrhh_credencial" [attr.disabled]="!puedeEditarCampo('rrhh_credencial') ? true : null">
+                <option value="">Seleccione...</option><option value="SI">SI</option><option value="NO">NO</option>
+              </select>
+            </div>
+            <div class="input-group span-2">
+              <label>Nombre Director/a RRHH</label>
+              <input class="dark-input" formControlName="rrhh_director" [readonly]="!puedeEditarCampo('rrhh_director')">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card-dark">
+          <h3 class="card-title">9. Recepción de Documentos</h3>
+          <div class="form-grid">
+            <div class="input-group">
+              <label>Fecha de Entrega</label>
+              <input type="date" class="dark-input" formControlName="recepcion_fecha" [readonly]="!puedeEditarCampo('recepcion_fecha')">
+            </div>
+            <div class="input-group">
+              <label>No. Hojas Recibidas</label>
+              <input type="number" class="dark-input" formControlName="recepcion_hojas" [readonly]="!puedeEditarCampo('recepcion_hojas')">
+            </div>
+            <div class="input-group">
+              <label>Servidor/a que recibe</label>
+              <input class="dark-input" formControlName="recepcion_servidor" [readonly]="!puedeEditarCampo('recepcion_servidor')">
+            </div>
+            <div class="input-group">
+              <label>Cargo Servidor/a que recibe</label>
+              <input class="dark-input" formControlName="recepcion_cargo" [readonly]="!puedeEditarCampo('recepcion_cargo')">
             </div>
           </div>
         </div>
 
         <div class="form-actions-dark">
-          <button class="btn-submit-dark" type="button" [disabled]="formularioPazSalvo.invalid" (click)="validarYActualizarEspejo()">
-            Guardar / Validar Formulario
+          <button class="btn-submit-dark" type="button" (click)="validarYActualizarEspejo()">
+            {{ esAdmin() ? 'Validar Formulario' : 'Guardar campos asignados' }}
           </button>
           <button class="btn-submit-dark" type="button" (click)="exportarHojaEspejoPDF()">
             📄 Exportar PDF
@@ -229,32 +638,35 @@
 
     <div class="hoja-espejo-preview">
       <div id="hojaEspejo">
-        <div class="a4-page">
-
+        
+        <div class="a4-page" style="margin-bottom: 20px;">
+          
           <table class="tabla-encabezado">
             <tr>
               <td rowspan="3" class="logo-cell">
-                <img src="/img/logo.png" alt="INAMHI" class="logo">
+                <img src="/assets/img/logo.png" alt="INAMHI" class="logo" style="width: 80px;">
                 <div style="font-size: 8px; font-weight: bold; margin-top: 4px; color: #1e293b;">TIEMPO CLIMA Y AGUA ECUADOR</div>
               </td>
-              <td class="titulo-principal" style="font-size: 14px; padding: 10px;">INSTITUTO NACIONAL DE METEOROLOGÍA E HIDROLOGÍA</td>
+              <td class="titulo-principal" style="font-size: 14px; padding: 10px; text-align: center;">INSTITUTO NACIONAL DE METEOROLOGÍA E HIDROLOGÍA</td>
             </tr>
-            <tr><td class="subtitulo" style="font-size: 12px;">DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</td></tr>
-            <tr><td class="titulo-documento seccion-titulo" style="font-size: 11px;">FORMULARIO PAZ Y SALVO PARA EL PAGO DE LIQUIDACIÓN DE HABERES</td></tr>
+            <tr>
+              <td class="subtitulo" style="font-size: 12px; text-align: center;">DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</td>
+            </tr>
+            <tr>
+              <td class="titulo-documento seccion-titulo" style="font-size: 11px; text-align: center; background: #e0e0e0; font-weight: bold;">FORMULARIO PAZ Y SALVO PARA EL PAGO DE LIQUIDACIÓN DE HABERES</td>
+            </tr>
           </table>
 
           <table class="tabla-pdf mt-2">
-            <tr><th colspan="4" class="seccion-titulo">DATOS PERSONALES</th></tr>
+            <tr><th colspan="4" class="seccion-titulo" style="background: #e0e0e0; text-align: center; font-size: 11px;">DATOS PERSONALES</th></tr>
             <tr>
-              <td class="etiqueta" style="width: 25%;">NOMBRES Y APELLIDOS:</td>
-              <td colspan="3" class="valor negrita">
-                <span class="texto-corto">{{ formularioPazSalvo.get('nombres_apellidos')?.value | uppercase }}</span>
-              </td>
+              <td class="etiqueta" style="width: 25%; font-size: 9px; font-weight: bold; background: #f5f5f5;">NOMBRES Y APELLIDOS:</td>
+              <td colspan="3" class="valor negrita" style="font-size: 9px;">{{ formularioPazSalvo.get('nombres_apellidos')?.value | uppercase }}</td>
             </tr>
             <tr>
-              <td class="etiqueta">MODALIDAD LABORAL:</td>
-              <td colspan="3">
-                <div style="display: flex; gap: 15px; font-size: 9px; align-items: center;">
+              <td class="etiqueta" style="font-size: 9px; font-weight: bold; background: #f5f5f5;">MODALIDAD LABORAL:</td>
+              <td colspan="3" style="font-size: 9px;">
+                <div style="display: flex; gap: 15px; align-items: center;">
                   <span>NOMBRAMIENTO PERMANENTE <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'PERMANENTE'" disabled></span>
                   <span>NOMBRAMIENTO PROVISIONAL <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'PROVISIONAL'" disabled></span>
                   <span>CONTRATO OCASIONAL <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'OCASIONAL'" disabled></span>
@@ -263,99 +675,165 @@
               </td>
             </tr>
             <tr>
-              <td class="etiqueta">CÉDULA / PASAPORTE:</td>
-              <td class="valor negrita">{{ formularioPazSalvo.get('cedula')?.value }}</td>
-              <td class="etiqueta" style="width: 20%;">FECHA INGRESO:</td>
-              <td class="valor negrita" style="width: 25%;">{{ formularioPazSalvo.get('fecha_ingreso')?.value }}</td>
+              <td class="etiqueta" style="font-size: 9px; font-weight: bold; background: #f5f5f5;">CÉDULA / PASAPORTE:</td>
+              <td class="valor negrita" style="font-size: 9px;">{{ formularioPazSalvo.get('cedula')?.value }}</td>
+              <td class="etiqueta" style="width: 20%; font-size: 9px; font-weight: bold; background: #f5f5f5;">FECHA INGRESO:</td>
+              <td class="valor negrita" style="width: 25%; font-size: 9px;">{{ formularioPazSalvo.get('fecha_ingreso')?.value }}</td>
             </tr>
             <tr>
-              <td class="etiqueta">DIRECCIÓN DOMICILIARIA:</td>
-              <td class="valor"><span class="texto-corto">{{ formularioPazSalvo.get('direccion')?.value | uppercase }}</span></td>
-              <td class="etiqueta">FECHA SALIDA:</td>
-              <td class="valor negrita">{{ formularioPazSalvo.get('fecha_salida')?.value }}</td>
+              <td class="etiqueta" style="font-size: 9px; font-weight: bold; background: #f5f5f5;">DIRECCIÓN DOMICILIARIA:</td>
+              <td class="valor" style="font-size: 9px;">{{ formularioPazSalvo.get('direccion')?.value | uppercase }}</td>
+              <td class="etiqueta" style="font-size: 9px; font-weight: bold; background: #f5f5f5;">FECHA SALIDA:</td>
+              <td class="valor negrita" style="font-size: 9px;">{{ formularioPazSalvo.get('fecha_salida')?.value }}</td>
             </tr>
             <tr>
-              <td class="etiqueta">NÚMERO CELULAR:</td>
-              <td class="valor">{{ formularioPazSalvo.get('celular')?.value }}</td>
-              <td class="etiqueta">CONTACTO EMERGENCIA:</td>
-              <td class="valor">{{ formularioPazSalvo.get('emergencia')?.value }}</td>
+              <td class="etiqueta" style="font-size: 9px; font-weight: bold; background: #f5f5f5;">NÚMERO DOMICILIO / CELULAR:</td>
+              <td class="valor" style="font-size: 9px;">{{ formularioPazSalvo.get('numero_domicilio')?.value }} / {{ formularioPazSalvo.get('celular')?.value }}</td>
+              <td class="etiqueta" style="font-size: 9px; font-weight: bold; background: #f5f5f5;">CONTACTO EMERGENCIA:</td>
+              <td class="valor" style="font-size: 9px;">{{ formularioPazSalvo.get('emergencia')?.value }}</td>
             </tr>
             <tr>
-              <td class="etiqueta">EMAIL 1:</td>
-              <td class="valor"><span class="texto-corto">{{ formularioPazSalvo.get('email1')?.value }}</span></td>
-              <td class="etiqueta">EMAIL 2:</td>
-              <td class="valor"><span class="texto-corto">{{ formularioPazSalvo.get('email2')?.value }}</span></td>
-            </tr>
-            <tr>
-              <td class="etiqueta">PROVINCIA:</td>
-              <td class="valor">{{ formularioPazSalvo.get('provincia')?.value | uppercase }}</td>
-              <td class="etiqueta">CANTÓN:</td>
-              <td class="valor">{{ formularioPazSalvo.get('canton')?.value | uppercase }}</td>
+              <td class="etiqueta" style="font-size: 9px; font-weight: bold; background: #f5f5f5;">EMAIL 1 / EMAIL 2:</td>
+              <td class="valor" style="font-size: 9px;">{{ formularioPazSalvo.get('email1')?.value }} / {{ formularioPazSalvo.get('email2')?.value }}</td>
+              <td class="etiqueta" style="font-size: 9px; font-weight: bold; background: #f5f5f5;">PROVINCIA / CANTÓN:</td>
+              <td class="valor" style="font-size: 9px;">{{ formularioPazSalvo.get('provincia')?.value | uppercase }} / {{ formularioPazSalvo.get('canton')?.value | uppercase }}</td>
             </tr>
           </table>
 
           <table class="tabla-pdf mt-1">
-            <tr><th colspan="4" class="seccion-titulo">DATOS DE LA DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS</th></tr>
+            <tr><th colspan="4" class="seccion-titulo" style="background: #e0e0e0; text-align: center; font-size: 11px;">DATOS DE LA DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS</th></tr>
             <tr>
-              <td class="etiqueta" style="width: 25%;">LUGAR DE TRABAJO:</td>
-              <td colspan="3">
-                <div style="display: flex; gap: 20px; font-size: 9px; align-items: center;">
+              <td class="etiqueta" style="width: 25%; font-size: 9px; font-weight: bold; background: #f5f5f5;">LUGAR DE TRABAJO:</td>
+              <td colspan="3" style="font-size: 9px;">
+                <div style="display: flex; gap: 20px; align-items: center;">
                   <span>PLANTA CENTRAL <input type="radio" [checked]="formularioPazSalvo.get('lugar_trabajo')?.value === 'PLANTA'" disabled></span>
                   <span>PROCESOS DESCONCENTRADOS <input type="radio" [checked]="formularioPazSalvo.get('lugar_trabajo')?.value === 'DESCONCENTRADOS'" disabled></span>
                 </div>
               </td>
             </tr>
             <tr>
-              <td class="etiqueta">DIRECCIÓN / UNIDAD:</td>
-              <td colspan="3" class="valor negrita"><span class="texto-corto">{{ formularioPazSalvo.get('unidad')?.value | uppercase }}</span></td>
+              <td class="etiqueta" style="font-size: 9px; font-weight: bold; background: #f5f5f5;">DIRECCIÓN / UNIDAD:</td>
+              <td colspan="3" class="valor negrita" style="font-size: 9px;">{{ formularioPazSalvo.get('unidad')?.value | uppercase }}</td>
             </tr>
             <tr>
-              <td class="etiqueta">CARGO DESEMPEÑADO:</td>
-              <td class="valor"><span class="texto-corto">{{ formularioPazSalvo.get('cargo')?.value | uppercase }}</span></td>
-              <td class="etiqueta" style="width: 20%;">GRUPO OCUPACIONAL:</td>
-              <td class="valor"><span class="texto-corto">{{ formularioPazSalvo.get('grupo_ocupacional')?.value | uppercase }}</span></td>
+              <td class="etiqueta" style="font-size: 9px; font-weight: bold; background: #f5f5f5;">CARGO DESEMPEÑADO:</td>
+              <td class="valor" style="font-size: 9px;">{{ formularioPazSalvo.get('cargo')?.value | uppercase }}</td>
+              <td class="etiqueta" style="width: 20%; font-size: 9px; font-weight: bold; background: #f5f5f5;">GRUPO OCUPACIONAL:</td>
+              <td class="valor" style="font-size: 9px;">{{ formularioPazSalvo.get('grupo_ocupacional')?.value | uppercase }}</td>
             </tr>
           </table>
 
-          <table class="tabla-pdf mt-1">
-            <tr><th colspan="5" class="seccion-titulo">GESTIÓN ADMINISTRATIVA Y FINANCIERA</th></tr>
-            <tr style="background: #f1f5f9; text-align: center; font-weight: bold; font-size: 9px;">
-              <td style="width: 50%;">DETALLE</td>
-              <td style="width: 8%;">SÍ</td>
-              <td style="width: 8%;">NO</td>
-              <td colspan="2">VALORES / OBSERVACIONES</td>
+          <table class="tabla-pdf mt-1" style="text-align: center;">
+            <tr><th colspan="4" class="seccion-titulo" style="background: #e0e0e0; text-align: center; font-size: 11px;">TRÁMITES Y GESTIÓN ADMINISTRATIVA FINANCIERA</th></tr>
+            <tr style="background: #f1f5f9; font-weight: bold; font-size: 9px;">
+              <td style="width: 50%;">DETALLE</td><td style="width: 10%;">SÍ</td><td style="width: 10%;">NO</td><td style="width: 30%;">OBSERVACIONES / FIRMA</td>
             </tr>
             <tr>
-              <td style="font-size: 9px;">¿TIENE VALORES PENDIENTES POR DEDUCIBLES?</td>
-              <td class="text-center"><span *ngIf="formularioPazSalvo.get('admin_deducibles')?.value === 'SI'">X</span></td>
-              <td class="text-center"><span *ngIf="formularioPazSalvo.get('admin_deducibles')?.value === 'NO'">X</span></td>
-              <td class="etiqueta" style="font-size: 9px; width: 15%;">A DESCONTAR:</td>
-              <td class="valor negrita">
-                <span *ngIf="formularioPazSalvo.get('admin_deducibles')?.value === 'SI'">$ {{ formularioPazSalvo.get('admin_deducibles_valor')?.value }}</span>
-              </td>
+              <td style="font-size: 9px; text-align: left;">Entrega informe / Archivos (Físico y Digital)<br>Administrador de contrato: {{ formularioPazSalvo.get('tramites_desc_contrato')?.value }}<br>Trámites en Quipux Cero / Claves Unidad</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('tramites_informe')?.value === 'SI' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('tramites_informe')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">Jefe Inmediato: <br> {{ formularioPazSalvo.get('tramites_jefe_inmediato')?.value | uppercase }}</td>
+            </tr>
+            <tr>
+              <td style="font-size: 9px; text-align: left;">Entregó bienes muebles y equipos<br>Acta No: {{ formularioPazSalvo.get('admin_acta_bienes')?.value }} <br> Valor: ${{ formularioPazSalvo.get('admin_valor_bienes')?.value }}</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('admin_bienes')?.value === 'SI' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('admin_bienes')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;" rowspan="2">Responsable Adm:<br>{{ formularioPazSalvo.get('admin_responsable')?.value | uppercase }}</td>
+            </tr>
+            <tr>
+              <td style="font-size: 9px; text-align: left;">¿Tiene valores pendientes por deducibles? <br> Valor: ${{ formularioPazSalvo.get('admin_deducibles_valor')?.value }}</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('admin_deducibles')?.value === 'SI' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('admin_deducibles')?.value === 'NO' ? 'X' : '' }}</td>
             </tr>
           </table>
 
-          <div class="texto-legal mt-2" style="border: 1px solid black; padding: 10px; margin-top: 15px; font-size: 9px;">
-            <strong>AUTORIZACIÓN:</strong> Conforme lo establecido en el artículo 110 del Reglamento a la Ley Orgánica de Servicio Público (LOSEP), quien suscribe el presente formulario de "paz y salvo" para la liquidación de haberes que me corresponde, <strong>AUTORIZO</strong> a la DIRECCIÓN ADMINISTRATIVA FINANCIERA del INAMHI, para que efectúe los descuentos detallados en el presente documento por reintegro y/o recuperación de valores, bienes y/o especies que se hayan encontrado a mi cargo y no hayan sido devueltos en las condiciones recibidas, los mismos que serán <strong>DESCONTADOS</strong> a través de mi rol de pagos y/o liquidación de haberes.
+          <table class="tabla-pdf mt-1" style="text-align: center;">
+            <tr><th colspan="4" class="seccion-titulo" style="background: #e0e0e0; text-align: center; font-size: 11px;">GESTIÓN DE TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIÓN (TIC)</th></tr>
+            <tr style="background: #f1f5f9; font-weight: bold; font-size: 9px;">
+              <td style="width: 50%;">DETALLE</td><td style="width: 10%;">SÍ</td><td style="width: 10%;">NO</td><td style="width: 30%;">OBSERVACIONES / FIRMA</td>
+            </tr>
+            <tr>
+              <td style="font-size: 9px; text-align: left;">Verificación de equipo / Retiro accesos IP / Contraseñas<br>Entrega Backup: {{ formularioPazSalvo.get('tic_ruta_backup')?.value }}<br>Entrega tarjeta / Cierre cuentas institucionales</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('tic_verificacion')?.value === 'SI' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('tic_verificacion')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">Responsable TIC:<br>{{ formularioPazSalvo.get('tic_responsable')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+          <table class="tabla-pdf mt-1" style="text-align: center;">
+            <tr><th colspan="4" class="seccion-titulo" style="background: #e0e0e0; text-align: center; font-size: 11px;">GESTIÓN FINANCIERA</th></tr>
+            <tr style="background: #f1f5f9; font-weight: bold; font-size: 9px;">
+              <td style="width: 50%;">DETALLE</td><td style="width: 10%;">SÍ</td><td style="width: 10%;">NO</td><td style="width: 30%;">FIRMA DIRECTOR/A</td>
+            </tr>
+            <tr>
+              <td style="font-size: 9px; text-align: left;">Valores pendientes de pago por saldos contables o anticipos<br>Valores pendientes recuperación o devolución de muebles</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('fin_saldos')?.value === 'SI' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('fin_saldos')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">Director/a Financiero:<br>{{ formularioPazSalvo.get('fin_director')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+        </div>
+
+        <div class="a4-page">
+
+          <table class="tabla-pdf" style="text-align: center;">
+            <tr><th colspan="4" class="seccion-titulo" style="background: #e0e0e0; text-align: center; font-size: 11px;">SEGURIDAD DE LA INFORMACIÓN</th></tr>
+            <tr style="background: #f1f5f9; font-weight: bold; font-size: 9px;">
+              <td style="width: 50%;">DETALLE</td><td style="width: 10%;">SÍ</td><td style="width: 10%;">NO</td><td style="width: 30%;">FIRMA OFICIAL / RESPONSABLE</td>
+            </tr>
+            <tr>
+              <td style="font-size: 9px; text-align: left;">Archivos Digitales y Físicos / Copia Informe Actividades<br>Verificación de la Información Institucional</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('seg_archivos')?.value === 'SI' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('seg_archivos')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">Oficial: {{ formularioPazSalvo.get('seg_oficial')?.value | uppercase }}<br>Resp: {{ formularioPazSalvo.get('seg_responsable')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+          <table class="tabla-pdf mt-1" style="text-align: center;">
+            <tr><th colspan="4" class="seccion-titulo" style="background: #e0e0e0; text-align: center; font-size: 11px;">DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</th></tr>
+            <tr style="background: #f1f5f9; font-weight: bold; font-size: 9px;">
+              <td style="width: 50%;">DETALLE</td><td style="width: 10%;">SÍ</td><td style="width: 10%;">NO</td><td style="width: 30%;">FIRMA DIRECTOR/A</td>
+            </tr>
+            <tr>
+              <td style="font-size: 9px; text-align: left;">Devengó cursos / Aplicó evaluación / Desvinculado puesto<br>Días vacaciones acumuladas: {{ formularioPazSalvo.get('rrhh_vacaciones')?.value }}<br>Entrega declaración juramentada (Certificado: {{ formularioPazSalvo.get('rrhh_num_certificado')?.value }})<br>Entrega credencial / Acta de bienes custodio</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('rrhh_cursos_eval')?.value === 'SI' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">{{ formularioPazSalvo.get('rrhh_cursos_eval')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size: 9px;">Director/a RRHH:<br>{{ formularioPazSalvo.get('rrhh_director')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+          <table class="tabla-pdf mt-1" style="text-align: center;">
+            <tr><th colspan="4" class="seccion-titulo" style="background: #e0e0e0; text-align: center; font-size: 11px;">RECEPCIÓN DE DOCUMENTOS</th></tr>
+            <tr>
+              <td style="font-size: 9px; width: 25%; background: #f5f5f5; font-weight: bold;">FECHA ENTREGA:</td><td style="font-size: 9px; width: 25%;">{{ formularioPazSalvo.get('recepcion_fecha')?.value }}</td>
+              <td style="font-size: 9px; width: 25%; background: #f5f5f5; font-weight: bold;">HOJAS RECIBIDAS:</td><td style="font-size: 9px; width: 25%;">{{ formularioPazSalvo.get('recepcion_hojas')?.value }}</td>
+            </tr>
+            <tr>
+              <td style="font-size: 9px; background: #f5f5f5; font-weight: bold;">SERVIDOR QUE RECIBE:</td><td style="font-size: 9px;">{{ formularioPazSalvo.get('recepcion_servidor')?.value | uppercase }}</td>
+              <td style="font-size: 9px; background: #f5f5f5; font-weight: bold;">CARGO:</td><td style="font-size: 9px;">{{ formularioPazSalvo.get('recepcion_cargo')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+          <div class="texto-legal mt-2" style="border: 1px solid black; padding: 10px; margin-top: 20px; font-size: 9px;">
+            <strong>AUTORIZACIÓN:</strong> Conforme lo establecido en el artículo 110 del Reglamento a la Ley Orgánica
+            de Servicio Público (LOSEP), quien suscribe el presente formulario de "paz y salvo" para la liquidación de
+            haberes que me corresponde, <strong>AUTORIZO</strong> a la DIRECCIÓN ADMINISTRATIVA FINANCIERA del INAMHI,
+            para que efectúe los descuentos detallados en el presente documento por reintegro y/o recuperación de
+            valores, bienes y/o especies que se hayan encontrado a mi cargo y no hayan sido devueltos en las
+            condiciones recibidas, los mismos que serán <strong>DESCONTADOS</strong> a través de mi rol de pagos y/o liquidación de haberes.
           </div>
 
-          <table class="tabla-pdf mt-2" style="border: none;">
+          <table class="tabla-pdf mt-2" style="border: none; text-align: center; margin-top: 50px;">
             <tr style="border: none;">
-              <td class="caja-firma" style="width: 33%; border: none;">
-                <br><br><br><br>
+              <td class="caja-firma" style="width: 50%; border: none; font-size: 10px;">
                 __________________________________<br>
-                <strong>FIRMA SERVIDOR SALIENTE</strong>
+                <strong>FIRMA SERVIDOR SALIENTE</strong><br>
+                C.C: {{ formularioPazSalvo.get('cedula')?.value }}
               </td>
-              <td class="caja-firma" style="width: 33%; border: none;">
-                <br><br><br><br>
+              <td class="caja-firma" style="width: 50%; border: none; font-size: 10px;">
                 __________________________________<br>
                 <strong>TALENTO HUMANO</strong>
-              </td>
-              <td class="caja-firma" style="width: 33%; border: none;">
-                <br><br><br><br>
-                __________________________________<br>
-                <strong>DIRECTOR/A FINANCIERO</strong>
               </td>
             </tr>
           </table>

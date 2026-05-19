@@ -1,13 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
 
-/* ==========================================
-   VARIABLES DE TEMA (SCSS)
-   ========================================== */
 $primary: #2563eb;
 $primary-dark: #1d4ed8;
 $secondary: #0ea5e9;
 $success: #22c55e;
 $success-dark: #15803d;
+$danger: #dc2626;
+$danger-dark: #991b1b;
 $text-main: #0f172a;
 $text-muted: #64748b;
 $text-label: #334155;
@@ -15,9 +14,6 @@ $bg-input: #f8fafc;
 $border-color: #cbd5e1;
 $border-light: #e2e8f0;
 
-/* ==========================================
-   ESTILOS GLOBALES
-   ========================================== */
 .page {
   min-height: 100vh;
   padding: 32px;
@@ -45,8 +41,11 @@ $border-light: #e2e8f0;
   color: white;
   padding: 6px 12px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 h1 {
@@ -56,25 +55,27 @@ h1 {
   font-weight: 800;
 }
 
-h2, h3, h4 {
+h2,
+h3,
+h4 {
   margin: 0;
   color: #1e293b;
 }
 
-p, small, .desc {
+p,
+small,
+.desc {
   color: $text-muted;
 }
 
-/* ==========================================
-   TARJETAS Y FORMULARIOS
-   ========================================== */
 .card {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(16px);
   padding: 26px;
   border-radius: 24px;
   margin-bottom: 26px;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(226, 232, 240, 0.9);
 }
 
 .form-grid {
@@ -129,9 +130,6 @@ select[disabled] {
   cursor: not-allowed;
 }
 
-/* ==========================================
-   BOTONES Y ACCIONES
-   ========================================== */
 button {
   border: none;
   padding: 11px 16px;
@@ -165,6 +163,17 @@ button:disabled {
   background: linear-gradient(135deg, $success, $success-dark);
 }
 
+.btn-danger,
+.btn-eliminar {
+  background: linear-gradient(135deg, $danger, $danger-dark);
+}
+
+.btn-eliminar {
+  padding: 8px 12px;
+  font-size: 12px;
+  margin-top: 12px;
+}
+
 .actions,
 .form-actions-dark {
   margin-top: 18px;
@@ -173,9 +182,6 @@ button:disabled {
   flex-wrap: wrap;
 }
 
-/* ==========================================
-   LISTADOS Y ESTADOS
-   ========================================== */
 .lista {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -189,6 +195,7 @@ button:disabled {
   border: 1px solid $border-light;
   cursor: pointer;
   transition: 0.25s;
+  position: relative;
 }
 
 .item:hover,
@@ -199,12 +206,177 @@ button:disabled {
 }
 
 .item-activo {
+  border: 2px solid $primary;
+  background: #eff6ff;
+}
+
+.item-activo::before {
+  content: 'FORMULARIO ACTIVO';
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  background: linear-gradient(135deg, $primary, $secondary);
+  color: white;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 5px 9px;
+  border-radius: 999px;
+}
+
+.formulario-auto {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 18px;
+  border-radius: 18px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.formulario-auto h3 {
+  color: $primary-dark;
+}
+
+.formulario-auto p {
+  margin: 4px 0 0;
+}
+
+/* ================================
+   ACORDEÓN DE DESIGNACIÓN
+================================ */
+
+.accordion {
+  margin-top: 22px;
+  display: grid;
+  gap: 16px;
+}
+
+.accordion-item {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid #dbeafe;
+  background: white;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.accordion-header {
+  min-height: 70px;
+  padding: 18px 22px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  transition: 0.25s;
+  border-left: 6px solid $primary;
+}
+
+.accordion-header:hover {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+}
+
+.accordion-header h3 {
+  font-size: 18px;
+  font-weight: 900;
+  color: #1e3a8a;
+}
+
+.accordion-header span {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, $primary, $secondary);
+  color: white;
+  font-size: 22px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.accordion-body {
+  padding: 22px;
+  background: #ffffff;
+  animation: fadeUp 0.25s ease both;
+}
+
+.grid-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.campo-card {
+  position: relative;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid #dbeafe;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  cursor: pointer;
+  transition: 0.25s;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.campo-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 30px rgba(37, 99, 235, 0.12);
   border-color: $primary;
 }
 
-/* ==========================================
-   CONTENEDOR PAZ Y SALVO (PANTALLA DIVIDIDA)
-   ========================================== */
+.campo-card input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: $primary;
+  align-self: flex-end;
+}
+
+.campo-card h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 900;
+  color: $text-main;
+}
+
+.campo-card .estado {
+  width: fit-content;
+  margin-top: 8px;
+}
+
+.campo-designado {
+  background: linear-gradient(180deg, #fee2e2, #fff1f2) !important;
+  border: 2px solid #ef4444 !important;
+  opacity: 0.9;
+  cursor: not-allowed !important;
+}
+
+.campo-designado:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.campo-designado h3,
+.campo-designado h4,
+.campo-designado p {
+  color: #991b1b !important;
+}
+
+.campo-designado input {
+  cursor: not-allowed !important;
+}
+
+.campo-designado .estado {
+  background: linear-gradient(135deg, #dc2626, #991b1b) !important;
+}
+
+/* ================================
+   FORMULARIO PAZ Y SALVO
+================================ */
+
 .paz-salvo-container {
   display: grid;
   grid-template-columns: 520px 1fr;
@@ -267,66 +439,92 @@ button:disabled {
   background: white;
 }
 
-/* ==========================================
-   HOJA ESPEJO (DOCUMENTO A4 INAMHI)
-   ========================================== */
+/* ================================
+   HOJA A4 (MATRIZ ESPEJO)
+================================ */
+
 .hoja-espejo-preview {
-  overflow-x: auto; /* Permite scroll horizontal en pantallas pequeñas sin romper la hoja */
-  padding: 20px;
-  background: rgba(15, 23, 42, 0.05); /* Fondo sutil para resaltar la hoja */
+  overflow-x: auto;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.08);
   border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Centra las hojas horizontalmente */
+  gap: 20px; /* Separación entre página 1 y 2 */
+}
+
+/* Contenedor que agrupa ambas páginas (útil para la exportación JS) */
+#hojaEspejo {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  align-items: center;
 }
 
 .a4-page {
-  width: 794px; /* Proporción exacta A4 a 96dpi */
-  min-height: 1123px;
-  max-height: 1123px; /* BLINDAJE: Evita que crezca y genere hojas extra en jsPDF */
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
   box-sizing: border-box;
-  overflow: hidden; /* Corta cualquier excedente vertical */
+  overflow: hidden;
   background: white;
-  margin: 0 auto;
-  padding: 25px 35px; /* Márgenes internos del documento oficial */
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  color: #111;
-  font-family: Arial, sans-serif; /* Forzar tipografía formal para PDF */
+  margin: 0;
+  padding: 10mm 10mm;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
+  color: #000;
+  font-family: Arial, sans-serif;
+  font-size: 9.5px;
 }
 
 .tabla-encabezado,
 .tabla-pdf {
   width: 100%;
   border-collapse: collapse;
-  font-size: 10px;
   table-layout: fixed;
+  font-size: 9.5px;
 }
 
 td,
 th {
-  border: 1px solid black;
-  padding: 6px;
-  vertical-align: middle; /* Mejor alineación vertical */
+  border: 1px solid #000;
+  padding: 4px;
+  vertical-align: middle;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
 
 .logo {
-  max-width: 120px;
+  max-width: 95px;
 }
 
 .logo-cell {
-  width: 160px;
+  width: 130px;
   text-align: center;
 }
 
-.titulo-principal,
-.subtitulo,
+.titulo-principal {
+  text-align: center;
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.subtitulo {
+  text-align: center;
+  font-weight: 900;
+  font-size: 11px;
+}
+
 .titulo-documento {
   text-align: center;
   font-weight: 900;
+  font-size: 10.5px;
 }
 
 .seccion-titulo,
 .cabecera-grid {
-  background: $border-light;
+  background: #e2e8f0;
   font-weight: 900;
   text-align: center;
 }
@@ -344,34 +542,35 @@ th {
   text-align: center;
 }
 
-/* BLINDAJE DE TEXTO LARGO */
 .texto-corto {
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* Limita el texto a un máximo de 2 líneas */
-  -webkit-box-orient: vertical;
+  display: block;
+  max-height: 28px;
   overflow: hidden;
-  text-overflow: ellipsis;
   line-height: 1.25;
+  word-break: break-word;
 }
 
 .texto-legal {
-  font-size: 10px;
-  line-height: 1.4;
+  font-size: 8.5px;
+  line-height: 1.35;
   text-align: justify;
 }
 
 .caja-firma {
-  height: 80px;
+  height: 70px;
   text-align: center;
   vertical-align: bottom;
+  font-size: 8.5px;
 }
 
-.mt-1 { margin-top: 6px; }
-.mt-2 { margin-top: 10px; }
+.mt-1 {
+  margin-top: 7px;
+}
 
-/* ==========================================
-   UTILIDADES Y ANIMACIONES
-   ========================================== */
+.mt-2 {
+  margin-top: 11px;
+}
+
 .loading,
 .empty {
   text-align: center;
@@ -383,6 +582,10 @@ th {
   margin-bottom: 20px;
 }
 
+/* ================================
+   ANIMACIONES
+================================ */
+
 .fade-down {
   animation: fadeDown 0.7s ease;
 }
@@ -392,24 +595,47 @@ th {
 }
 
 @keyframes bgMove {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 @keyframes fadeDown {
-  from { opacity: 0; transform: translateY(-24px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(28px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* ==========================================
-   MEDIA QUERIES (IMPRESIÓN Y RESPONSIVE)
-   ========================================== */
+/* ================================
+   PRINT
+================================ */
+
 @media print {
   .no-print,
   .page-header,
@@ -434,12 +660,26 @@ th {
     overflow: visible;
   }
 
+  #hojaEspejo {
+    gap: 0; /* Remueve la separación entre páginas al imprimir */
+  }
+
   .a4-page {
+    width: 210mm;
+    height: 297mm;
+    min-height: 297mm;
+    max-height: 297mm;
     box-shadow: none;
     margin: 0;
     border: none;
+    padding: 10mm 10mm;
+    page-break-after: always; /* Fuerza salto de página al imprimir */
   }
 }
+
+/* ================================
+   RESPONSIVE
+================================ */
 
 @media (max-width: 1100px) {
   .paz-salvo-container {
@@ -461,8 +701,13 @@ th {
   }
 
   .page-header,
-  .card-title {
+  .card-title,
+  .formulario-auto {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .grid-campos {
+    grid-template-columns: 1fr;
   }
 }
