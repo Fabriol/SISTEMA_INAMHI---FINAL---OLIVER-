@@ -18,8 +18,10 @@ import {
   ValidationErrors,
   ValidatorFn,
 } from '@angular/forms';
-import { Subject } from 'rxjs';
-import { takeUntil, debounceTime } from 'rxjs/operators';
+import { Subject, auditTime } from 'rxjs';
+import { takeUntil, distinctUntilChanged } from 'rxjs/operators';
+import { RouterModule } from '@angular/router';
+
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -145,7 +147,7 @@ export function fechaPosteriorValidator(startDateKey: string): ValidatorFn {
 @Component({
   selector: 'app-paz-y-salvo',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, RouterModule],
   templateUrl: './formularios.html',
   styleUrls: ['./formularios.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -295,8 +297,16 @@ export class Formularios implements OnInit, OnDestroy {
   // ─── Lifecycle ──────────────────────────────────────────────
   ngOnInit(): void {
     this.buildForm();
+
+    const draft = this.getDraftFast();
+    if (draft) {
+      this.mainForm.patchValue(draft, { emitEvent: false });
+    }
+
+    this.updateMirror(this.mainForm.getRawValue());
     this.listenForMirrorUpdates();
-    this.loadDraft();
+
+    setTimeout(() => this.initCanvas(), 0);
   }
 
   ngOnDestroy(): void {
@@ -454,11 +464,24 @@ export class Formularios implements OnInit, OnDestroy {
   // ─── Mirror reactivo ────────────────────────────────────────
   private listenForMirrorUpdates(): void {
     this.mainForm.valueChanges
-      .pipe(debounceTime(150), takeUntil(this.destroy$))
+      .pipe(
+        auditTime(250),
+        distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
+        takeUntil(this.destroy$)
+      )
       .subscribe(v => {
         this.updateMirror(v);
         this.cdr.markForCheck();
       });
+  }
+
+  private getDraftFast(): any | null {
+    try {
+      const draft = localStorage.getItem('pazYSalvoDraft');
+      return draft ? JSON.parse(draft) : null;
+    } catch {
+      return null;
+    }
   }
 
   private updateMirror(v: Record<string, unknown>): void {
@@ -825,7 +848,7 @@ export class Formularios implements OnInit, OnDestroy {
   // ─── Draft ──────────────────────────────────────────────────
   saveDraft(): void {
     try {
-      localStorage.setItem('pazYSalvoDraft', JSON.stringify(this.mainForm.value));
+      localStorage.setItem('pazYSalvoDraft', JSON.stringify(this.mainForm.getRawValue()));
       this.showToast('Borrador guardado correctamente.', 'info', '💾');
     } catch {
       this.showToast('No se pudo guardar el borrador.', 'warning', '⚠️');
@@ -833,15 +856,30 @@ export class Formularios implements OnInit, OnDestroy {
   }
 
   private loadDraft(): void {
-    try {
-      const draft = localStorage.getItem('pazYSalvoDraft');
-      if (draft) {
-        this.mainForm.patchValue(JSON.parse(draft));
-        this.showToast('Se cargó un borrador guardado.', 'info', '💾');
-      }
-    } catch {
-      // silencioso
-    }
+    const draft = this.getDraftFast();
+
+    if (!draft) return;
+
+    this.mainForm.patchValue(draft, { emitEvent: false });
+    this.updateMirror(this.mainForm.getRawValue());
+    this.showToast('Se cargó un borrador guardado.', 'info', '💾');
+    this.cdr.markForCheck();
+  }
+
+  trackByIndex(index: number) {
+    return index;
+  }
+
+  trackByKey(index: number, item: any) {
+    return item.key;
+  }
+
+  trackByValue(index: number, item: any) {
+    return item.value;
+  }
+
+  trackById(index: number, item: any) {
+    return item.id;
   }
 
   // ─── Print / PDF ─────────────────────────────────────────────

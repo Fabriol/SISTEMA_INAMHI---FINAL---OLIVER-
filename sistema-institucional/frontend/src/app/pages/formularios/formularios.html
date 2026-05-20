@@ -34,6 +34,12 @@
         <span class="meta-value">{{ today | date:'dd/MM/yyyy' }}</span>
       </div>
     </div>
+
+    <div class="pys-header__actions">
+      <button type="button" class="btn-dashboard" routerLink="/dashboard">
+        ← Volver
+      </button>
+    </div>
   </header>
 
   <!-- ─── PROGRESS BAR ─────────────────────────────────────────────── -->
@@ -42,8 +48,8 @@
       <div class="pys-progress__fill" [style.width.%]="progressPercent"></div>
     </div>
     <div class="pys-progress__steps">
-      <div *ngFor="let step of steps; let i = index" class="step-indicator" [class.active]="currentStep === i"
-        [class.completed]="currentStep > i" (click)="goToStep(i)">
+      <div *ngFor="let step of steps; let i = index; trackBy: trackByIndex" class="step-indicator"
+        [class.active]="currentStep === i" [class.completed]="currentStep > i" (click)="goToStep(i)">
         <div class="step-indicator__dot">
           <ng-container *ngIf="currentStep > i; else stepNum">
             <svg viewBox="0 0 16 16">
@@ -162,7 +168,7 @@
                 <select class="field-select" formControlName="provincia"
                   [class.invalid]="isInvalid('datosPersonales.provincia')">
                   <option value="">Seleccione provincia</option>
-                  <option *ngFor="let prov of provincias" [value]="prov">{{ prov }}</option>
+                  <option *ngFor="let prov of provincias; trackBy: trackByIndex" [value]="prov">{{ prov }}</option>
                 </select>
                 <div class="field-error" *ngIf="isInvalid('datosPersonales.provincia')">
                   <span>Seleccione una provincia.</span>
@@ -195,7 +201,7 @@
               <div class="field-group col-span-2">
                 <label class="field-label required">Modalidad de Contratación</label>
                 <div class="radio-group">
-                  <label class="radio-card" *ngFor="let mod of modalidades">
+                  <label class="radio-card" *ngFor="let mod of modalidades; trackBy: trackByValue">
                     <input type="radio" formControlName="tipoModalidad" [value]="mod.value" />
                     <span class="radio-card__content">
                       <span class="radio-card__dot"></span>
@@ -282,7 +288,7 @@
                 <select class="field-select" formControlName="grupoOcupacional"
                   [class.invalid]="isInvalid('lugarTrabajo.grupoOcupacional')">
                   <option value="">Seleccione grupo</option>
-                  <option *ngFor="let g of gruposOcupacionales" [value]="g.value">{{ g.label }}</option>
+                  <option *ngFor="let g of gruposOcupacionales; trackBy: trackByValue" [value]="g.value">{{ g.label }}</option>
                 </select>
                 <div class="field-error" *ngIf="isInvalid('lugarTrabajo.grupoOcupacional')">
                   <span>Seleccione un grupo ocupacional.</span>
@@ -323,7 +329,7 @@
                 <span>Nombre Responsable</span>
               </div>
 
-              <ng-container *ngFor="let item of gestionDocumentalItems">
+              <ng-container *ngFor="let item of gestionDocumentalItems; trackBy: trackByKey">
                 <div class="checklist-row" [formGroupName]="item.key">
                   <span class="checklist-label">{{ item.label }}</span>
                   <label class="check-btn si">
@@ -358,7 +364,7 @@
 
             <div class="two-col-checklist">
               <div class="two-col-checklist__col">
-                <ng-container *ngFor="let item of gestionAdminItemsLeft">
+                <ng-container *ngFor="let item of gestionAdminAllItems; trackBy: trackByKey">
                   <div class="checklist-row-v2" [formGroupName]="item.key">
                     <span class="checklist-label">{{ item.label }}</span>
                     <div class="si-no-group">
@@ -413,7 +419,7 @@
             </div>
 
             <div class="tic-grid">
-              <ng-container *ngFor="let item of gestionTICItems">
+              <ng-container *ngFor="let item of gestionTICItems; trackBy: trackByKey">
                 <div class="tic-card" [formGroupName]="item.key">
                   <div class="tic-card__header">{{ item.label }}</div>
                   <div class="si-no-group centered">
@@ -432,7 +438,7 @@
             <div class="sistemas-section">
               <h3>Sistemas Institucionales</h3>
               <div class="sistemas-grid" formGroupName="sistemas">
-                <label class="sistema-check" *ngFor="let sis of sistemasItems">
+                <label class="sistema-check" *ngFor="let sis of sistemasItems; trackBy: trackByKey">
                   <input type="checkbox" [formControlName]="sis.key" />
                   <span class="sistema-check__label">{{ sis.label }}</span>
                 </label>
@@ -450,7 +456,7 @@
               </div>
             </div>
 
-            <ng-container *ngFor="let item of gestionFinancieraItems">
+           <ng-container *ngFor="let item of gestionFinancieraItems; trackBy: trackByKey">
               <div class="financiera-row" [formGroupName]="item.key">
                 <div class="financiera-row__label">{{ item.label }}</div>
                 <div class="financiera-row__controls">
@@ -551,7 +557,7 @@
             </div>
 
             <div class="rrhh-grid">
-              <ng-container *ngFor="let item of gestionRRHHItems">
+              <ng-container *ngFor="let item of gestionRRHHItems; trackBy: trackByKey">
                 <div class="rrhh-item" [formGroupName]="item.key">
                   <div class="rrhh-item__label">{{ item.label }}</div>
                   <div class="si-no-group">
@@ -851,7 +857,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of gestionDocumentalItems">
+                <tr *ngFor="let item of gestionDocumentalItems; trackBy: trackByKey">
                   <td>{{ item.shortLabel || item.label }}</td>
                   <td class="center">{{ mirrorData.gestionDoc?.[item.key]?.estado === 'SI' ? '✓' : '' }}</td>
                   <td class="center">{{ mirrorData.gestionDoc?.[item.key]?.estado === 'NO' ? '✓' : '' }}</td>
@@ -877,7 +883,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of gestionAdminAllItems">
+                <tr *ngFor="let item of gestionAdminAllItems; trackBy: trackByKey">
                   <td>{{ item.label }}</td>
                   <td class="center">{{ mirrorData.gestionAdmin?.[item.key]?.estado === 'SI' ? '✓' : '' }}</td>
                   <td class="center">{{ mirrorData.gestionAdmin?.[item.key]?.estado === 'NO' ? '✓' : '' }}</td>
@@ -906,7 +912,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of gestionTICItems">
+                <tr *ngFor="let item of gestionTICItems; trackBy: trackByKey">
                   <td>{{ item.label }}</td>
                   <td class="center">{{ mirrorData.gestionTIC?.[item.key]?.estado === 'SI' ? '✓' : '' }}</td>
                   <td class="center">{{ mirrorData.gestionTIC?.[item.key]?.estado === 'NO' ? '✓' : '' }}</td>
@@ -916,7 +922,7 @@
             </table>
             <div class="m-sistemas" *ngIf="mirrorData.sistemas">
               <span class="m-label">Sistemas a cerrar: </span>
-              <ng-container *ngFor="let sis of sistemasItems">
+              <ng-container *ngFor="let sis of sistemasItems; trackBy: trackByKey">
                 <span class="m-tag" *ngIf="mirrorData.sistemas && mirrorData.sistemas[sis.key]">
                   {{ sis.label }}
                 </span>
@@ -938,7 +944,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of gestionFinancieraItems">
+                <tr *ngFor="let item of gestionFinancieraItems; trackBy: trackByKey">
                   <td>{{ item.label }}</td>
 
                   <td class="center">
@@ -1018,7 +1024,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of gestionRRHHItems">
+                <tr *ngFor="let item of gestionRRHHItems; trackBy: trackByKey">
                   <td>{{ item.label }}</td>
                   <td class="center">{{ mirrorData.gestionRRHH?.[item.key]?.estado === 'SI' ? '✓' : '' }}</td>
                   <td class="center">{{ mirrorData.gestionRRHH?.[item.key]?.estado === 'NO' ? '✓' : '' }}</td>
@@ -1082,7 +1088,7 @@
 
   <!-- ─── TOAST CONTAINER ──────────────────────────────────────────── -->
   <div class="toast-container">
-    <div *ngFor="let toast of toasts" class="toast" [class.toast--success]="toast.type === 'success'"
+    <div *ngFor="let toast of toasts; trackBy: trackById" class="toast" [class.toast--success]="toast.type === 'success'"
       [class.toast--error]="toast.type === 'error'" [class.toast--warning]="toast.type === 'warning'"
       [class.toast--info]="toast.type === 'info'">
       <span class="toast__icon">{{ toast.icon }}</span>
@@ -1091,4 +1097,4 @@
     </div>
   </div>
 
-</div>*/
+</div>
