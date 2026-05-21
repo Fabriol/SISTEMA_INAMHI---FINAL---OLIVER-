@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap');
 
-// ── VARIABLES ───────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// VARIABLES
+// ══════════════════════════════════════════════════════════════════════════════
 $primary:        #2563eb;
 $primary-dark:   #1d4ed8;
 $primary-light:  #eff6ff;
@@ -13,6 +15,8 @@ $danger:         #dc2626;
 $danger-dark:    #991b1b;
 $danger-light:   #fff1f2;
 $warning:        #d97706;
+$warning-light:  #fffbeb;
+$warning-border: #fbbf24;
 $text-main:      #0f172a;
 $text-muted:     #64748b;
 $text-label:     #334155;
@@ -29,7 +33,9 @@ $radius-md:      16px;
 $radius-lg:      22px;
 $radius-xl:      28px;
 
-// ── BASE ────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// BASE
+// ══════════════════════════════════════════════════════════════════════════════
 *, *::before, *::after { box-sizing: border-box; }
 
 .page {
@@ -42,7 +48,9 @@ $radius-xl:      28px;
   color: $text-main;
 }
 
-// ── TYPOGRAPHY ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// TYPOGRAPHY
+// ══════════════════════════════════════════════════════════════════════════════
 h1 {
   margin: 8px 0 4px;
   color: $text-main;
@@ -62,7 +70,9 @@ p, small, .desc {
   font-size: 13.5px;
 }
 
-// ── LAYOUT HELPERS ──────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// LAYOUT HELPERS
+// ══════════════════════════════════════════════════════════════════════════════
 .page-header,
 .card-title {
   display: flex;
@@ -73,7 +83,51 @@ p, small, .desc {
 
 .page-header { margin-bottom: 30px; }
 
-// ── BADGES ──────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// LOADING
+// ══════════════════════════════════════════════════════════════════════════════
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  padding: 24px;
+  border-radius: $radius-md;
+  background: $white;
+  color: $text-muted;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 20px;
+  border: 1.5px dashed $border-color;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid $border-color;
+  border-top-color: $primary;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: $white;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BADGES
+// ══════════════════════════════════════════════════════════════════════════════
 .badge {
   background: linear-gradient(135deg, $primary, $secondary);
   color: white;
@@ -83,6 +137,31 @@ p, small, .desc {
   font-weight: 800;
   letter-spacing: .4px;
   text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+}
+
+.badge-admin {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: white;
+  padding: 5px 13px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+}
+
+.badge-count {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  color: $text-label;
+  border: 1.5px solid $border-color;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
   display: inline-flex;
   align-items: center;
 }
@@ -99,12 +178,26 @@ p, small, .desc {
   align-items: center;
 }
 
+.estado-leido {
+  background: linear-gradient(135deg, $text-muted, #475569) !important;
+}
+
+.estado-nuevo {
+  background: linear-gradient(135deg, $success, $success-dark) !important;
+}
+
 .activo-label {
   background: linear-gradient(135deg, $success, $success-dark);
   margin-left: 6px;
 }
 
-// ── CARDS ───────────────────────────────────────────────────────────────────
+.item-leido {
+  opacity: .62;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CARDS
+// ══════════════════════════════════════════════════════════════════════════════
 .card {
   background: rgba(255,255,255,.97);
   backdrop-filter: blur(18px);
@@ -119,7 +212,9 @@ p, small, .desc {
   &:hover { box-shadow: 0 28px 60px rgba(15,23,42,.15); }
 }
 
-// ── FORM GRID (generic) ─────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// FORM GRID (genérico)
+// ══════════════════════════════════════════════════════════════════════════════
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -131,9 +226,30 @@ p, small, .desc {
   display: flex;
   flex-direction: column;
   gap: 6px;
+
+  &.has-error {
+    input, select, textarea {
+      border-color: $danger;
+      background: #fff5f5;
+      box-shadow: 0 0 0 3px rgba(220,38,38,.08);
+    }
+  }
+
+  &.has-success {
+    input, select, textarea {
+      border-color: $success;
+      background: #f0fdf4;
+      box-shadow: 0 0 0 3px rgba(22,163,74,.08);
+    }
+  }
 }
 
-// ── LABELS ──────────────────────────────────────────────────────────────────
+.field-error { border-color: $danger !important; }
+.input-error  { border-color: $danger !important; }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LABELS
+// ══════════════════════════════════════════════════════════════════════════════
 label {
   font-size: 12.5px;
   font-weight: 700;
@@ -147,7 +263,16 @@ label {
   margin-left: 2px;
 }
 
-// ── INPUTS / SELECT / TEXTAREA ──────────────────────────────────────────────
+.hint-label {
+  color: $text-muted;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// INPUTS / SELECT / TEXTAREA
+// ══════════════════════════════════════════════════════════════════════════════
 input,
 select,
 textarea {
@@ -193,7 +318,20 @@ textarea {
   }
 }
 
-// ── ERROR MESSAGES ──────────────────────────────────────────────────────────
+.firma-canvas--error { border-color: $danger !important; }
+.firma-upload-area--error { border-color: $danger !important; }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FEEDBACK MESSAGES
+// ══════════════════════════════════════════════════════════════════════════════
+.field-feedback {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 16px;
+}
+
 .field-error-msg {
   font-size: 11.5px;
   font-weight: 600;
@@ -202,11 +340,39 @@ textarea {
   align-items: center;
   gap: 4px;
   margin-top: 2px;
-
-  &::before { content: '⚠'; font-size: 11px; }
+  line-height: 1.35;
 }
 
-// ── BUTTONS ─────────────────────────────────────────────────────────────────
+.field-warn-msg {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: $warning;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.char-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: $text-muted;
+  white-space: nowrap;
+  margin-left: auto;
+  align-self: flex-end;
+}
+
+.hint-deshabilitado {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: $text-muted;
+  font-style: italic;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BUTTONS
+// ══════════════════════════════════════════════════════════════════════════════
 button {
   border: none;
   padding: 11px 18px;
@@ -219,6 +385,9 @@ button {
   transition: transform .2s, box-shadow .2s, opacity .2s;
   background: linear-gradient(135deg, $primary, $primary-dark);
   letter-spacing: .1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 
   &:hover:not(:disabled) {
     transform: translateY(-2px);
@@ -304,16 +473,15 @@ button {
 .btn-danger,
 .btn-eliminar {
   background: linear-gradient(135deg, $danger, $danger-dark);
+  font-size: 12px;
+  padding: 7px 12px;
+  border-radius: 8px;
   &:hover:not(:disabled) { box-shadow: 0 10px 24px rgba(220,38,38,.3); }
 }
 
-.btn-eliminar {
-  padding: 7px 12px;
-  font-size: 12px;
-  border-radius: 8px;
-}
-
-// ── ACTIONS ROW ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ACTIONS ROW
+// ══════════════════════════════════════════════════════════════════════════════
 .actions,
 .form-actions-dark {
   margin-top: 18px;
@@ -323,7 +491,9 @@ button {
   align-items: center;
 }
 
-// ── LISTA DE ITEMS ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// LISTA DE ITEMS
+// ══════════════════════════════════════════════════════════════════════════════
 .lista {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -371,8 +541,9 @@ button {
   }
 }
 
-// ── LOADING / EMPTY ──────────────────────────────────────────────────────────
-.loading,
+// ══════════════════════════════════════════════════════════════════════════════
+// EMPTY
+// ══════════════════════════════════════════════════════════════════════════════
 .empty {
   text-align: center;
   padding: 24px;
@@ -385,9 +556,9 @@ button {
   border: 1.5px dashed $border-color;
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // ACORDEÓN DE DESIGNACIÓN
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 .accordion {
   margin-top: 22px;
   display: grid;
@@ -502,9 +673,17 @@ button {
   .estado    { background: linear-gradient(135deg, $danger, $danger-dark) !important; }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+// ASIGNACIÓN — select usuario
+// ══════════════════════════════════════════════════════════════════════════════
+.field[class*="field-error"] > label,
+.field.field-error > label {
+  color: $danger;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // FORMULARIO PAZ Y SALVO — LAYOUT PRINCIPAL
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 .paz-salvo-container {
   display: grid;
   grid-template-columns: 530px 1fr;
@@ -577,6 +756,22 @@ button {
   transition: opacity .2s;
 
   &:hover { opacity: .8; }
+
+  &.active .step-dot__circle {
+    background: $primary;
+    border-color: $primary;
+    color: $white;
+    box-shadow: 0 0 0 4px rgba(37,99,235,.18);
+  }
+
+  &.completed .step-dot__circle {
+    background: $success;
+    border-color: $success;
+    color: $white;
+  }
+
+  &.active .step-dot__label    { color: $primary; }
+  &.completed .step-dot__label { color: $success; }
 }
 
 .step-dot__circle {
@@ -592,19 +787,6 @@ button {
   font-weight: 800;
   color: $text-muted;
   transition: background .25s, border-color .25s, color .25s, box-shadow .25s;
-
-  .step-dot.active & {
-    background: $primary;
-    border-color: $primary;
-    color: $white;
-    box-shadow: 0 0 0 4px rgba(37,99,235,.18);
-  }
-
-  .step-dot.completed & {
-    background: $success;
-    border-color: $success;
-    color: $white;
-  }
 }
 
 .step-dot__label {
@@ -613,9 +795,6 @@ button {
   color: $text-muted;
   text-align: center;
   line-height: 1.2;
-
-  .step-dot.active &    { color: $primary; }
-  .step-dot.completed & { color: $success; }
 }
 
 // ── FORM LAYOUT ──────────────────────────────────────────────────────────────
@@ -667,6 +846,37 @@ button {
 
 .span-2 { grid-column: span 2; }
 
+// ── ERRORES DE PASO ───────────────────────────────────────────────────────────
+.errores-paso-container {
+  background: #fff5f5;
+  border: 1.5px solid #fca5a5;
+  border-radius: $radius-md;
+  padding: 14px 18px;
+  margin-top: 4px;
+}
+
+.errores-paso-titulo {
+  font-size: 13px;
+  font-weight: 800;
+  color: $danger;
+  margin-bottom: 8px;
+}
+
+.errores-paso-lista {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  li {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: $danger-dark;
+    line-height: 1.4;
+  }
+}
+
 // ── FIRMA ────────────────────────────────────────────────────────────────────
 .firma-card { border: 1.5px solid #dbeafe; }
 
@@ -680,7 +890,7 @@ button {
   color: #1e3a8a;
   margin-bottom: 18px;
 
-  p { color: inherit; margin: 0; }
+  p      { color: inherit; margin: 0; }
   strong { color: #1e40af; }
 }
 
@@ -799,13 +1009,24 @@ button {
 }
 
 .firma-requerida-msg {
-  background: #fef3c7;
-  border: 1.5px solid #fbbf24;
+  background: $warning-light;
+  border: 1.5px solid $warning-border;
   border-radius: $radius-sm;
   padding: 10px 14px;
   font-size: 12.5px;
   font-weight: 700;
   color: #92400e;
+  margin-top: 10px;
+}
+
+.firma-ok-msg {
+  background: $success-light;
+  border: 1.5px solid #86efac;
+  border-radius: $radius-sm;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: $success-dark;
   margin-top: 10px;
 }
 
@@ -828,9 +1049,9 @@ button {
   justify-content: center;
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // HOJA ESPEJO A4 — COLUMNA DERECHA
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 .hoja-espejo-preview {
   overflow-x: auto;
   padding: 24px;
@@ -958,7 +1179,7 @@ td, th {
   font-weight: bold;
 }
 
-.negrita { font-weight: bold; }
+.negrita     { font-weight: bold; }
 .text-center { text-align: center; }
 
 .texto-corto {
@@ -992,9 +1213,9 @@ td, th {
 .mt-1 { margin-top: 6px; }
 .mt-2 { margin-top: 10px; }
 
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // ANIMACIONES
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 .fade-down { animation: fadeDown .65s ease; }
 .fade-in   { animation: fadeUp  .65s ease both; }
 
@@ -1019,9 +1240,13 @@ td, th {
   50%       { opacity: .45; transform: scale(1.35); }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // PRINT
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 @media print {
   .no-print,
   .page-header,
@@ -1064,9 +1289,9 @@ td, th {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // RESPONSIVE
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 @media (max-width: 1140px) {
   .paz-salvo-container {
     grid-template-columns: 1fr;
@@ -1100,14 +1325,17 @@ td, th {
 
   .step-navigation {
     align-items: stretch;
-    > button, > .nav-center { width: 100%; }
+
+    > button,
+    > .nav-center { width: 100%; }
+
     .btn-ghost { text-align: center; }
   }
 
   .grid-campos { grid-template-columns: 1fr; }
 
   .pys-progress__steps { gap: 2px; }
-  .step-dot__label { font-size: 9px; }
+  .step-dot__label      { font-size: 9px; }
 
   .a4-page {
     width: 100%;
