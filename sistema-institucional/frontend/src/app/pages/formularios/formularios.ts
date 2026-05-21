@@ -1,27 +1,20 @@
-// paz-y-salvo.component.ts
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  ViewChild,
-  ElementRef,
-  ChangeDetectionStrategy,
-  ChangeDetectorRef,
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import {
+  FormsModule,
   ReactiveFormsModule,
   FormBuilder,
   FormGroup,
   Validators,
   AbstractControl,
   ValidationErrors,
-  ValidatorFn,
+  ValidatorFn
 } from '@angular/forms';
-import { Subject, auditTime } from 'rxjs';
-import { takeUntil, distinctUntilChanged } from 'rxjs/operators';
 import { RouterModule } from '@angular/router';
-
+import { Subject, of } from 'rxjs';
+import { catchError, debounceTime, finalize, takeUntil, timeout } from 'rxjs/operators';
+import Swal from 'sweetalert2';
+import { FormulariosService } from '../../core/services/formularios';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -46,10 +39,7 @@ export interface ChecklistItem {
   hasCertificado?: boolean;
 }
 
-// ─── MirrorData extendida con TODAS las secciones ────────────────────────────
-
 export interface MirrorData {
-  // Paso 1 — Datos Personales
   nombresApellidos: string;
   cedula: string;
   numeroDomicilio: string;
@@ -60,28 +50,21 @@ export interface MirrorData {
   direccion: string;
   provincia: string;
   canton: string;
-  // Modalidad Laboral
   tipoModalidad: string;
   fechaIngreso: string;
   fechaSalida: string;
-  // Lugar de Trabajo
   tipoPlanta: string;
   direccionUnidad: string;
   cargoDesempenado: string;
   grupoOcupacional: string;
   jefeInmediato: string;
-  // Paso 2 — Gestión Documental
   gestionDoc: { [key: string]: { estado: string; responsable: string } };
   gestionDocObs: string;
-  // Gestión Administrativa
   gestionAdmin: { [key: string]: { estado: string; valor: number | null } };
   nombreDirectorAdmin: string;
-  // Gestión TIC
   gestionTIC: { [key: string]: { estado: string; observacion: string } };
   sistemas: { [key: string]: boolean };
-  // Gestión Financiera
   gestionFinanciera: { [key: string]: { estado: string; valor: number | null; observacion: string } };
-  // Paso 3 — Seguridad Info
   seguridadInfo: {
     archivosDigitales: string;
     archivosFisicos: string;
@@ -89,17 +72,14 @@ export interface MirrorData {
     verificacionInfo: string;
     nombreOficialSeguridad: string;
   };
-  // Gestión RRHH
   gestionRRHH: { [key: string]: { estado: string; numeroCertificado: string } };
   nombreDirectorRRHH: string;
-  // Recepción de Documentos
   recepcion: {
     fechaEntrega: string;
     nHojasRecibidas: number | null;
     nombreQuienRecibe: string;
     cargoQuienRecibe: string;
   };
-  // Autorización y Firma
   ccFirmante: string;
   fechaFirma: string;
 }
@@ -110,9 +90,9 @@ export function cedulaEcuatorianaValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     const value = control.value as string;
     if (!value) return null;
-    if (!/^\d{10,13}$/.test(value)) return { pattern: true };
+    if (!/^[a-zA-Z0-9]{10,15}$/.test(value)) return { pattern: true };
 
-    if (value.length === 10) {
+    if (/^\d{10}$/.test(value)) {
       const provincia = parseInt(value.substring(0, 2), 10);
       if (provincia < 1 || provincia > 24) return { cedulaInvalida: true };
 
@@ -145,11 +125,11 @@ export function fechaPosteriorValidator(startDateKey: string): ValidatorFn {
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 @Component({
-  selector: 'app-paz-y-salvo',
+  selector: 'app-formularios',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe, RouterModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule],
   templateUrl: './formularios.html',
-  styleUrls: ['./formularios.scss'],
+  styleUrl: './formularios.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Formularios implements OnInit, OnDestroy {
@@ -159,17 +139,32 @@ export class Formularios implements OnInit, OnDestroy {
   private toastCounter = 0;
   private ctx: CanvasRenderingContext2D | null = null;
   private isDrawingCanvas = false;
+  private alertaActiva = false;
 
   // ─── Estado UI ──────────────────────────────────────────────
   today = new Date();
   currentStep = 0;
   isSubmitting = false;
+  cargando = false;
   firmaMode: 'canvas' | 'upload' | 'firmaec' = 'canvas';
   firmaImagePreview: string | null = null;
   hasFirma = false;
   firmaRequired = false;
   toasts: ToastMessage[] = [];
   mirrorData: Partial<MirrorData> = {};
+
+  // ─── Datos del sistema ──────────────────────────────────────
+  formularios: any[] = [];
+  formularioSeleccionado: any = null;
+  usuariosDisponibles: any[] = [];
+  notificaciones: any[] = [];
+  pendientes: any[] = [];
+  usuario: any = {};
+  asignacion = { usuario_id: '' };
+
+  camposAsignadosUsuario: string[] = [];
+  camposBloqueados: string[] = [];
+  camposYaDesignados: string[] = [];
 
   // ─── Steps ──────────────────────────────────────────────────
   steps: StepConfig[] = [
@@ -240,7 +235,6 @@ export class Formularios implements OnInit, OnDestroy {
     { key: 'valorDescontar2', label: 'Valor a Descontar 2', hasValor: true },
   ];
 
-  /** Getter para unir ambas columnas en el espejo */
   get gestionAdminAllItems(): ChecklistItem[] {
     return [...this.gestionAdminItemsLeft, ...this.gestionAdminItemsRight];
   }
@@ -282,31 +276,109 @@ export class Formularios implements OnInit, OnDestroy {
     { key: 'ropaProteccion', label: 'Entrega ropa de trabajo o equipo de protección' },
   ];
 
-  // ─── FormGroup principal ────────────────────────────────────
+  // ─── Campos del formulario para designación (Admin) ─────────
+  camposFormulario: any[] = [
+    { id: 'nombres_apellidos', etiqueta: 'Nombres y Apellidos', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'modalidad', etiqueta: 'Modalidad Laboral', seccion: 'Datos Personales', tipo: 'SELECT', seleccionado: false },
+    { id: 'cedula', etiqueta: 'Cédula / Pasaporte', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'fecha_ingreso', etiqueta: 'Fecha de Ingreso', seccion: 'Datos Personales', tipo: 'FECHA', seleccionado: false },
+    { id: 'direccion', etiqueta: 'Dirección Domiciliaria', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'numero_domicilio', etiqueta: 'Número Domicilio', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'fecha_salida', etiqueta: 'Fecha de Salida', seccion: 'Datos Personales', tipo: 'FECHA', seleccionado: false },
+    { id: 'celular', etiqueta: 'Número Celular', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'emergencia', etiqueta: 'Contacto Emergencia', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'email1', etiqueta: 'Email 1', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'email2', etiqueta: 'Email 2', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'provincia', etiqueta: 'Provincia', seccion: 'Datos Personales', tipo: 'TEXT', seleccionado: false },
+    { id: 'canton', etiqueta: 'Cantón', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
+    { id: 'lugar_trabajo', etiqueta: 'Lugar de Trabajo', seccion: 'Dirección / Unidad', tipo: 'SELECT', seleccionado: false },
+    { id: 'unidad', etiqueta: 'Dirección / Unidad', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'cargo', etiqueta: 'Cargo Desempeñado', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'grupo_ocupacional', etiqueta: 'Grupo Ocupacional', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'tramites_informe', etiqueta: 'Entrega informe de fin de gestión', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false },
+    { id: 'tramites_admin_contrato', etiqueta: '¿Es Administrador de Contrato?', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false },
+    { id: 'tramites_desc_contrato', etiqueta: 'Descripción del contrato', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'tramites_memo', etiqueta: 'Número Memorando', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'tramites_jefe_inmediato', etiqueta: 'Nombre del Jefe Inmediato', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'tramites_quipux_cero', etiqueta: 'Trámites Quipux / Claves', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false },
+    { id: 'tramites_servidor_recibe', etiqueta: 'Servidor que recibe trámites', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'admin_informe', etiqueta: 'Entrega informe administrativo', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false },
+    { id: 'admin_bienes', etiqueta: 'Entregó bienes y muebles', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false },
+    { id: 'admin_acta_bienes', etiqueta: 'Número de Acta', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false },
+    { id: 'admin_valor_bienes', etiqueta: 'Valor Bienes', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false },
+    { id: 'admin_deducibles', etiqueta: '¿Tiene Deducibles?', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false },
+    { id: 'admin_deducibles_valor', etiqueta: 'Valor Deducibles', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false },
+    { id: 'admin_pasajes', etiqueta: 'Pasajes aéreos', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false },
+    { id: 'admin_responsable', etiqueta: 'Responsable', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false },
+    { id: 'tic_verificacion', etiqueta: 'Verificación Equipo / Accesos', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false },
+    { id: 'tic_backup', etiqueta: 'Entrega Backup', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false },
+    { id: 'tic_ruta_backup', etiqueta: 'Ruta Backup', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false },
+    { id: 'tic_tarjeta_cuentas', etiqueta: 'Entrega Tarjeta / Cuentas', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false },
+    { id: 'tic_responsable', etiqueta: 'Responsable TIC', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false },
+    { id: 'fin_saldos', etiqueta: 'Valores pendientes (Saldos)', seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false },
+    { id: 'fin_recuperacion', etiqueta: 'Valores pendientes (Recuperación)', seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false },
+    { id: 'fin_director', etiqueta: 'Director/a Financiero/a', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false },
+    { id: 'seg_archivos', etiqueta: 'Archivos / Info Institucional', seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false },
+    { id: 'seg_oficial', etiqueta: 'Oficial de Seguridad', seccion: 'Seguridad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'seg_responsable', etiqueta: 'Responsable Seguridad', seccion: 'Seguridad', tipo: 'TEXTO', seleccionado: false },
+    { id: 'rrhh_cursos_eval', etiqueta: 'Cursos / Evaluación', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false },
+    { id: 'rrhh_vacaciones', etiqueta: 'Días Vacaciones', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false },
+    { id: 'rrhh_juramentada', etiqueta: 'Constancia Juramentada', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false },
+    { id: 'rrhh_num_certificado', etiqueta: 'Núm. Certificado', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false },
+    { id: 'rrhh_num_declaracion', etiqueta: 'Núm. Declaración', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false },
+    { id: 'rrhh_credencial', etiqueta: 'Credencial / Copias CD', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false },
+    { id: 'rrhh_director', etiqueta: 'Director/a RRHH', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false },
+    { id: 'recepcion_fecha', etiqueta: 'Fecha de Entrega', seccion: 'Recepción', tipo: 'FECHA', seleccionado: false },
+    { id: 'recepcion_hojas', etiqueta: 'Hojas Recibidas', seccion: 'Recepción', tipo: 'TEXTO', seleccionado: false },
+    { id: 'recepcion_servidor', etiqueta: 'Servidor que recibe', seccion: 'Recepción', tipo: 'TEXTO', seleccionado: false },
+    { id: 'recepcion_cargo', etiqueta: 'Cargo Servidor', seccion: 'Recepción', tipo: 'TEXTO', seleccionado: false },
+  ];
+
+  seccionesAbiertas: any = {
+    personales: true,
+    direccion: false,
+    admin: false,
+    tramites: false,
+    tic: false,
+    financiero: false,
+    seguridad: false,
+    rrhh: false,
+    recepcion: false,
+  };
+
+  // ─── FormGroups ─────────────────────────────────────────────
   mainForm!: FormGroup;
+
+  get formularioPazSalvo(): FormGroup {
+  return this.mainForm;
+}
 
   constructor(
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef,
-  ) { }
+    private formulariosService: FormulariosService,
+  ) {}
 
   get progressPercent(): number {
     return ((this.currentStep + 1) / this.steps.length) * 100;
   }
 
+  
+
   // ─── Lifecycle ──────────────────────────────────────────────
   ngOnInit(): void {
+    this.usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
     this.buildForm();
-
-    const draft = this.getDraftFast();
-    if (draft) {
-      this.mainForm.patchValue(draft, { emitEvent: false });
-    }
-
-    this.updateMirror(this.mainForm.getRawValue());
     this.listenForMirrorUpdates();
+    this.loadDraft();
+    this.cargarFormularios();
+    this.cargarNotificaciones();
 
-    setTimeout(() => this.initCanvas(), 0);
+    if (this.esAdmin()) {
+      this.cargarUsuariosDisponibles();
+    } else {
+      this.cargarPendientes();
+    }
   }
 
   ngOnDestroy(): void {
@@ -383,13 +455,13 @@ export class Formularios implements OnInit, OnDestroy {
 
   private buildGestionDocumental(): FormGroup {
     const g = this.buildChecklistGroup(this.gestionDocumentalItems);
-    (g as unknown as FormGroup & { addControl: Function }).addControl('observaciones', this.fb.control(''));
+    (g as any).addControl('observaciones', this.fb.control(''));
     return g;
   }
 
   private buildGestionAdministrativa(): FormGroup {
     const group: Record<string, unknown> = { nombreDirector: [''] };
-    [...this.gestionAdminItemsLeft, ...this.gestionAdminItemsRight].forEach(item => {
+    this.gestionAdminAllItems.forEach(item => {
       group[item.key] = this.fb.group({
         estado: [''],
         valor: [null],
@@ -464,24 +536,11 @@ export class Formularios implements OnInit, OnDestroy {
   // ─── Mirror reactivo ────────────────────────────────────────
   private listenForMirrorUpdates(): void {
     this.mainForm.valueChanges
-      .pipe(
-        auditTime(250),
-        distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
-        takeUntil(this.destroy$)
-      )
+      .pipe(debounceTime(150), takeUntil(this.destroy$))
       .subscribe(v => {
         this.updateMirror(v);
         this.cdr.markForCheck();
       });
-  }
-
-  private getDraftFast(): any | null {
-    try {
-      const draft = localStorage.getItem('pazYSalvoDraft');
-      return draft ? JSON.parse(draft) : null;
-    } catch {
-      return null;
-    }
   }
 
   private updateMirror(v: Record<string, unknown>): void {
@@ -498,7 +557,6 @@ export class Formularios implements OnInit, OnDestroy {
     const au = (v['autorizacion'] || {}) as Record<string, string>;
 
     this.mirrorData = {
-      // ── Datos Personales ──
       nombresApellidos: dp['nombresApellidos'],
       cedula: dp['cedula'],
       numeroDomicilio: dp['numeroDomicilio'],
@@ -509,28 +567,21 @@ export class Formularios implements OnInit, OnDestroy {
       direccion: dp['direccion'],
       provincia: dp['provincia'],
       canton: dp['canton'],
-      // ── Modalidad Laboral ──
       tipoModalidad: ml['tipoModalidad'],
       fechaIngreso: ml['fechaIngreso'],
       fechaSalida: ml['fechaSalida'],
-      // ── Lugar de Trabajo ──
       tipoPlanta: lt['tipoPlanta'],
       direccionUnidad: lt['direccionUnidad'],
       cargoDesempenado: lt['cargoDesempenado'],
       grupoOcupacional: lt['grupoOcupacional'],
       jefeInmediato: lt['jefeInmediato'],
-      // ── Gestión Documental ──
       gestionDoc: this.extractGestionDoc(gd),
       gestionDocObs: gd['observaciones'] as string,
-      // ── Gestión Administrativa ──
       gestionAdmin: this.extractGestionAdmin(ga),
       nombreDirectorAdmin: ga['nombreDirector'] as string,
-      // ── Gestión TIC ──
       gestionTIC: this.extractGestionTIC(tic),
       sistemas: (tic['sistemas'] || {}) as { [key: string]: boolean },
-      // ── Gestión Financiera ──
       gestionFinanciera: this.extractGestionFinanciera(gf),
-      // ── Seguridad Info ──
       seguridadInfo: {
         archivosDigitales: ((si['archivosDigitales'] as Record<string, string>)?.['estado'] || ''),
         archivosFisicos: ((si['archivosFisicos'] as Record<string, string>)?.['estado'] || ''),
@@ -538,67 +589,47 @@ export class Formularios implements OnInit, OnDestroy {
         verificacionInfo: ((si['verificacionInfo'] as Record<string, string>)?.['estado'] || ''),
         nombreOficialSeguridad: si['nombreOficialSeguridad'] as string,
       },
-      // ── Gestión RRHH ──
       gestionRRHH: this.extractGestionRRHH(rrhh),
       nombreDirectorRRHH: rrhh['nombreDirectorRRHH'] as string,
-      // ── Recepción de Documentos ──
       recepcion: {
         fechaEntrega: rec['fechaEntrega'] as string,
         nHojasRecibidas: rec['nHojasRecibidas'] as number | null,
         nombreQuienRecibe: rec['nombreQuienRecibe'] as string,
         cargoQuienRecibe: rec['cargoQuienRecibe'] as string,
       },
-      // ── Autorización ──
       ccFirmante: au['ccFirmante'],
       fechaFirma: au['fechaFirma'],
     };
   }
 
-  private extractGestionDoc(
-    gd: Record<string, unknown>
-  ): MirrorData['gestionDoc'] {
+  private extractGestionDoc(gd: Record<string, unknown>): MirrorData['gestionDoc'] {
     const result: MirrorData['gestionDoc'] = {};
     this.gestionDocumentalItems.forEach(item => {
       const sub = (gd[item.key] || {}) as Record<string, string>;
-      result[item.key] = {
-        estado: sub['estado'] || '',
-        responsable: sub['responsable'] || '',
-      };
+      result[item.key] = { estado: sub['estado'] || '', responsable: sub['responsable'] || '' };
     });
     return result;
   }
 
-  private extractGestionAdmin(
-    ga: Record<string, unknown>
-  ): MirrorData['gestionAdmin'] {
+  private extractGestionAdmin(ga: Record<string, unknown>): MirrorData['gestionAdmin'] {
     const result: MirrorData['gestionAdmin'] = {};
     this.gestionAdminAllItems.forEach(item => {
       const sub = (ga[item.key] || {}) as Record<string, unknown>;
-      result[item.key] = {
-        estado: (sub['estado'] as string) || '',
-        valor: sub['valor'] as number | null,
-      };
+      result[item.key] = { estado: (sub['estado'] as string) || '', valor: sub['valor'] as number | null };
     });
     return result;
   }
 
-  private extractGestionTIC(
-    tic: Record<string, unknown>
-  ): MirrorData['gestionTIC'] {
+  private extractGestionTIC(tic: Record<string, unknown>): MirrorData['gestionTIC'] {
     const result: MirrorData['gestionTIC'] = {};
     this.gestionTICItems.forEach(item => {
       const sub = (tic[item.key] || {}) as Record<string, string>;
-      result[item.key] = {
-        estado: sub['estado'] || '',
-        observacion: sub['observacion'] || '',
-      };
+      result[item.key] = { estado: sub['estado'] || '', observacion: sub['observacion'] || '' };
     });
     return result;
   }
 
-  private extractGestionFinanciera(
-    gf: Record<string, unknown>
-  ): MirrorData['gestionFinanciera'] {
+  private extractGestionFinanciera(gf: Record<string, unknown>): MirrorData['gestionFinanciera'] {
     const result: MirrorData['gestionFinanciera'] = {};
     this.gestionFinancieraItems.forEach(item => {
       const sub = (gf[item.key] || {}) as Record<string, unknown>;
@@ -611,21 +642,25 @@ export class Formularios implements OnInit, OnDestroy {
     return result;
   }
 
-  private extractGestionRRHH(
-    rrhh: Record<string, unknown>
-  ): MirrorData['gestionRRHH'] {
+  private extractGestionRRHH(rrhh: Record<string, unknown>): MirrorData['gestionRRHH'] {
     const result: MirrorData['gestionRRHH'] = {};
     this.gestionRRHHItems.forEach(item => {
       const sub = (rrhh[item.key] || {}) as Record<string, string>;
-      result[item.key] = {
-        estado: sub['estado'] || '',
-        numeroCertificado: sub['numeroCertificado'] || '',
-      };
+      result[item.key] = { estado: sub['estado'] || '', numeroCertificado: sub['numeroCertificado'] || '' };
     });
     return result;
   }
 
-  // ─── Navegación ─────────────────────────────────────────────
+  // ─── Helpers de rol ─────────────────────────────────────────
+  esAdmin(): boolean {
+    return this.usuario?.rol === 'Administrador';
+  }
+
+  limpiarTexto(texto: any): string {
+    return String(texto || '').trim().replace(/\s+/g, ' ');
+  }
+
+  // ─── Navegación por steps ───────────────────────────────────
   nextStep(): void {
     if (!this.validateCurrentStep()) {
       this.showToast('Corrija los errores antes de continuar.', 'error', '❌');
@@ -694,6 +729,11 @@ export class Formularios implements OnInit, OnDestroy {
 
   getError(path: string, error: string): boolean {
     return !!this.mainForm.get(path)?.hasError(error);
+  }
+
+  puedeEditarCampo(campo: string): boolean {
+    if (this.esAdmin()) return true;
+    return this.camposAsignadosUsuario.includes(campo) && !this.camposBloqueados.includes(campo);
   }
 
   // ─── Firma ──────────────────────────────────────────────────
@@ -798,7 +838,6 @@ export class Formularios implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
       this.firmaImagePreview = e.target?.result as string;
@@ -835,7 +874,7 @@ export class Formularios implements OnInit, OnDestroy {
       submittedAt: new Date().toISOString(),
     };
 
-    // Simular envío — reemplazar con servicio real
+    // Reemplazar con servicio real cuando esté disponible
     setTimeout(() => {
       console.log('[PazYSalvo] Payload:', payload);
       this.isSubmitting = false;
@@ -848,7 +887,7 @@ export class Formularios implements OnInit, OnDestroy {
   // ─── Draft ──────────────────────────────────────────────────
   saveDraft(): void {
     try {
-      localStorage.setItem('pazYSalvoDraft', JSON.stringify(this.mainForm.getRawValue()));
+      localStorage.setItem('pazYSalvoDraft', JSON.stringify(this.mainForm.value));
       this.showToast('Borrador guardado correctamente.', 'info', '💾');
     } catch {
       this.showToast('No se pudo guardar el borrador.', 'warning', '⚠️');
@@ -856,49 +895,356 @@ export class Formularios implements OnInit, OnDestroy {
   }
 
   private loadDraft(): void {
-    const draft = this.getDraftFast();
-
-    if (!draft) return;
-
-    this.mainForm.patchValue(draft, { emitEvent: false });
-    this.updateMirror(this.mainForm.getRawValue());
-    this.showToast('Se cargó un borrador guardado.', 'info', '💾');
-    this.cdr.markForCheck();
+    try {
+      const draft = localStorage.getItem('pazYSalvoDraft');
+      if (draft) {
+        this.mainForm.patchValue(JSON.parse(draft));
+        this.showToast('Se cargó un borrador guardado.', 'info', '💾');
+      }
+    } catch {
+      // silencioso
+    }
   }
 
-  trackByIndex(index: number) {
-    return index;
+  // ─── Gestión de formularios (servicio) ──────────────────────
+  alertaRapida(titulo: string, texto: string): void {
+    if (this.alertaActiva) return;
+    this.alertaActiva = true;
+    Swal.fire({ icon: 'warning', title: titulo, text: texto, timer: 1800, showConfirmButton: false })
+      .then(() => (this.alertaActiva = false));
   }
 
-  trackByKey(index: number, item: any) {
-    return item.key;
+  cargarFormularios(): void {
+    this.cargando = true;
+    this.formulariosService.listar().pipe(
+      timeout(4000),
+      catchError((err: any) => {
+        Swal.fire('Error', err.error?.mensaje || 'Error al cargar formularios', 'error');
+        return of([]);
+      }),
+      finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
+    ).subscribe((data: any[]) => { this.formularios = data || []; });
   }
 
-  trackByValue(index: number, item: any) {
-    return item.value;
+  crearFormulario(): void {
+    if (!this.esAdmin()) {
+      this.alertaRapida('Sin permisos', 'Solo el Administrador puede crear formularios.');
+      return;
+    }
+    this.cargando = true;
+    this.formulariosService.crear({ titulo: 'PAZ Y SALVO', descripcion: 'Formulario oficial de Paz y Salvo' }).pipe(
+      timeout(4000),
+      catchError((err: any) => {
+        Swal.fire('Error', err.error?.mensaje || 'Error al crear formulario', 'error');
+        return of(null);
+      }),
+      finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
+    ).subscribe((res: any) => {
+      if (!res) return;
+      Swal.fire('Creado', 'Formulario Paz y Salvo creado correctamente.', 'success');
+      this.cargarFormularios();
+    });
   }
 
-  trackById(index: number, item: any) {
-    return item.id;
+  verFormulario(f: any): void {
+    this.formularioSeleccionado = f;
+    this.cargarDetalleFormulario(f);
   }
 
-  // ─── Print / PDF ─────────────────────────────────────────────
+  cargarDetalleFormulario(f: any): void {
+    this.cargando = true;
+    this.mainForm.reset();
+    this.camposAsignadosUsuario = [];
+    this.camposBloqueados = [];
+    this.camposYaDesignados = [];
+    this.camposFormulario.forEach(c => { c.bloqueado = false; c.seleccionado = false; });
+
+    this.formulariosService.ver(f.id).pipe(
+      timeout(4000),
+      catchError((err: any) => {
+        Swal.fire('Error', err.error?.mensaje || 'No se pudo cargar formulario', 'error');
+        return of(null);
+      }),
+      finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
+    ).subscribe((data: any) => {
+      if (!data) return;
+      this.formularioSeleccionado = data.formulario;
+      const preguntas = data.preguntas || [];
+      const valores: any = {};
+
+      preguntas.forEach((p: any) => {
+        const campo = p.codigo || p.campo || p.pregunta;
+        if (campo && this.mainForm.get(campo)) {
+          this.camposAsignadosUsuario.push(campo);
+          if (p.respuesta) { valores[campo] = p.respuesta; this.camposBloqueados.push(campo); }
+          if (p.ya_asignado === 1 || p.asignacion_id) this.camposYaDesignados.push(campo);
+        }
+      });
+
+      this.camposYaDesignados = [...new Set(this.camposYaDesignados)];
+      this.camposFormulario.forEach(c => {
+        c.bloqueado = this.camposYaDesignados.includes(c.id);
+        if (c.bloqueado) c.seleccionado = false;
+      });
+      this.camposAsignadosUsuario = [...new Set(this.camposAsignadosUsuario)];
+      this.camposBloqueados = [...new Set(this.camposBloqueados)];
+
+      this.mainForm.patchValue(valores);
+      this.bloquearCamposNoPermitidos();
+      this.cdr.markForCheck();
+    });
+  }
+
+  bloquearCamposNoPermitidos(): void {
+    const recorrerGrupo = (group: FormGroup) => {
+      Object.keys(group.controls).forEach(key => {
+        const ctrl = group.get(key);
+        if (ctrl instanceof FormGroup) {
+          recorrerGrupo(ctrl);
+        } else {
+          if (this.esAdmin()) {
+            ctrl?.enable({ emitEvent: false });
+          } else if (!this.camposAsignadosUsuario.includes(key) || this.camposBloqueados.includes(key)) {
+            ctrl?.disable({ emitEvent: false });
+          } else {
+            ctrl?.enable({ emitEvent: false });
+          }
+        }
+      });
+    };
+    recorrerGrupo(this.mainForm);
+  }
+
+  cargarUsuariosDisponibles(): void {
+    this.formulariosService.usuariosDisponibles().pipe(
+      timeout(4000), catchError(() => of([]))
+    ).subscribe((data: any[]) => { this.usuariosDisponibles = data || []; });
+  }
+
+  cargarPendientes(): void {
+    this.formulariosService.misPendientes().pipe(catchError(() => of([])))
+      .subscribe((data: any[]) => { this.pendientes = data || []; });
+  }
+
+  cargarNotificaciones(): void {
+    this.formulariosService.notificaciones().pipe(catchError(() => of([])))
+      .subscribe((data: any[]) => { this.notificaciones = data || []; });
+  }
+
+  marcarNotificacionLeida(n: any): void {
+    this.formulariosService.marcarNotificacionLeida(n.id).subscribe(() => { n.leido = 1; });
+  }
+
+  // ─── Designación de campos ──────────────────────────────────
+  camposSeleccionados(): any[] {
+    return this.camposFormulario.filter(c => c.seleccionado && !c.bloqueado);
+  }
+
+  seleccionarTodosCampos(): void {
+    this.camposFormulario.forEach(c => { if (!c.bloqueado) c.seleccionado = true; });
+  }
+
+  limpiarSeleccionCampos(): void {
+    this.camposFormulario.forEach(c => (c.seleccionado = false));
+  }
+
+  designarCampos(): void {
+    const bloqueadosSeleccionados = this.camposFormulario.filter(c => c.seleccionado && c.bloqueado);
+    if (bloqueadosSeleccionados.length > 0) {
+      this.alertaRapida('Bloqueado', 'No puede designar campos que ya fueron asignados.');
+      return;
+    }
+    if (!this.esAdmin()) return;
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Validación', 'Seleccione un formulario primero.');
+      return;
+    }
+    const seleccionados = this.camposSeleccionados();
+    if (seleccionados.length === 0) {
+      this.alertaRapida('Validación', 'Seleccione al menos un campo.');
+      return;
+    }
+    if (!this.asignacion.usuario_id) {
+      this.alertaRapida('Validación', 'Seleccione un usuario destino.');
+      return;
+    }
+
+    const data = {
+      formulario_id: this.formularioSeleccionado.id,
+      campos: seleccionados.map(c => ({ codigo: c.id, pregunta: c.etiqueta, seccion: c.seccion, tipo: c.tipo })),
+      usuario_id: this.asignacion.usuario_id,
+      rol: null,
+    };
+
+    this.cargando = true;
+    this.formulariosService.asignar(data).pipe(
+      timeout(4000),
+      catchError((err: any) => {
+        Swal.fire('Error', err.error?.mensaje || err.error?.error || 'Error al designar campos', 'error');
+        return of(null);
+      }),
+      finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
+    ).subscribe((res: any) => {
+      if (!res) return;
+      Swal.fire('Enviado', res.mensaje || 'Campos designados correctamente.', 'success');
+      this.asignacion = { usuario_id: '' };
+      this.limpiarSeleccionCampos();
+      this.cargarDetalleFormulario(this.formularioSeleccionado);
+    });
+  }
+
+  // ─── Guardar respuestas ─────────────────────────────────────
+  validarYActualizarEspejo(): void {
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Validación', 'Seleccione un formulario primero.');
+      return;
+    }
+    if (!this.validarPazSalvo()) return;
+    if (!this.esAdmin()) {
+      this.guardarCamposAsignados();
+      return;
+    }
+    Swal.fire('Correcto', 'Formulario validado correctamente.', 'success');
+  }
+
+  validarPazSalvo(): boolean {
+    if (this.esAdmin()) {
+      if (this.mainForm.invalid) {
+        this.mainForm.markAllAsTouched();
+        this.alertaRapida('Validación', 'Revise todos los campos obligatorios.');
+        return false;
+      }
+      return true;
+    }
+
+    const camposEditables = this.camposAsignadosUsuario.filter(c => !this.camposBloqueados.includes(c));
+    if (camposEditables.length === 0) {
+      this.alertaRapida('Sin campos', 'No tiene campos pendientes para llenar.');
+      return false;
+    }
+
+    for (const campo of camposEditables) {
+      const control = this.mainForm.get(campo);
+      if (!control) continue;
+      control.markAsTouched();
+      control.updateValueAndValidity();
+      if (control.invalid || !this.limpiarTexto(control.value)) {
+        this.alertaRapida('Validación', `Revise el campo: ${campo}`);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  guardarCamposAsignados(): void {
+    const campos = this.camposAsignadosUsuario.filter(campo => {
+      const control = this.mainForm.get(campo);
+      return !this.camposBloqueados.includes(campo) && control && this.limpiarTexto(control.value) !== '';
+    });
+
+    if (campos.length === 0) {
+      this.alertaRapida('Validación', 'No hay campos nuevos para guardar.');
+      return;
+    }
+
+    let guardados = 0;
+    campos.forEach(campo => {
+      const control = this.mainForm.get(campo);
+      this.formulariosService.responder({
+        formulario_id: this.formularioSeleccionado.id,
+        campo,
+        respuesta: this.limpiarTexto(control?.value),
+      }).subscribe({
+        next: () => {
+          guardados++;
+          if (guardados === campos.length) {
+            Swal.fire('Guardado', 'Campos asignados guardados correctamente.', 'success');
+            this.cargarDetalleFormulario(this.formularioSeleccionado);
+            this.cargarPendientes();
+          }
+        },
+        error: (err) => {
+          Swal.fire('Error', err?.error?.mensaje || err?.error?.error || 'Error al guardar campos', 'error');
+        },
+      });
+    });
+  }
+
+  // ─── Eliminar formulario ────────────────────────────────────
+  eliminarFormulario(f: any, event: Event): void {
+    event.stopPropagation();
+    if (!this.esAdmin()) {
+      this.alertaRapida('Sin permisos', 'Solo el Administrador puede eliminar formularios.');
+      return;
+    }
+    Swal.fire({
+      title: '¿Eliminar formulario?',
+      text: `Se eliminará: ${f.titulo}`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      this.cargando = true;
+      this.formulariosService.eliminar(f.id).pipe(
+        timeout(4000),
+        catchError((err: any) => {
+          Swal.fire('Error', err.error?.mensaje || 'Error al eliminar formulario', 'error');
+          return of(null);
+        }),
+        finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
+      ).subscribe((res: any) => {
+        if (!res) return;
+        Swal.fire('Eliminado', 'Formulario eliminado correctamente.', 'success');
+        if (this.formularioSeleccionado?.id === f.id) this.formularioSeleccionado = null;
+        this.cargarFormularios();
+      });
+    });
+  }
+
+  // ─── Exportar PDF ────────────────────────────────────────────
+  async exportarHojaEspejoPDF(): Promise<void> {
+    if (!this.formularioSeleccionado?.id) return;
+    const html2canvas = (await import('html2canvas')).default;
+    const jsPDF = (await import('jspdf')).default;
+    const element = document.querySelector('.a4-page') as HTMLElement;
+    if (!element) { Swal.fire('Error', 'No se encontró el documento A4', 'error'); return; }
+    const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgWidth = 210;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    pdf.save('formulario-paz-y-salvo.pdf');
+  }
+
+  descargarPDF(): void {
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Validación', 'Seleccione un formulario primero.');
+      return;
+    }
+    window.open(`http://localhost:5000/api/formularios/${this.formularioSeleccionado.id}/pdf`, '_blank');
+  }
+
   printMirror(): void {
     window.print();
   }
 
-  downloadPDF(): void {
-    this.showToast('Función de PDF disponible con integración de librería (jsPDF / pdfmake).', 'info', '📄');
+  // ─── Acordeón ────────────────────────────────────────────────
+  toggleSeccion(key: string): void {
+    this.seccionesAbiertas[key] = !this.seccionesAbiertas[key];
+  }
+
+  isOpen(key: string): boolean {
+    return this.seccionesAbiertas[key];
   }
 
   // ─── Toasts ─────────────────────────────────────────────────
   showToast(message: string, type: ToastMessage['type'], icon: string): void {
     const id = ++this.toastCounter;
     const icons: Record<ToastMessage['type'], string> = {
-      success: '✅',
-      error: '❌',
-      warning: '⚠️',
-      info: 'ℹ️',
+      success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️',
     };
     this.toasts.push({ id, message, type, icon: icon || icons[type] });
     this.cdr.markForCheck();

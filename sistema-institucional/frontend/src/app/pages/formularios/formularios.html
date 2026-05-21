@@ -1,1100 +1,1307 @@
-<!-- paz-y-salvo.component.html -->
-<div class="pys-wrapper">
+<div class="page">
 
-  <!-- ─── HEADER INSTITUCIONAL ─────────────────────────────────────── -->
-  <header class="pys-header">
-    <div class="pys-header__logo">
-      <div class="logo-icon">
-        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 40 L24 8 L40 40" stroke="white" stroke-width="3" fill="none" />
-          <path d="M14 28 L34 28" stroke="white" stroke-width="2" />
-        </svg>
-      </div>
-      <div class="logo-text">
-        <span class="logo-text__main">INAMHI</span>
-        <span class="logo-text__sub">TIEMPO, CLIMA Y AGUA ECUADOR</span>
-      </div>
+  <!-- ════════════════════════════════════════════════
+       HEADER DE PÁGINA
+  ════════════════════════════════════════════════ -->
+  <div class="page-header fade-down">
+    <div>
+      <span class="badge">Formularios</span>
+      <h1>Formularios Dinámicos</h1>
+      <p>Formulario digital Paz y Salvo + hoja espejo en tiempo real.</p>
     </div>
-    <div class="pys-header__title">
-      <h1>Instituto Nacional de Meteorología e Hidrología</h1>
-      <p>Dirección de Administración de Recursos Humanos</p>
-      <span class="badge">Formulario Paz y Salvo — Liquidación de Haberes</span>
-    </div>
-    <div class="pys-header__meta">
-      <div class="meta-item">
-        <span class="meta-label">Código</span>
-        <span class="meta-value">RH-PS-001</span>
-      </div>
-      <div class="meta-item">
-        <span class="meta-label">Versión</span>
-        <span class="meta-value">3.0</span>
-      </div>
-      <div class="meta-item">
-        <span class="meta-label">Fecha</span>
-        <span class="meta-value">{{ today | date:'dd/MM/yyyy' }}</span>
-      </div>
-    </div>
-
-    <div class="pys-header__actions">
-      <button type="button" class="btn-dashboard" routerLink="/dashboard">
-        ← Volver
-      </button>
-    </div>
-  </header>
-
-  <!-- ─── PROGRESS BAR ─────────────────────────────────────────────── -->
-  <div class="pys-progress">
-    <div class="pys-progress__bar">
-      <div class="pys-progress__fill" [style.width.%]="progressPercent"></div>
-    </div>
-    <div class="pys-progress__steps">
-      <div *ngFor="let step of steps; let i = index; trackBy: trackByIndex" class="step-indicator"
-        [class.active]="currentStep === i" [class.completed]="currentStep > i" (click)="goToStep(i)">
-        <div class="step-indicator__dot">
-          <ng-container *ngIf="currentStep > i; else stepNum">
-            <svg viewBox="0 0 16 16">
-              <path d="M3 8l3.5 3.5L13 4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" />
-            </svg>
-          </ng-container>
-          <ng-template #stepNum>{{ i + 1 }}</ng-template>
-        </div>
-        <div class="step-indicator__info">
-          <span class="step-indicator__label">Paso {{ i + 1 }}</span>
-          <span class="step-indicator__title">{{ step.title }}</span>
-        </div>
-      </div>
-    </div>
+    <button class="back" routerLink="/dashboard">← Volver</button>
   </div>
 
-  <!-- ─── MAIN CONTENT ─────────────────────────────────────────────── -->
-  <div class="pys-content">
+  <div class="loading" *ngIf="cargando">Cargando información...</div>
 
-    <!-- ── COLUMNA IZQUIERDA: FORMULARIO ─────────────────────────── -->
-    <div class="pys-form-col">
+  <!-- ════════════════════════════════════════════════
+       NOTIFICACIONES
+  ════════════════════════════════════════════════ -->
+  <section class="card fade-in" *ngIf="notificaciones.length > 0">
+    <div class="card-title">
+      <h2>🔔 Notificaciones</h2>
+      <span>Total: {{ notificaciones.length }}</span>
+    </div>
+    <div class="lista">
+      <div class="item" *ngFor="let n of notificaciones" (click)="marcarNotificacionLeida(n)">
+        <h3>{{ n.titulo }}</h3>
+        <p>{{ n.mensaje }}</p>
+        <span class="estado">{{ n.leido ? 'LEÍDO' : 'NUEVO' }}</span>
+      </div>
+    </div>
+  </section>
 
-      <form [formGroup]="mainForm" (ngSubmit)="onSubmit()" novalidate>
+  <!-- ════════════════════════════════════════════════
+       CREAR FORMULARIO (solo admin)
+  ════════════════════════════════════════════════ -->
+  <section class="card fade-in" *ngIf="esAdmin()">
+    <div class="card-title">
+      <div>
+        <h2>Crear formulario Paz y Salvo</h2>
+        <p>Se creará automáticamente el formulario oficial.</p>
+      </div>
+      <span>Solo administrador</span>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" type="button" (click)="crearFormulario()" [disabled]="cargando">
+        {{ cargando ? 'Creando...' : 'Crear formulario Paz y Salvo' }}
+      </button>
+    </div>
+  </section>
 
-        <!-- ════════════ STEP 0 — DATOS PERSONALES ════════════════ -->
-        <div class="step-panel" [class.active]="currentStep === 0" [@stepAnimation]>
+  <!-- ════════════════════════════════════════════════
+       LISTADO DE FORMULARIOS
+  ════════════════════════════════════════════════ -->
+  <section class="card fade-in">
+    <div class="card-title">
+      <h2>Listado de formularios</h2>
+      <span>Total: {{ formularios.length }}</span>
+    </div>
+    <div class="lista" *ngIf="formularios.length > 0">
+      <div class="item hover-scale" *ngFor="let f of formularios" (click)="verFormulario(f)"
+        [class.item-activo]="formularioSeleccionado?.id === f.id">
+        <div class="card-title">
+          <h3>{{ f.titulo }}</h3>
+          <button *ngIf="esAdmin()" type="button" class="btn-danger" (click)="eliminarFormulario(f, $event)">
+            Eliminar
+          </button>
+        </div>
+        <p>{{ f.descripcion || 'Formulario Paz y Salvo' }}</p>
+        <span class="estado">{{ f.estado || 'BORRADOR' }}</span>
+        <span class="estado activo-label" *ngIf="formularioSeleccionado?.id === f.id">SELECCIONADO</span>
+      </div>
+    </div>
+    <div class="empty" *ngIf="formularios.length === 0 && !cargando">No hay formularios registrados.</div>
+  </section>
 
-          <!-- Datos Personales -->
-          <div class="form-card">
-            <div class="form-card__header">
-              <div class="card-icon">👤</div>
-              <div>
-                <h2>Datos Personales</h2>
-                <p>Información básica del servidor saliente</p>
+  <div class="empty" *ngIf="!formularioSeleccionado">
+    Seleccione un formulario del listado para empezar.
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       DESIGNAR CAMPOS (solo admin)
+  ════════════════════════════════════════════════ -->
+  <section *ngIf="formularioSeleccionado && esAdmin()" class="card fade-in">
+    <div class="card-title">
+      <h2>Designar campos del formulario</h2>
+      <span>{{ camposSeleccionados().length }} seleccionado(s)</span>
+    </div>
+    <div class="actions">
+      <button type="button" (click)="seleccionarTodosCampos()">Seleccionar disponibles</button>
+      <button type="button" (click)="limpiarSeleccionCampos()">Limpiar selección</button>
+    </div>
+
+    <div class="accordion">
+
+      <!-- 1. Datos Personales -->
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('personales')">
+          <h3>1. Datos Personales</h3>
+          <span>{{ isOpen('personales') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('personales')">
+          <div class="grid-campos">
+            <label class="campo-card" *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Datos Personales')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Dirección / Unidad -->
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('direccion')">
+          <h3>2. Dirección / Unidad</h3>
+          <span>{{ isOpen('direccion') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('direccion')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Dirección / Unidad')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Trámites y Unidad -->
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('tramites')">
+          <h3>3. Trámites y Unidad</h3>
+          <span>{{ isOpen('tramites') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('tramites')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Trámites y Unidad')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Gestión Administrativa -->
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('admin')">
+          <h3>4. Gestión Administrativa</h3>
+          <span>{{ isOpen('admin') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('admin')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Administrativa')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Gestión TIC -->
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('tic')">
+          <h3>5. Gestión TIC</h3>
+          <span>{{ isOpen('tic') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('tic')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión TIC')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Gestión Financiera -->
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('financiero')">
+          <h3>6. Gestión Financiera</h3>
+          <span>{{ isOpen('financiero') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('financiero')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Financiera')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Seguridad de la Información -->
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('seguridad')">
+          <h3>7. Seguridad de la Información</h3>
+          <span>{{ isOpen('seguridad') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('seguridad')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Seguridad')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. Recursos Humanos -->
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('rrhh')">
+          <h3>8. Recursos Humanos</h3>
+          <span>{{ isOpen('rrhh') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('rrhh')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recursos Humanos')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. Recepción de Documentos -->
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('recepcion')">
+          <h3>9. Recepción de Documentos</h3>
+          <span>{{ isOpen('recepcion') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('recepcion')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recepción')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10. Autorización y Firma -->
+      <div class="accordion-item">
+        <div class="accordion-header" (click)="toggleSeccion('firma')">
+          <h3>10. Autorización y Firma</h3>
+          <span>{{ isOpen('firma') ? '−' : '+' }}</span>
+        </div>
+        <div class="accordion-body" *ngIf="isOpen('firma')">
+          <div class="grid-campos">
+            <label class="campo-card"
+              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Firma')"
+              [class.campo-designado]="c.bloqueado">
+              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+              <h4>{{ c.etiqueta }}</h4>
+              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /accordion -->
+
+    <div class="form-grid" style="margin-top: 22px;">
+      <div class="field">
+        <label>Asignar a usuario</label>
+        <select [(ngModel)]="asignacion.usuario_id">
+          <option value="">Seleccione usuario</option>
+          <option *ngFor="let u of usuariosDisponibles" [value]="u.id">
+            {{ u.nombres }} {{ u.apellidos }} — {{ u.rol }}
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-success" type="button" (click)="designarCampos()"
+        [disabled]="camposSeleccionados().length === 0 || !asignacion.usuario_id">
+        Enviar / Designar campos
+      </button>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════
+       FORMULARIO PAZ Y SALVO + ESPEJO A4
+  ════════════════════════════════════════════════ -->
+  <section *ngIf="formularioSeleccionado" class="paz-salvo-container fade-in">
+
+    <!-- ── COLUMNA IZQUIERDA: FORMULARIO COMPLETO ── -->
+    <div class="formulario-ingreso no-print">
+      <div class="header-titles">
+        <!-- Progress bar de pasos -->
+        <div class="pys-progress">
+          <div class="pys-progress__bar">
+            <div class="pys-progress__fill" [style.width.%]="progressPercent"></div>
+          </div>
+          <div class="pys-progress__steps">
+            <div *ngFor="let step of steps; let i = index"
+              class="step-dot"
+              [class.active]="currentStep === i"
+              [class.completed]="currentStep > i"
+              (click)="goToStep(i)">
+              <div class="step-dot__circle">
+                <ng-container *ngIf="currentStep > i">✓</ng-container>
+                <ng-container *ngIf="currentStep <= i">{{ i + 1 }}</ng-container>
               </div>
-            </div>
-
-            <div class="form-grid" formGroupName="datosPersonales">
-
-              <div class="field-group col-span-2">
-                <label class="field-label required">Nombres y Apellidos</label>
-                <input class="field-input" type="text" formControlName="nombresApellidos"
-                  placeholder="Ej. Juan Carlos Pérez Rodríguez"
-                  [class.invalid]="isInvalid('datosPersonales.nombresApellidos')" />
-                <div class="field-error" *ngIf="isInvalid('datosPersonales.nombresApellidos')">
-                  <span *ngIf="getError('datosPersonales.nombresApellidos', 'required')">El nombre es
-                    obligatorio.</span>
-                  <span *ngIf="getError('datosPersonales.nombresApellidos', 'minlength')">Mínimo 5 caracteres.</span>
-                  <span *ngIf="getError('datosPersonales.nombresApellidos', 'maxlength')">Máximo 100 caracteres.</span>
-                  <span *ngIf="getError('datosPersonales.nombresApellidos', 'pattern')">Solo se permiten letras y
-                    espacios.</span>
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label class="field-label required">Cédula / Pasaporte</label>
-                <input class="field-input" type="text" formControlName="cedula" placeholder="Ej. 1723456789"
-                  maxlength="13" [class.invalid]="isInvalid('datosPersonales.cedula')" />
-                <div class="field-error" *ngIf="isInvalid('datosPersonales.cedula')">
-                  <span *ngIf="getError('datosPersonales.cedula', 'required')">La cédula es obligatoria.</span>
-                  <span *ngIf="getError('datosPersonales.cedula', 'cedulaInvalida')">Cédula ecuatoriana inválida.</span>
-                  <span *ngIf="getError('datosPersonales.cedula', 'pattern')">Solo números, mínimo 10 dígitos.</span>
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label class="field-label">Número Domicilio</label>
-                <input class="field-input" type="text" formControlName="numeroDomicilio" placeholder="Ej. 02-2345678" />
-              </div>
-
-              <div class="field-group">
-                <label class="field-label">Número Celular</label>
-                <input class="field-input" type="tel" formControlName="numeroCelular" placeholder="Ej. 0991234567"
-                  [class.invalid]="isInvalid('datosPersonales.numeroCelular')" />
-                <div class="field-error" *ngIf="isInvalid('datosPersonales.numeroCelular')">
-                  <span *ngIf="getError('datosPersonales.numeroCelular', 'pattern')">Formato inválido (10
-                    dígitos).</span>
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label class="field-label">Número Contacto Emergencia</label>
-                <input class="field-input" type="tel" formControlName="numeroEmergencia" placeholder="Ej. 0987654321" />
-              </div>
-
-              <div class="field-group">
-                <label class="field-label required">Email Principal</label>
-                <input class="field-input" type="email" formControlName="email1" placeholder="correo@ejemplo.com"
-                  [class.invalid]="isInvalid('datosPersonales.email1')" />
-                <div class="field-error" *ngIf="isInvalid('datosPersonales.email1')">
-                  <span *ngIf="getError('datosPersonales.email1', 'required')">El email es obligatorio.</span>
-                  <span *ngIf="getError('datosPersonales.email1', 'email')">Email inválido.</span>
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label class="field-label">Email Secundario</label>
-                <input class="field-input" type="email" formControlName="email2"
-                  placeholder="correo.alternativo@ejemplo.com" [class.invalid]="isInvalid('datosPersonales.email2')" />
-                <div class="field-error" *ngIf="isInvalid('datosPersonales.email2')">
-                  <span *ngIf="getError('datosPersonales.email2', 'email')">Email inválido.</span>
-                </div>
-              </div>
-
-              <div class="field-group col-span-2">
-                <label class="field-label required">Dirección Domiciliaria</label>
-                <input class="field-input" type="text" formControlName="direccion" placeholder="Calle, número, sector"
-                  [class.invalid]="isInvalid('datosPersonales.direccion')" />
-                <div class="field-error" *ngIf="isInvalid('datosPersonales.direccion')">
-                  <span *ngIf="getError('datosPersonales.direccion', 'required')">La dirección es obligatoria.</span>
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label class="field-label required">Provincia</label>
-                <select class="field-select" formControlName="provincia"
-                  [class.invalid]="isInvalid('datosPersonales.provincia')">
-                  <option value="">Seleccione provincia</option>
-                  <option *ngFor="let prov of provincias; trackBy: trackByIndex" [value]="prov">{{ prov }}</option>
-                </select>
-                <div class="field-error" *ngIf="isInvalid('datosPersonales.provincia')">
-                  <span>Seleccione una provincia.</span>
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label class="field-label required">Cantón</label>
-                <input class="field-input" type="text" formControlName="canton" placeholder="Ej. Quito"
-                  [class.invalid]="isInvalid('datosPersonales.canton')" />
-                <div class="field-error" *ngIf="isInvalid('datosPersonales.canton')">
-                  <span *ngIf="getError('datosPersonales.canton', 'required')">El cantón es obligatorio.</span>
-                </div>
-              </div>
-
+              <span class="step-dot__label">{{ step.title }}</span>
             </div>
           </div>
+        </div>
 
-          <!-- Modalidad Laboral -->
-          <div class="form-card" formGroupName="modalidadLaboral">
-            <div class="form-card__header">
-              <div class="card-icon">📋</div>
+        <h2>{{ formularioSeleccionado?.titulo }}</h2>
+        <p>{{ formularioSeleccionado?.descripcion || 'Llene los campos asignados.' }}</p>
+      </div>
+
+      <form [formGroup]="formularioPazSalvo" class="form-grid-layout">
+
+        <!-- ══════════ STEP 0 — DATOS PERSONALES + MODALIDAD + LUGAR ══════════ -->
+        <ng-container *ngIf="currentStep === 0">
+
+          <!-- Datos Personales -->
+          <div class="form-card-dark">
+            <div class="form-card-dark__header">
+              <span class="card-icon-badge">👤</span>
               <div>
-                <h2>Modalidad Laboral</h2>
-                <p>Tipo de vinculación y fechas</p>
+                <h3>1. Datos Personales</h3>
+                <p class="card-desc">Información básica del servidor saliente</p>
               </div>
             </div>
-
             <div class="form-grid">
-              <div class="field-group col-span-2">
-                <label class="field-label required">Modalidad de Contratación</label>
-                <div class="radio-group">
-                  <label class="radio-card" *ngFor="let mod of modalidades; trackBy: trackByValue">
-                    <input type="radio" formControlName="tipoModalidad" [value]="mod.value" />
-                    <span class="radio-card__content">
-                      <span class="radio-card__dot"></span>
-                      <span>{{ mod.label }}</span>
-                    </span>
-                  </label>
-                </div>
-                <div class="field-error" *ngIf="isInvalid('modalidadLaboral.tipoModalidad')">
-                  <span>Seleccione una modalidad.</span>
-                </div>
+              <div class="input-group span-2">
+                <label>Nombres y Apellidos <span class="req">*</span></label>
+                <input maxlength="80" class="dark-input" formControlName="nombres_apellidos"
+                  placeholder="Ej. Juan Carlos Pérez Rodríguez"
+                  [readonly]="!puedeEditarCampo('nombres_apellidos')">
+                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('nombres_apellidos')?.invalid && formularioPazSalvo.get('nombres_apellidos')?.touched">
+                  Nombre inválido (solo letras, mínimo 3 caracteres).
+                </span>
               </div>
 
-              <div class="field-group">
-                <label class="field-label required">Fecha de Ingreso</label>
-                <input class="field-input" type="date" formControlName="fechaIngreso"
-                  [class.invalid]="isInvalid('modalidadLaboral.fechaIngreso')" />
-                <div class="field-error" *ngIf="isInvalid('modalidadLaboral.fechaIngreso')">
-                  <span *ngIf="getError('modalidadLaboral.fechaIngreso', 'required')">La fecha de ingreso es
-                    obligatoria.</span>
-                </div>
+              <div class="input-group">
+                <label>Modalidad Laboral <span class="req">*</span></label>
+                <select class="dark-input" formControlName="modalidad"
+                  [attr.disabled]="!puedeEditarCampo('modalidad') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="PERMANENTE">Nombramiento Permanente</option>
+                  <option value="PROVISIONAL">Nombramiento Provisional</option>
+                  <option value="OCASIONAL">Contrato Ocasional</option>
+                  <option value="TRABAJO">Contrato de Trabajo</option>
+                </select>
               </div>
 
-              <div class="field-group">
-                <label class="field-label required">Fecha de Salida</label>
-                <input class="field-input" type="date" formControlName="fechaSalida"
-                  [class.invalid]="isInvalid('modalidadLaboral.fechaSalida')" />
-                <div class="field-error" *ngIf="isInvalid('modalidadLaboral.fechaSalida')">
-                  <span *ngIf="getError('modalidadLaboral.fechaSalida', 'required')">La fecha de salida es
-                    obligatoria.</span>
-                  <span *ngIf="getError('modalidadLaboral.fechaSalida', 'fechaAnterior')">La fecha de salida debe ser
-                    posterior al ingreso.</span>
-                </div>
+              <div class="input-group">
+                <label>Cédula / Pasaporte <span class="req">*</span></label>
+                <input maxlength="15" class="dark-input" formControlName="cedula"
+                  placeholder="Ej. 1723456789"
+                  [readonly]="!puedeEditarCampo('cedula')">
+                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula')?.invalid && formularioPazSalvo.get('cedula')?.touched">
+                  Cédula / pasaporte inválido (mín. 10 caracteres).
+                </span>
+              </div>
+
+              <div class="input-group">
+                <label>Fecha de Ingreso <span class="req">*</span></label>
+                <input type="date" class="dark-input" formControlName="fecha_ingreso"
+                  [readonly]="!puedeEditarCampo('fecha_ingreso')">
+              </div>
+
+              <div class="input-group">
+                <label>Fecha de Salida <span class="req">*</span></label>
+                <input type="date" class="dark-input" formControlName="fecha_salida"
+                  [readonly]="!puedeEditarCampo('fecha_salida')">
+                <span class="field-error-msg" *ngIf="formularioPazSalvo.errors?.['fechasInvalidas'] && formularioPazSalvo.get('fecha_salida')?.touched">
+                  La fecha de salida debe ser posterior al ingreso.
+                </span>
+              </div>
+
+              <div class="input-group span-2">
+                <label>Dirección Domiciliaria <span class="req">*</span></label>
+                <input maxlength="100" class="dark-input" formControlName="direccion"
+                  placeholder="Calle, número, sector"
+                  [readonly]="!puedeEditarCampo('direccion')">
+              </div>
+
+              <div class="input-group">
+                <label>Número Domicilio</label>
+                <input maxlength="10" class="dark-input" formControlName="numero_domicilio"
+                  placeholder="Ej. 02-2345678"
+                  [readonly]="!puedeEditarCampo('numero_domicilio')">
+              </div>
+
+              <div class="input-group">
+                <label>Número Celular <span class="req">*</span></label>
+                <input maxlength="10" class="dark-input" formControlName="celular"
+                  placeholder="Ej. 0991234567"
+                  [readonly]="!puedeEditarCampo('celular')">
+                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('celular')?.invalid && formularioPazSalvo.get('celular')?.touched">
+                  Celular inválido (10 dígitos, empieza en 09).
+                </span>
+              </div>
+
+              <div class="input-group">
+                <label>Contacto Emergencia</label>
+                <input maxlength="10" class="dark-input" formControlName="emergencia"
+                  placeholder="Ej. 0987654321"
+                  [readonly]="!puedeEditarCampo('emergencia')">
+              </div>
+
+              <div class="input-group">
+                <label>Email Principal <span class="req">*</span></label>
+                <input maxlength="60" type="email" class="dark-input" formControlName="email1"
+                  placeholder="correo@ejemplo.com"
+                  [readonly]="!puedeEditarCampo('email1')">
+                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('email1')?.invalid && formularioPazSalvo.get('email1')?.touched">
+                  Email inválido.
+                </span>
+              </div>
+
+              <div class="input-group">
+                <label>Email Secundario</label>
+                <input maxlength="60" type="email" class="dark-input" formControlName="email2"
+                  placeholder="correo.alternativo@ejemplo.com"
+                  [readonly]="!puedeEditarCampo('email2')">
+              </div>
+
+              <div class="input-group">
+                <label>Provincia <span class="req">*</span></label>
+                <input maxlength="30" class="dark-input" formControlName="provincia"
+                  placeholder="Ej. Pichincha"
+                  [readonly]="!puedeEditarCampo('provincia')">
+              </div>
+
+              <div class="input-group">
+                <label>Cantón <span class="req">*</span></label>
+                <input maxlength="30" class="dark-input" formControlName="canton"
+                  placeholder="Ej. Quito"
+                  [readonly]="!puedeEditarCampo('canton')">
               </div>
             </div>
           </div>
 
           <!-- Lugar de Trabajo -->
-          <div class="form-card" formGroupName="lugarTrabajo">
-            <div class="form-card__header">
-              <div class="card-icon">🏢</div>
+          <div class="form-card-dark">
+            <div class="form-card-dark__header">
+              <span class="card-icon-badge">🏢</span>
               <div>
-                <h2>Lugar de Trabajo</h2>
-                <p>Dirección, unidad y cargo</p>
+                <h3>2. Datos Dirección / Unidad</h3>
+                <p class="card-desc">Tipo de planta, unidad, cargo y grupo ocupacional</p>
               </div>
             </div>
-
             <div class="form-grid">
-              <div class="field-group col-span-2">
-                <label class="field-label required">Tipo de Planta</label>
-                <div class="radio-group">
-                  <label class="radio-card">
-                    <input type="radio" formControlName="tipoPlanta" value="PLANTA_CENTRAL" />
-                    <span class="radio-card__content"><span class="radio-card__dot"></span>Planta Central</span>
-                  </label>
-                  <label class="radio-card">
-                    <input type="radio" formControlName="tipoPlanta" value="PROCESOS_DESCONCENTRADOS" />
-                    <span class="radio-card__content"><span class="radio-card__dot"></span>Procesos
-                      Desconcentrados</span>
-                  </label>
-                </div>
-              </div>
-
-              <div class="field-group col-span-2">
-                <label class="field-label required">Dirección / Unidad</label>
-                <input class="field-input" type="text" formControlName="direccionUnidad"
-                  placeholder="Ej. Dirección de Climatología"
-                  [class.invalid]="isInvalid('lugarTrabajo.direccionUnidad')" />
-                <div class="field-error" *ngIf="isInvalid('lugarTrabajo.direccionUnidad')">
-                  <span>Este campo es obligatorio.</span>
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label class="field-label required">Cargo Desempeñado</label>
-                <input class="field-input" type="text" formControlName="cargoDesempenado"
-                  placeholder="Ej. Analista de Sistemas" [class.invalid]="isInvalid('lugarTrabajo.cargoDesempenado')" />
-                <div class="field-error" *ngIf="isInvalid('lugarTrabajo.cargoDesempenado')">
-                  <span>El cargo es obligatorio.</span>
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label class="field-label required">Grupo Ocupacional</label>
-                <select class="field-select" formControlName="grupoOcupacional"
-                  [class.invalid]="isInvalid('lugarTrabajo.grupoOcupacional')">
-                  <option value="">Seleccione grupo</option>
-                  <option *ngFor="let g of gruposOcupacionales; trackBy: trackByValue" [value]="g.value">{{ g.label }}</option>
+              <div class="input-group span-2">
+                <label>Lugar de Trabajo <span class="req">*</span></label>
+                <select class="dark-input" formControlName="lugar_trabajo"
+                  [attr.disabled]="!puedeEditarCampo('lugar_trabajo') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="PLANTA">Planta Central</option>
+                  <option value="DESCONCENTRADOS">Procesos Desconcentrados</option>
                 </select>
-                <div class="field-error" *ngIf="isInvalid('lugarTrabajo.grupoOcupacional')">
-                  <span>Seleccione un grupo ocupacional.</span>
-                </div>
               </div>
 
-              <div class="field-group col-span-2">
-                <label class="field-label required">Nombre y Cargo del Jefe Inmediato</label>
-                <input class="field-input" type="text" formControlName="jefeInmediato"
-                  placeholder="Nombre completo y cargo" [class.invalid]="isInvalid('lugarTrabajo.jefeInmediato')" />
-                <div class="field-error" *ngIf="isInvalid('lugarTrabajo.jefeInmediato')">
-                  <span>El nombre del jefe inmediato es obligatorio.</span>
-                </div>
+              <div class="input-group span-2">
+                <label>Dirección / Unidad <span class="req">*</span></label>
+                <input maxlength="80" class="dark-input" formControlName="unidad"
+                  placeholder="Ej. Dirección de Climatología"
+                  [readonly]="!puedeEditarCampo('unidad')">
+              </div>
+
+              <div class="input-group">
+                <label>Cargo Desempeñado <span class="req">*</span></label>
+                <input maxlength="50" class="dark-input" formControlName="cargo"
+                  placeholder="Ej. Analista de Sistemas"
+                  [readonly]="!puedeEditarCampo('cargo')">
+              </div>
+
+              <div class="input-group">
+                <label>Grupo Ocupacional <span class="req">*</span></label>
+                <select class="dark-input" formControlName="grupo_ocupacional"
+                  [attr.disabled]="!puedeEditarCampo('grupo_ocupacional') ? true : null">
+                  <option value="">Seleccione grupo</option>
+                  <option value="NJS">NJS — No Jerárquico Superior</option>
+                  <option value="SRVS">SRVS — Servidor Público de Servicios</option>
+                  <option value="SP">SP — Servidor Público</option>
+                  <option value="SPA">SPA — Servidor Público de Apoyo</option>
+                  <option value="NMNP">NMNP — No Misional No Profesional</option>
+                  <option value="OTRO">Otro</option>
+                </select>
               </div>
             </div>
           </div>
 
-        </div><!-- /step 0 -->
+        </ng-container><!-- /step 0 -->
 
-        <!-- ════════════ STEP 1 — GESTIONES ════════════════════════ -->
-        <div class="step-panel" [class.active]="currentStep === 1" [@stepAnimation]>
+        <!-- ══════════ STEP 1 — GESTIONES ══════════ -->
+        <ng-container *ngIf="currentStep === 1">
 
-          <!-- Gestión Documental -->
-          <div class="form-card" formGroupName="gestionDocumental">
-            <div class="form-card__header">
-              <div class="card-icon">📁</div>
+          <!-- Trámites y Gestión Documental -->
+          <div class="form-card-dark">
+            <div class="form-card-dark__header">
+              <span class="card-icon-badge">📋</span>
               <div>
-                <h2>Gestión Documental</h2>
-                <p>Entrega de informes y documentos</p>
+                <h3>3. Trámites y Unidad</h3>
+                <p class="card-desc">Entrega de informes y documentos</p>
               </div>
             </div>
-
-            <div class="checklist-table">
-              <div class="checklist-header">
-                <span>Detalle</span>
-                <span class="center">Sí</span>
-                <span class="center">No</span>
-                <span>Nombre Responsable</span>
+            <div class="form-grid">
+              <div class="input-group span-2">
+                <label>Entrega informe de fin de gestión y entrega física/digital <span class="req">*</span></label>
+                <select class="dark-input" formControlName="tramites_informe"
+                  [attr.disabled]="!puedeEditarCampo('tramites_informe') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
               </div>
 
-              <ng-container *ngFor="let item of gestionDocumentalItems; trackBy: trackByKey">
-                <div class="checklist-row" [formGroupName]="item.key">
-                  <span class="checklist-label">{{ item.label }}</span>
-                  <label class="check-btn si">
-                    <input type="radio" formControlName="estado" value="SI" />
-                    <span>Sí</span>
-                  </label>
-                  <label class="check-btn no">
-                    <input type="radio" formControlName="estado" value="NO" />
-                    <span>No</span>
-                  </label>
-                  <input class="field-input sm" type="text" formControlName="responsable" placeholder="Responsable" />
+              <div class="input-group span-2">
+                <label>¿Es Administrador de Contrato? <span class="req">*</span></label>
+                <select class="dark-input" formControlName="tramites_admin_contrato"
+                  [attr.disabled]="!puedeEditarCampo('tramites_admin_contrato') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
+
+              <ng-container *ngIf="formularioPazSalvo.get('tramites_admin_contrato')?.value === 'SI'">
+                <div class="input-group">
+                  <label>Descripción del contrato <span class="req">*</span></label>
+                  <input class="dark-input" formControlName="tramites_desc_contrato"
+                    placeholder="Descripción"
+                    [readonly]="!puedeEditarCampo('tramites_desc_contrato')">
+                </div>
+                <div class="input-group">
+                  <label>Número Memorando <span class="req">*</span></label>
+                  <input class="dark-input" formControlName="tramites_memo"
+                    placeholder="Nº Memorando"
+                    [readonly]="!puedeEditarCampo('tramites_memo')">
                 </div>
               </ng-container>
 
-              <div class="checklist-obs">
-                <label class="field-label">Observaciones Generales</label>
-                <textarea class="field-textarea" formControlName="observaciones" rows="3"
-                  placeholder="Ingrese observaciones relevantes..."></textarea>
+              <div class="input-group span-2">
+                <label>Nombre del Jefe Inmediato <span class="req">*</span></label>
+                <input class="dark-input" formControlName="tramites_jefe_inmediato"
+                  placeholder="Nombre completo y cargo"
+                  [readonly]="!puedeEditarCampo('tramites_jefe_inmediato')">
+              </div>
+
+              <div class="input-group span-2">
+                <label>Trámites en QUIPUX (Bandeja Cero) / Claves de Acceso <span class="req">*</span></label>
+                <select class="dark-input" formControlName="tramites_quipux_cero"
+                  [attr.disabled]="!puedeEditarCampo('tramites_quipux_cero') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
+
+              <div class="input-group span-2">
+                <label>Nombre servidor que recibe trámites <span class="req">*</span></label>
+                <input class="dark-input" formControlName="tramites_servidor_recibe"
+                  placeholder="Nombre completo"
+                  [readonly]="!puedeEditarCampo('tramites_servidor_recibe')">
               </div>
             </div>
           </div>
 
           <!-- Gestión Administrativa -->
-          <div class="form-card" formGroupName="gestionAdministrativa">
-            <div class="form-card__header">
-              <div class="card-icon">🏛️</div>
+          <div class="form-card-dark">
+            <div class="form-card-dark__header">
+              <span class="card-icon-badge">🏛️</span>
               <div>
-                <h2>Dirección Administrativa Financiera</h2>
-                <p>Gestión administrativa</p>
+                <h3>4. Gestión Administrativa</h3>
+                <p class="card-desc">Dirección Administrativa Financiera</p>
               </div>
             </div>
-
-            <div class="two-col-checklist">
-              <div class="two-col-checklist__col">
-                <ng-container *ngFor="let item of gestionAdminAllItems; trackBy: trackByKey">
-                  <div class="checklist-row-v2" [formGroupName]="item.key">
-                    <span class="checklist-label">{{ item.label }}</span>
-                    <div class="si-no-group">
-                      <label class="check-btn si"><input type="radio" formControlName="estado"
-                          value="SI" /><span>Sí</span></label>
-                      <label class="check-btn no"><input type="radio" formControlName="estado"
-                          value="NO" /><span>No</span></label>
-                    </div>
-                    <div class="valor-field" *ngIf="item.hasValor">
-                      <label class="field-label sm">Valor a Descontar</label>
-                      <input class="field-input sm" type="number" formControlName="valor" placeholder="0.00" min="0"
-                        step="0.01" />
-                    </div>
-                  </div>
-                </ng-container>
+            <div class="form-grid">
+              <div class="input-group">
+                <label>¿Realizó entrega de informe? <span class="req">*</span></label>
+                <select class="dark-input" formControlName="admin_informe"
+                  [attr.disabled]="!puedeEditarCampo('admin_informe') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
               </div>
 
-              <div class="two-col-checklist__col">
-                <ng-container *ngFor="let item of gestionAdminItemsRight">
-                  <div class="checklist-row-v2" [formGroupName]="item.key">
-                    <span class="checklist-label">{{ item.label }}</span>
-                    <div class="si-no-group">
-                      <label class="check-btn si"><input type="radio" formControlName="estado"
-                          value="SI" /><span>Sí</span></label>
-                      <label class="check-btn no"><input type="radio" formControlName="estado"
-                          value="NO" /><span>No</span></label>
-                    </div>
-                    <div class="valor-field" *ngIf="item.hasValor">
-                      <label class="field-label sm">Valor a Descontar</label>
-                      <input class="field-input sm" type="number" formControlName="valor" placeholder="0.00" min="0"
-                        step="0.01" />
-                    </div>
-                  </div>
-                </ng-container>
+              <div class="input-group">
+                <label>¿Entregó bienes y muebles? <span class="req">*</span></label>
+                <select class="dark-input" formControlName="admin_bienes"
+                  [attr.disabled]="!puedeEditarCampo('admin_bienes') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
               </div>
-            </div>
 
-            <div class="field-group mt-16">
-              <label class="field-label">Nombre Director/a Administrativo/a Financiero/a</label>
-              <input class="field-input" type="text" formControlName="nombreDirector" placeholder="Nombre completo" />
+              <div class="input-group">
+                <label>Número de Acta</label>
+                <input class="dark-input" formControlName="admin_acta_bienes"
+                  placeholder="Nº de acta"
+                  [readonly]="!puedeEditarCampo('admin_acta_bienes')">
+              </div>
+
+              <div class="input-group">
+                <label>Valor a Descontar (Bienes)</label>
+                <input type="number" class="dark-input" formControlName="admin_valor_bienes"
+                  placeholder="0.00" min="0" step="0.01"
+                  [readonly]="!puedeEditarCampo('admin_valor_bienes')">
+              </div>
+
+              <div class="input-group">
+                <label>¿Valores pendientes por deducibles? <span class="req">*</span></label>
+                <select class="dark-input" formControlName="admin_deducibles"
+                  [attr.disabled]="!puedeEditarCampo('admin_deducibles') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
+
+              <div class="input-group" *ngIf="formularioPazSalvo.get('admin_deducibles')?.value === 'SI'">
+                <label>Valor a Descontar (Deducibles) <span class="req">*</span></label>
+                <input type="number" class="dark-input" formControlName="admin_deducibles_valor"
+                  placeholder="0.00" min="0.01" step="0.01"
+                  [readonly]="!puedeEditarCampo('admin_deducibles_valor')">
+              </div>
+
+              <div class="input-group">
+                <label>¿Pasajes aéreos por justificar? <span class="req">*</span></label>
+                <select class="dark-input" formControlName="admin_pasajes"
+                  [attr.disabled]="!puedeEditarCampo('admin_pasajes') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
+
+              <div class="input-group">
+                <label>Nombre Responsable Administrativo <span class="req">*</span></label>
+                <input class="dark-input" formControlName="admin_responsable"
+                  placeholder="Nombre completo"
+                  [readonly]="!puedeEditarCampo('admin_responsable')">
+              </div>
             </div>
           </div>
 
-          <!-- TIC -->
-          <div class="form-card" formGroupName="gestionTIC">
-            <div class="form-card__header">
-              <div class="card-icon">💻</div>
+          <!-- Gestión TIC -->
+          <div class="form-card-dark">
+            <div class="form-card-dark__header">
+              <span class="card-icon-badge">💻</span>
               <div>
-                <h2>Gestión TIC</h2>
-                <p>Tecnologías de la Información y Comunicación</p>
+                <h3>5. Gestión TIC</h3>
+                <p class="card-desc">Tecnologías de la Información y Comunicación</p>
               </div>
             </div>
+            <div class="form-grid">
+              <div class="input-group">
+                <label>Verificación Equipo / IP / Accesos <span class="req">*</span></label>
+                <select class="dark-input" formControlName="tic_verificacion"
+                  [attr.disabled]="!puedeEditarCampo('tic_verificacion') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
 
-            <div class="tic-grid">
-              <ng-container *ngFor="let item of gestionTICItems; trackBy: trackByKey">
-                <div class="tic-card" [formGroupName]="item.key">
-                  <div class="tic-card__header">{{ item.label }}</div>
-                  <div class="si-no-group centered">
-                    <label class="check-btn si"><input type="radio" formControlName="estado"
-                        value="SI" /><span>Sí</span></label>
-                    <label class="check-btn no"><input type="radio" formControlName="estado"
-                        value="NO" /><span>No</span></label>
-                  </div>
-                  <input class="field-input sm mt-8" type="text" formControlName="observacion"
-                    placeholder="Observación" />
-                </div>
-              </ng-container>
-            </div>
+              <div class="input-group">
+                <label>Entrega Backup <span class="req">*</span></label>
+                <select class="dark-input" formControlName="tic_backup"
+                  [attr.disabled]="!puedeEditarCampo('tic_backup') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
 
-            <!-- Sistemas especiales -->
-            <div class="sistemas-section">
-              <h3>Sistemas Institucionales</h3>
-              <div class="sistemas-grid" formGroupName="sistemas">
-                <label class="sistema-check" *ngFor="let sis of sistemasItems; trackBy: trackByKey">
-                  <input type="checkbox" [formControlName]="sis.key" />
-                  <span class="sistema-check__label">{{ sis.label }}</span>
-                </label>
+              <div class="input-group span-2">
+                <label>Ruta del Backup</label>
+                <input class="dark-input" formControlName="tic_ruta_backup"
+                  placeholder="Ruta o descripción del backup"
+                  [readonly]="!puedeEditarCampo('tic_ruta_backup')">
+              </div>
+
+              <div class="input-group">
+                <label>Entrega Tarjeta Acceso / Cierre Cuentas <span class="req">*</span></label>
+                <select class="dark-input" formControlName="tic_tarjeta_cuentas"
+                  [attr.disabled]="!puedeEditarCampo('tic_tarjeta_cuentas') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
+
+              <div class="input-group">
+                <label>Nombre Responsable TIC <span class="req">*</span></label>
+                <input class="dark-input" formControlName="tic_responsable"
+                  placeholder="Nombre completo"
+                  [readonly]="!puedeEditarCampo('tic_responsable')">
               </div>
             </div>
           </div>
 
           <!-- Gestión Financiera -->
-          <div class="form-card" formGroupName="gestionFinanciera">
-            <div class="form-card__header">
-              <div class="card-icon">💰</div>
+          <div class="form-card-dark">
+            <div class="form-card-dark__header">
+              <span class="card-icon-badge">💰</span>
               <div>
-                <h2>Gestión Financiera</h2>
-                <p>Valores pendientes de pago</p>
+                <h3>6. Gestión Financiera</h3>
+                <p class="card-desc">Valores pendientes de pago</p>
               </div>
             </div>
-
-           <ng-container *ngFor="let item of gestionFinancieraItems; trackBy: trackByKey">
-              <div class="financiera-row" [formGroupName]="item.key">
-                <div class="financiera-row__label">{{ item.label }}</div>
-                <div class="financiera-row__controls">
-                  <div class="si-no-group">
-                    <label class="check-btn si"><input type="radio" formControlName="estado"
-                        value="SI" /><span>Sí</span></label>
-                    <label class="check-btn no"><input type="radio" formControlName="estado"
-                        value="NO" /><span>No</span></label>
-                  </div>
-                  <div class="valor-field">
-                    <label class="field-label sm">Valor a Descontar</label>
-                    <input class="field-input sm" type="number" formControlName="valor" placeholder="$0.00" min="0"
-                      step="0.01" />
-                  </div>
-                  <div class="obs-field">
-                    <label class="field-label sm">Observación</label>
-                    <input class="field-input sm" type="text" formControlName="observacion" placeholder="Detalle..." />
-                  </div>
-                </div>
+            <div class="form-grid">
+              <div class="input-group span-2">
+                <label>¿Valores pendientes (Saldos contables, Anticipos)? <span class="req">*</span></label>
+                <select class="dark-input" formControlName="fin_saldos"
+                  [attr.disabled]="!puedeEditarCampo('fin_saldos') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
               </div>
-            </ng-container>
+
+              <div class="input-group span-2">
+                <label>¿Valores pendientes (Recuperación, Devolución muebles)? <span class="req">*</span></label>
+                <select class="dark-input" formControlName="fin_recuperacion"
+                  [attr.disabled]="!puedeEditarCampo('fin_recuperacion') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
+
+              <div class="input-group span-2">
+                <label>Nombre Director/a Administrativo/a Financiero/a <span class="req">*</span></label>
+                <input class="dark-input" formControlName="fin_director"
+                  placeholder="Nombre completo"
+                  [readonly]="!puedeEditarCampo('fin_director')">
+              </div>
+            </div>
           </div>
 
-        </div><!-- /step 1 -->
+        </ng-container><!-- /step 1 -->
 
-        <!-- ════════════ STEP 2 — RRHH, SEGURIDAD Y FIRMA ═════════ -->
-        <div class="step-panel" [class.active]="currentStep === 2" [@stepAnimation]>
+        <!-- ══════════ STEP 2 — RRHH, SEGURIDAD Y FIRMA ══════════ -->
+        <ng-container *ngIf="currentStep === 2">
 
           <!-- Seguridad de la Información -->
-          <div class="form-card" formGroupName="seguridadInfo">
-            <div class="form-card__header">
-              <div class="card-icon">🔒</div>
+          <div class="form-card-dark">
+            <div class="form-card-dark__header">
+              <span class="card-icon-badge">🔒</span>
               <div>
-                <h2>Seguridad de la Información</h2>
-                <p>Acuerdo Ministerial 166 — EGSI</p>
+                <h3>7. Seguridad de la Información</h3>
+                <p class="card-desc">Acuerdo Ministerial 166 — EGSI</p>
               </div>
             </div>
-
-            <div class="two-col-checklist">
-              <div class="two-col-checklist__col">
-                <div class="checklist-row-v2" formGroupName="archivosDigitales">
-                  <span class="checklist-label">Archivos Digitales</span>
-                  <div class="si-no-group">
-                    <label class="check-btn si"><input type="radio" formControlName="estado"
-                        value="SI" /><span>Sí</span></label>
-                    <label class="check-btn no"><input type="radio" formControlName="estado"
-                        value="NO" /><span>No</span></label>
-                  </div>
-                </div>
-                <div class="checklist-row-v2" formGroupName="archivosFisicos">
-                  <span class="checklist-label">Archivos Físicos</span>
-                  <div class="si-no-group">
-                    <label class="check-btn si"><input type="radio" formControlName="estado"
-                        value="SI" /><span>Sí</span></label>
-                    <label class="check-btn no"><input type="radio" formControlName="estado"
-                        value="NO" /><span>No</span></label>
-                  </div>
-                </div>
+            <div class="form-grid">
+              <div class="input-group span-2">
+                <label>Archivos Digitales / Físicos / Verificación de información <span class="req">*</span></label>
+                <select class="dark-input" formControlName="seg_archivos"
+                  [attr.disabled]="!puedeEditarCampo('seg_archivos') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
               </div>
 
-              <div class="two-col-checklist__col">
-                <div class="checklist-row-v2" formGroupName="informeActividades">
-                  <span class="checklist-label">Entrega Copia Informe de Actividades</span>
-                  <div class="si-no-group">
-                    <label class="check-btn si"><input type="radio" formControlName="estado"
-                        value="SI" /><span>Sí</span></label>
-                    <label class="check-btn no"><input type="radio" formControlName="estado"
-                        value="NO" /><span>No</span></label>
-                  </div>
-                </div>
-                <div class="checklist-row-v2" formGroupName="verificacionInfo">
-                  <span class="checklist-label">Verificación de la Información Institucional</span>
-                  <div class="si-no-group">
-                    <label class="check-btn si"><input type="radio" formControlName="estado"
-                        value="SI" /><span>Sí</span></label>
-                    <label class="check-btn no"><input type="radio" formControlName="estado"
-                        value="NO" /><span>No</span></label>
-                  </div>
-                </div>
+              <div class="input-group">
+                <label>Oficial de Seguridad Institucional <span class="req">*</span></label>
+                <input class="dark-input" formControlName="seg_oficial"
+                  placeholder="Nombre completo"
+                  [readonly]="!puedeEditarCampo('seg_oficial')">
               </div>
-            </div>
 
-            <div class="field-group mt-16">
-              <label class="field-label">Nombre del Oficial de Seguridad Institucional</label>
-              <input class="field-input" type="text" formControlName="nombreOficialSeguridad"
-                placeholder="Nombre completo" />
+              <div class="input-group">
+                <label>Responsable Seguridad <span class="req">*</span></label>
+                <input class="dark-input" formControlName="seg_responsable"
+                  placeholder="Nombre completo"
+                  [readonly]="!puedeEditarCampo('seg_responsable')">
+              </div>
             </div>
           </div>
 
-          <!-- RRHH -->
-          <div class="form-card" formGroupName="gestionRRHH">
-            <div class="form-card__header">
-              <div class="card-icon">👥</div>
+          <!-- Gestión RRHH -->
+          <div class="form-card-dark">
+            <div class="form-card-dark__header">
+              <span class="card-icon-badge">👥</span>
               <div>
-                <h2>Dirección de Administración de RRHH</h2>
-                <p>Certificaciones y entrega de documentos</p>
+                <h3>8. Dirección de Administración de RRHH</h3>
+                <p class="card-desc">Certificaciones y entrega de documentos</p>
               </div>
             </div>
+            <div class="form-grid">
+              <div class="input-group span-2">
+                <label>¿Devengó cursos / Aplicó evaluación / Desvinculado puesto? <span class="req">*</span></label>
+                <select class="dark-input" formControlName="rrhh_cursos_eval"
+                  [attr.disabled]="!puedeEditarCampo('rrhh_cursos_eval') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
 
-            <div class="rrhh-grid">
-              <ng-container *ngFor="let item of gestionRRHHItems; trackBy: trackByKey">
-                <div class="rrhh-item" [formGroupName]="item.key">
-                  <div class="rrhh-item__label">{{ item.label }}</div>
-                  <div class="si-no-group">
-                    <label class="check-btn si"><input type="radio" formControlName="estado"
-                        value="SI" /><span>Sí</span></label>
-                    <label class="check-btn no"><input type="radio" formControlName="estado"
-                        value="NO" /><span>No</span></label>
-                  </div>
-                  <div *ngIf="item.hasCertificado" class="field-group mt-8">
-                    <label class="field-label sm">N° de Certificado Emitido</label>
-                    <input class="field-input sm" type="text" formControlName="numeroCertificado"
-                      placeholder="Número" />
-                  </div>
-                </div>
-              </ng-container>
-            </div>
+              <div class="input-group">
+                <label>Días de Vacaciones Acumuladas <span class="req">*</span></label>
+                <input type="number" class="dark-input" formControlName="rrhh_vacaciones"
+                  placeholder="Nº de días"
+                  [readonly]="!puedeEditarCampo('rrhh_vacaciones')">
+              </div>
 
-            <div class="field-group mt-16">
-              <label class="field-label">Nombre del/la Director/a de RRHH</label>
-              <input class="field-input" type="text" formControlName="nombreDirectorRRHH"
-                placeholder="Nombre completo" />
+              <div class="input-group">
+                <label>Entrega Constancia y Declaración Juramentada <span class="req">*</span></label>
+                <select class="dark-input" formControlName="rrhh_juramentada"
+                  [attr.disabled]="!puedeEditarCampo('rrhh_juramentada') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
+
+              <div class="input-group">
+                <label>N° de Certificado Emitido</label>
+                <input class="dark-input" formControlName="rrhh_num_certificado"
+                  placeholder="Número"
+                  [readonly]="!puedeEditarCampo('rrhh_num_certificado')">
+              </div>
+
+              <div class="input-group">
+                <label>Número Declaración</label>
+                <input class="dark-input" formControlName="rrhh_num_declaracion"
+                  placeholder="Número"
+                  [readonly]="!puedeEditarCampo('rrhh_num_declaracion')">
+              </div>
+
+              <div class="input-group span-2">
+                <label>¿Entrega Credencial / Copia Actividades / Acta Bienes Custodio? <span class="req">*</span></label>
+                <select class="dark-input" formControlName="rrhh_credencial"
+                  [attr.disabled]="!puedeEditarCampo('rrhh_credencial') ? true : null">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+              </div>
+
+              <div class="input-group span-2">
+                <label>Nombre del/la Director/a de RRHH <span class="req">*</span></label>
+                <input class="dark-input" formControlName="rrhh_director"
+                  placeholder="Nombre completo"
+                  [readonly]="!puedeEditarCampo('rrhh_director')">
+              </div>
             </div>
           </div>
 
           <!-- Recepción de Documentos -->
-          <div class="form-card" formGroupName="recepcionDocumentos">
-            <div class="form-card__header">
-              <div class="card-icon">📬</div>
+          <div class="form-card-dark">
+            <div class="form-card-dark__header">
+              <span class="card-icon-badge">📬</span>
               <div>
-                <h2>Recepción de Documentos — RRHH</h2>
-                <p>Datos de entrega del paz y salvo</p>
+                <h3>9. Recepción de Documentos — RRHH</h3>
+                <p class="card-desc">Datos de entrega del paz y salvo</p>
               </div>
             </div>
-
             <div class="form-grid">
-              <div class="field-group">
-                <label class="field-label required">Fecha de Entrega del Paz y Salvo</label>
-                <input class="field-input" type="date" formControlName="fechaEntrega"
-                  [class.invalid]="isInvalid('recepcionDocumentos.fechaEntrega')" />
-                <div class="field-error" *ngIf="isInvalid('recepcionDocumentos.fechaEntrega')">
-                  <span>La fecha de entrega es obligatoria.</span>
-                </div>
+              <div class="input-group">
+                <label>Fecha de Entrega del Paz y Salvo <span class="req">*</span></label>
+                <input type="date" class="dark-input" formControlName="recepcion_fecha"
+                  [readonly]="!puedeEditarCampo('recepcion_fecha')">
               </div>
 
-              <div class="field-group">
-                <label class="field-label">N° de Hojas Recibidas</label>
-                <input class="field-input" type="number" formControlName="nHojasRecibidas" min="1"
-                  placeholder="Ej. 2" />
+              <div class="input-group">
+                <label>N° de Hojas Recibidas <span class="req">*</span></label>
+                <input type="number" class="dark-input" formControlName="recepcion_hojas"
+                  placeholder="Ej. 2" min="1"
+                  [readonly]="!puedeEditarCampo('recepcion_hojas')">
               </div>
 
-              <div class="field-group col-span-2">
-                <label class="field-label required">Nombre Servidor/a quien Recibe</label>
-                <input class="field-input" type="text" formControlName="nombreQuienRecibe" placeholder="Nombre completo"
-                  [class.invalid]="isInvalid('recepcionDocumentos.nombreQuienRecibe')" />
-                <div class="field-error" *ngIf="isInvalid('recepcionDocumentos.nombreQuienRecibe')">
-                  <span>El nombre es obligatorio.</span>
-                </div>
+              <div class="input-group">
+                <label>Servidor/a que recibe <span class="req">*</span></label>
+                <input class="dark-input" formControlName="recepcion_servidor"
+                  placeholder="Nombre completo"
+                  [readonly]="!puedeEditarCampo('recepcion_servidor')">
               </div>
 
-              <div class="field-group col-span-2">
-                <label class="field-label">Cargo Servidor/a quien Recibe</label>
-                <input class="field-input" type="text" formControlName="cargoQuienRecibe" placeholder="Cargo" />
+              <div class="input-group">
+                <label>Cargo del Servidor/a que recibe <span class="req">*</span></label>
+                <input class="dark-input" formControlName="recepcion_cargo"
+                  placeholder="Cargo"
+                  [readonly]="!puedeEditarCampo('recepcion_cargo')">
               </div>
             </div>
           </div>
 
           <!-- Autorización y Firma -->
-          <div class="form-card firma-card" formGroupName="autorizacion">
-            <div class="form-card__header">
-              <div class="card-icon">✍️</div>
+          <div class="form-card-dark firma-card">
+            <div class="form-card-dark__header">
+              <span class="card-icon-badge">✍️</span>
               <div>
-                <h2>Autorización y Firma Digital</h2>
-                <p>Firma obligatoria del servidor saliente — compatible con FirmaEC</p>
+                <h3>10. Autorización y Firma Digital</h3>
+                <p class="card-desc">Firma obligatoria del servidor saliente</p>
               </div>
             </div>
 
             <div class="autorizacion-texto">
               <p>
-                Conforme lo establecido en el artículo 110 del Reglamento a la Ley Orgánica de Servicio Público (LOSEP),
-                quien suscribe el presente formulario de "paz y salvo" <strong>AUTORIZA</strong> a la
-                <strong>DIRECCIÓN ADMINISTRATIVA FINANCIERA</strong> del INAMHI, para que efectúe los descuentos
-                detallados en el presente documento por reintegro y/o recuperación de valores, bienes y/o especies
-                que se hayan encontrado a mi cargo, <strong>los mismos que serán DESCONTADOS</strong> a través de
-                mi rol de pagos y/o liquidación de haberes.
+                Conforme lo establecido en el artículo 110 del Reglamento LOSEP, quien suscribe
+                <strong>AUTORIZA</strong> a la <strong>DIRECCIÓN ADMINISTRATIVA FINANCIERA</strong> del INAMHI
+                para que efectúe los descuentos detallados por reintegro y/o recuperación de valores, bienes
+                y/o especies a su cargo, los mismos que serán <strong>DESCONTADOS</strong> a través del rol
+                de pagos y/o liquidación de haberes.
               </p>
             </div>
 
-            <div class="firma-section">
-              <div class="firma-tabs">
-                <button type="button" class="firma-tab" [class.active]="firmaMode === 'canvas'"
-                  (click)="setFirmaMode('canvas')">
-                  ✏️ Dibujar Firma
-                </button>
-                <button type="button" class="firma-tab" [class.active]="firmaMode === 'upload'"
-                  (click)="setFirmaMode('upload')">
-                  📎 Cargar Imagen
-                </button>
-                <button type="button" class="firma-tab firma-tab--firmaec" [class.active]="firmaMode === 'firmaec'"
-                  (click)="setFirmaMode('firmaec')">
-                  🔏 FirmaEC
-                </button>
-              </div>
-
-              <!-- Canvas -->
-              <div class="firma-canvas-wrapper" *ngIf="firmaMode === 'canvas'">
-                <canvas #firmaCanvas class="firma-canvas" width="600" height="180" (mousedown)="startDrawing($event)"
-                  (mousemove)="draw($event)" (mouseup)="stopDrawing()" (mouseleave)="stopDrawing()"
-                  (touchstart)="startDrawingTouch($event)" (touchmove)="drawTouch($event)"
-                  (touchend)="stopDrawing()"></canvas>
-                <div class="firma-canvas-hint" *ngIf="!hasFirma">Dibuje su firma aquí</div>
-                <div class="firma-actions">
-                  <button type="button" class="btn-secondary sm" (click)="clearFirma()">🗑 Limpiar</button>
-                </div>
-              </div>
-
-              <!-- Upload -->
-              <div class="firma-upload-wrapper" *ngIf="firmaMode === 'upload'">
-                <label class="firma-upload-area" [class.has-file]="firmaImagePreview">
-                  <input type="file" accept="image/*,.p12,.pfx" (change)="onFirmaFileChange($event)" hidden />
-                  <ng-container *ngIf="!firmaImagePreview">
-                    <span class="upload-icon">📁</span>
-                    <span>Arrastra tu firma o haz clic para seleccionar</span>
-                    <span class="upload-hint">PNG, JPG, P12, PFX</span>
-                  </ng-container>
-                  <img *ngIf="firmaImagePreview" [src]="firmaImagePreview" alt="Firma" class="firma-preview-img" />
-                </label>
-                <button type="button" class="btn-secondary sm" *ngIf="firmaImagePreview" (click)="clearFirma()">🗑
-                  Eliminar</button>
-              </div>
-
-              <!-- FirmaEC -->
-              <div class="firma-firmaec-wrapper" *ngIf="firmaMode === 'firmaec'">
-                <div class="firmaec-card">
-                  <div class="firmaec-icon">🔏</div>
-                  <h3>Integración FirmaEC</h3>
-                  <p>Esta sección está preparada para integrar el servicio de firma electrónica FirmaEC del Ministerio
-                    de Telecomunicaciones del Ecuador.</p>
-                  <div class="firmaec-status">
-                    <span class="badge badge--warning">⚙️ Pendiente de integración</span>
-                  </div>
-                  <div class="field-group mt-16">
-                    <label class="field-label">Token / Número de Certificado FirmaEC</label>
-                    <input class="field-input" type="text" formControlName="tokenFirmaEC"
-                      placeholder="Ingrese token de FirmaEC" />
-                  </div>
-                  <button type="button" class="btn-primary" disabled>Conectar con FirmaEC</button>
-                </div>
-              </div>
-
-              <div class="field-error mt-8" *ngIf="firmaRequired && !hasFirma">
-                <span>⚠️ La firma es OBLIGATORIA para enviar el formulario.</span>
-              </div>
+            <!-- Tabs de firma -->
+            <div class="firma-tabs">
+              <button type="button" class="firma-tab" [class.active]="firmaMode === 'canvas'"
+                (click)="setFirmaMode('canvas')">✏️ Dibujar</button>
+              <button type="button" class="firma-tab" [class.active]="firmaMode === 'upload'"
+                (click)="setFirmaMode('upload')">📎 Cargar imagen</button>
             </div>
 
-            <div class="form-grid mt-16">
-              <div class="field-group">
-                <label class="field-label required">C.C. (Cédula del Firmante)</label>
-                <input class="field-input" type="text" formControlName="ccFirmante" placeholder="Número de cédula"
-                  [class.invalid]="isInvalid('autorizacion.ccFirmante')" />
-                <div class="field-error" *ngIf="isInvalid('autorizacion.ccFirmante')">
-                  <span>La cédula del firmante es obligatoria.</span>
-                </div>
-              </div>
+            <!-- Canvas de firma -->
+            <div class="firma-canvas-wrapper" *ngIf="firmaMode === 'canvas'">
+              <canvas #firmaCanvas class="firma-canvas" width="560" height="160"
+                (mousedown)="startDrawing($event)" (mousemove)="draw($event)"
+                (mouseup)="stopDrawing()" (mouseleave)="stopDrawing()"
+                (touchstart)="startDrawingTouch($event)" (touchmove)="drawTouch($event)"
+                (touchend)="stopDrawing()"></canvas>
+              <p class="firma-hint" *ngIf="!hasFirma">Dibuje su firma aquí</p>
+              <button type="button" class="btn-secondary-sm" (click)="clearFirma()">🗑 Limpiar firma</button>
+            </div>
 
-              <div class="field-group">
-                <label class="field-label required">Fecha de Firma</label>
-                <input class="field-input" type="date" formControlName="fechaFirma"
-                  [class.invalid]="isInvalid('autorizacion.fechaFirma')" />
-                <div class="field-error" *ngIf="isInvalid('autorizacion.fechaFirma')">
-                  <span>La fecha de firma es obligatoria.</span>
-                </div>
+            <!-- Upload de firma -->
+            <div class="firma-upload-wrapper" *ngIf="firmaMode === 'upload'">
+              <label class="firma-upload-area" [class.has-file]="firmaImagePreview">
+                <input type="file" accept="image/*" (change)="onFirmaFileChange($event)" hidden />
+                <ng-container *ngIf="!firmaImagePreview">
+                  <span class="upload-icon">📁</span>
+                  <span>Arrastra o haz clic para seleccionar tu firma</span>
+                  <span class="upload-hint">PNG, JPG</span>
+                </ng-container>
+                <img *ngIf="firmaImagePreview" [src]="firmaImagePreview" alt="Firma" class="firma-preview-img" />
+              </label>
+              <button type="button" class="btn-secondary-sm" *ngIf="firmaImagePreview" (click)="clearFirma()">
+                🗑 Eliminar firma
+              </button>
+            </div>
+
+            <div class="firma-requerida-msg" *ngIf="firmaRequired && !hasFirma">
+              ⚠️ La firma es OBLIGATORIA para enviar el formulario.
+            </div>
+
+            <div class="form-grid" style="margin-top:16px">
+              <div class="input-group">
+                <label>C.C. del Firmante <span class="req">*</span></label>
+                <input class="dark-input" formControlName="cedula_firmante"
+                  placeholder="Número de cédula"
+                  [readonly]="!puedeEditarCampo('cedula_firmante')">
+              </div>
+              <div class="input-group">
+                <label>Fecha de Firma <span class="req">*</span></label>
+                <input type="date" class="dark-input" formControlName="fecha_firma"
+                  [readonly]="!puedeEditarCampo('fecha_firma')">
               </div>
             </div>
           </div>
 
-        </div><!-- /step 2 -->
+        </ng-container><!-- /step 2 -->
 
-      </form>
+        <!-- ══════════ NAVEGACIÓN ENTRE PASOS ══════════ -->
+        <div class="step-navigation">
+          <button type="button" class="btn-secondary" (click)="prevStep()" [disabled]="currentStep === 0">
+            ← Anterior
+          </button>
 
-      <!-- ─── NAVEGACIÓN ─────────────────────────────────────────── -->
-      <div class="step-navigation">
-        <button type="button" class="btn-secondary" (click)="prevStep()" [disabled]="currentStep === 0">
-          ← Anterior
-        </button>
+          <div class="nav-center">
+            <button type="button" class="btn-ghost" (click)="saveDraft()">💾 Guardar borrador</button>
+          </div>
 
-        <div class="nav-center">
-          <button type="button" class="btn-ghost" (click)="saveDraft()">
-            💾 Guardar Borrador
+          <button *ngIf="currentStep < steps.length - 1" type="button" class="btn-primary" (click)="nextStep()">
+            Siguiente →
+          </button>
+
+          <button *ngIf="currentStep === steps.length - 1" type="button" class="btn-submit-dark"
+            (click)="validarYActualizarEspejo()" [disabled]="cargando">
+            {{ esAdmin() ? (cargando ? 'Validando...' : '✔ Validar Formulario') : (cargando ? 'Guardando...' : '✔ Guardar campos asignados') }}
           </button>
         </div>
 
-        <button *ngIf="currentStep < steps.length - 1" type="button" class="btn-primary" (click)="nextStep()">
-          Siguiente →
-        </button>
+      </form>
+    </div><!-- /formulario-ingreso -->
 
-        <button *ngIf="currentStep === steps.length - 1" type="button" class="btn-submit" (click)="onSubmit()"
-          [disabled]="isSubmitting">
-          <span *ngIf="!isSubmitting">✔ Enviar Formulario</span>
-          <span *ngIf="isSubmitting" class="loader-dots">Enviando<span>.</span><span>.</span><span>.</span></span>
-        </button>
-      </div>
-    </div><!-- /form-col -->
-
-    <!-- ══════════════════════════════════════════════════════════════
-         ── COLUMNA DERECHA: ESPEJO COMPLETO ─────────────────────────
-         ══════════════════════════════════════════════════════════════ -->
-    <div class="pys-mirror-col">
-      <div class="mirror-sticky">
-        <div class="mirror-label">
-          <span class="pulse-dot"></span>
-          Vista Previa en Tiempo Real
-        </div>
-
-        <div class="mirror-doc" id="mirrorDoc">
-
-          <!-- ── Encabezado espejo ── -->
-          <div class="m-header">
-            <div class="m-header__logo">
-              <div class="m-logo-svg">
-                <svg viewBox="0 0 40 40">
-                  <path d="M5 35 L20 5 L35 35" stroke="#1a3a6b" stroke-width="2.5" fill="none" />
-                  <path d="M10 24 L30 24" stroke="#1a3a6b" stroke-width="1.5" />
-                </svg>
-              </div>
-              <div>
-                <div class="m-org">INAMHI</div>
-                <div class="m-org-sub">TIEMPO, CLIMA Y AGUA ECUADOR</div>
-              </div>
-            </div>
-            <div class="m-header__title">
-              <div class="m-title">INSTITUTO NACIONAL DE METEOROLOGÍA E HIDROLOGÍA</div>
-              <div class="m-subtitle">DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</div>
-              <div class="m-doc-title">FORMULARIO PAZ Y SALVO PARA EL PAGO DE LIQUIDACIÓN DE HABERES</div>
-            </div>
-          </div>
-
-          <!-- ── PASO 1: Datos Personales ── -->
-          <div class="m-section">
-            <div class="m-section-title">1. DATOS PERSONALES</div>
-            <div class="m-grid-2">
-              <div class="m-field col-span-2"><span class="m-label">Nombres y Apellidos:</span><span class="m-value">{{
-                  mirrorData.nombresApellidos || '___________' }}</span></div>
-              <div class="m-field"><span class="m-label">Cédula / Pasaporte:</span><span class="m-value">{{
-                  mirrorData.cedula || '___________' }}</span></div>
-              <div class="m-field"><span class="m-label">Email Principal:</span><span class="m-value">{{
-                  mirrorData.email1 || '___________' }}</span></div>
-              <div class="m-field"><span class="m-label">Nº Domicilio:</span><span class="m-value">{{
-                  mirrorData.numeroDomicilio || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Nº Celular:</span><span class="m-value">{{
-                  mirrorData.numeroCelular || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Nº Emergencia:</span><span class="m-value">{{
-                  mirrorData.numeroEmergencia || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Email Secundario:</span><span class="m-value">{{
-                  mirrorData.email2 || '—' }}</span></div>
-              <div class="m-field col-span-2"><span class="m-label">Dirección:</span><span class="m-value">{{
-                  mirrorData.direccion || '___________' }}</span></div>
-              <div class="m-field"><span class="m-label">Provincia:</span><span class="m-value">{{ mirrorData.provincia
-                  || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Cantón:</span><span class="m-value">{{ mirrorData.canton || '—'
-                  }}</span></div>
-            </div>
-          </div>
-
-          <!-- ── Modalidad y Lugar de Trabajo ── -->
-          <div class="m-section">
-            <div class="m-section-title">2. MODALIDAD LABORAL Y LUGAR DE TRABAJO</div>
-            <div class="m-grid-2">
-              <div class="m-field col-span-2"><span class="m-label">Modalidad de Contratación:</span><span
-                  class="m-value m-badge">{{ mirrorData.tipoModalidad || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Fecha de Ingreso:</span><span class="m-value">{{
-                  mirrorData.fechaIngreso || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Fecha de Salida:</span><span class="m-value">{{
-                  mirrorData.fechaSalida || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Tipo de Planta:</span><span class="m-value">{{
-                  mirrorData.tipoPlanta || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Grupo Ocupacional:</span><span class="m-value">{{
-                  mirrorData.grupoOcupacional || '—' }}</span></div>
-              <div class="m-field col-span-2"><span class="m-label">Dirección / Unidad:</span><span class="m-value">{{
-                  mirrorData.direccionUnidad || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Cargo Desempeñado:</span><span class="m-value">{{
-                  mirrorData.cargoDesempenado || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Jefe Inmediato:</span><span class="m-value">{{
-                  mirrorData.jefeInmediato || '—' }}</span></div>
-            </div>
-          </div>
-
-          <!-- ── PASO 2: Gestión Documental ── -->
-          <div class="m-section">
-            <div class="m-section-title">3. GESTIÓN DOCUMENTAL</div>
-            <table class="m-table">
-              <thead>
-                <tr>
-                  <th>Detalle</th>
-                  <th class="center">Sí</th>
-                  <th class="center">No</th>
-                  <th>Responsable</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let item of gestionDocumentalItems; trackBy: trackByKey">
-                  <td>{{ item.shortLabel || item.label }}</td>
-                  <td class="center">{{ mirrorData.gestionDoc?.[item.key]?.estado === 'SI' ? '✓' : '' }}</td>
-                  <td class="center">{{ mirrorData.gestionDoc?.[item.key]?.estado === 'NO' ? '✓' : '' }}</td>
-                  <td>{{ mirrorData.gestionDoc?.[item.key]?.responsable || '' }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="m-obs" *ngIf="mirrorData.gestionDocObs">
-              <span class="m-label">Observaciones:</span> {{ mirrorData.gestionDocObs }}
-            </div>
-          </div>
-
-          <!-- ── Gestión Administrativa ── -->
-          <div class="m-section">
-            <div class="m-section-title">4. DIRECCIÓN ADMINISTRATIVA FINANCIERA</div>
-            <table class="m-table">
-              <thead>
-                <tr>
-                  <th>Detalle</th>
-                  <th class="center">Sí</th>
-                  <th class="center">No</th>
-                  <th>Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let item of gestionAdminAllItems; trackBy: trackByKey">
-                  <td>{{ item.label }}</td>
-                  <td class="center">{{ mirrorData.gestionAdmin?.[item.key]?.estado === 'SI' ? '✓' : '' }}</td>
-                  <td class="center">{{ mirrorData.gestionAdmin?.[item.key]?.estado === 'NO' ? '✓' : '' }}</td>
-                  <td>{{ (mirrorData.gestionAdmin?.[item.key]?.valor != null &&
-                    mirrorData.gestionAdmin?.[item.key]?.valor != null) ? ('$' +
-                    mirrorData.gestionAdmin?.[item.key]?.valor) : '' }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="m-field mt-4" *ngIf="mirrorData.nombreDirectorAdmin">
-              <span class="m-label">Director/a Administrativo/a:</span>
-              <span class="m-value">{{ mirrorData.nombreDirectorAdmin }}</span>
-            </div>
-          </div>
-
-          <!-- ── Gestión TIC ── -->
-          <div class="m-section">
-            <div class="m-section-title">5. GESTIÓN TIC</div>
-            <table class="m-table">
-              <thead>
-                <tr>
-                  <th>Detalle</th>
-                  <th class="center">Sí</th>
-                  <th class="center">No</th>
-                  <th>Observación</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let item of gestionTICItems; trackBy: trackByKey">
-                  <td>{{ item.label }}</td>
-                  <td class="center">{{ mirrorData.gestionTIC?.[item.key]?.estado === 'SI' ? '✓' : '' }}</td>
-                  <td class="center">{{ mirrorData.gestionTIC?.[item.key]?.estado === 'NO' ? '✓' : '' }}</td>
-                  <td>{{ mirrorData.gestionTIC?.[item.key]?.observacion || '' }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="m-sistemas" *ngIf="mirrorData.sistemas">
-              <span class="m-label">Sistemas a cerrar: </span>
-              <ng-container *ngFor="let sis of sistemasItems; trackBy: trackByKey">
-                <span class="m-tag" *ngIf="mirrorData.sistemas && mirrorData.sistemas[sis.key]">
-                  {{ sis.label }}
-                </span>
-              </ng-container>
-            </div>
-          </div>
-
-          <!-- ── Gestión Financiera ── -->
-          <div class="m-section">
-            <div class="m-section-title">6. GESTIÓN FINANCIERA</div>
-            <table class="m-table">
-              <thead>
-                <tr>
-                  <th>Detalle</th>
-                  <th class="center">Sí</th>
-                  <th class="center">No</th>
-                  <th>Valor</th>
-                  <th>Observación</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let item of gestionFinancieraItems; trackBy: trackByKey">
-                  <td>{{ item.label }}</td>
-
-                  <td class="center">
-                    {{ mirrorData.gestionFinanciera?.[item.key]?.estado === 'SI' ? '✓' : '' }}
-                  </td>
-
-                  <td class="center">
-                    {{ mirrorData.gestionFinanciera?.[item.key]?.estado === 'NO' ? '✓' : '' }}
-                  </td>
-
-                  <td>
-                    {{
-                    mirrorData.gestionFinanciera?.[item.key]?.valor != null
-                    ? ('$' + mirrorData.gestionFinanciera?.[item.key]?.valor)
-                    : ''
-                    }}
-                  </td>
-
-                  <td>
-                    {{ mirrorData.gestionFinanciera?.[item.key]?.observacion || '' }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- ── PASO 3: Seguridad de la Información ── -->
-          <div class="m-section">
-            <div class="m-section-title">7. SEGURIDAD DE LA INFORMACIÓN (AM 166 — EGSI)</div>
-            <table class="m-table">
-              <thead>
-                <tr>
-                  <th>Detalle</th>
-                  <th class="center">Sí</th>
-                  <th class="center">No</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Archivos Digitales</td>
-                  <td class="center">{{ mirrorData.seguridadInfo?.archivosDigitales === 'SI' ? '✓' : '' }}</td>
-                  <td class="center">{{ mirrorData.seguridadInfo?.archivosDigitales === 'NO' ? '✓' : '' }}</td>
-                </tr>
-                <tr>
-                  <td>Archivos Físicos</td>
-                  <td class="center">{{ mirrorData.seguridadInfo?.archivosFisicos === 'SI' ? '✓' : '' }}</td>
-                  <td class="center">{{ mirrorData.seguridadInfo?.archivosFisicos === 'NO' ? '✓' : '' }}</td>
-                </tr>
-                <tr>
-                  <td>Entrega Copia Informe de Actividades</td>
-                  <td class="center">{{ mirrorData.seguridadInfo?.informeActividades === 'SI' ? '✓' : '' }}</td>
-                  <td class="center">{{ mirrorData.seguridadInfo?.informeActividades === 'NO' ? '✓' : '' }}</td>
-                </tr>
-                <tr>
-                  <td>Verificación de la Información Institucional</td>
-                  <td class="center">{{ mirrorData.seguridadInfo?.verificacionInfo === 'SI' ? '✓' : '' }}</td>
-                  <td class="center">{{ mirrorData.seguridadInfo?.verificacionInfo === 'NO' ? '✓' : '' }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="m-field mt-4" *ngIf="mirrorData.seguridadInfo?.nombreOficialSeguridad">
-              <span class="m-label">Oficial de Seguridad:</span>
-              <span class="m-value">{{ mirrorData.seguridadInfo?.nombreOficialSeguridad }}</span>
-            </div>
-          </div>
-
-          <!-- ── Gestión RRHH ── -->
-          <div class="m-section">
-            <div class="m-section-title">8. DIRECCIÓN DE ADMINISTRACIÓN DE RRHH</div>
-            <table class="m-table">
-              <thead>
-                <tr>
-                  <th>Detalle</th>
-                  <th class="center">Sí</th>
-                  <th class="center">No</th>
-                  <th>N° Certificado</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let item of gestionRRHHItems; trackBy: trackByKey">
-                  <td>{{ item.label }}</td>
-                  <td class="center">{{ mirrorData.gestionRRHH?.[item.key]?.estado === 'SI' ? '✓' : '' }}</td>
-                  <td class="center">{{ mirrorData.gestionRRHH?.[item.key]?.estado === 'NO' ? '✓' : '' }}</td>
-                  <td>{{ mirrorData.gestionRRHH?.[item.key]?.numeroCertificado || '' }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="m-field mt-4" *ngIf="mirrorData.nombreDirectorRRHH">
-              <span class="m-label">Director/a de RRHH:</span>
-              <span class="m-value">{{ mirrorData.nombreDirectorRRHH }}</span>
-            </div>
-          </div>
-
-          <!-- ── Recepción de Documentos ── -->
-          <div class="m-section">
-            <div class="m-section-title">9. RECEPCIÓN DE DOCUMENTOS — RRHH</div>
-            <div class="m-grid-2">
-              <div class="m-field"><span class="m-label">Fecha de Entrega:</span><span class="m-value">{{
-                  mirrorData.recepcion?.fechaEntrega || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">N° de Hojas:</span><span class="m-value">{{
-                  mirrorData.recepcion?.nHojasRecibidas || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Recibe:</span><span class="m-value">{{
-                  mirrorData.recepcion?.nombreQuienRecibe || '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Cargo:</span><span class="m-value">{{
-                  mirrorData.recepcion?.cargoQuienRecibe || '—' }}</span></div>
-            </div>
-          </div>
-
-          <!-- ── Autorización y Firma ── -->
-          <div class="m-section m-firma-section">
-            <div class="m-section-title">10. AUTORIZACIÓN — FIRMA DEL SERVIDOR SALIENTE</div>
-            <div class="m-autorizacion-texto">
-              <p>Conforme el Art. 110 del Reglamento LOSEP, el/la suscrito/a <strong>AUTORIZA</strong> a la
-                <strong>DIRECCIÓN ADMINISTRATIVA FINANCIERA</strong> del INAMHI efectuar los descuentos detallados
-                por reintegro y/o recuperación de valores, bienes y/o especies a su cargo, que serán
-                <strong>DESCONTADOS</strong> vía rol de pagos y/o liquidación de haberes.
-              </p>
-            </div>
-            <div class="m-firma-box">
-              <img *ngIf="firmaImagePreview" [src]="firmaImagePreview" class="m-firma-img" alt="Firma" />
-              <div *ngIf="!firmaImagePreview" class="m-firma-placeholder">[ Sin firma ]</div>
-            </div>
-            <div class="m-grid-2 mt-8">
-              <div class="m-field"><span class="m-label">C.C.:</span><span class="m-value">{{ mirrorData.ccFirmante ||
-                  '—' }}</span></div>
-              <div class="m-field"><span class="m-label">Fecha de Firma:</span><span class="m-value">{{
-                  mirrorData.fechaFirma || '—' }}</span></div>
-            </div>
-          </div>
-
-        </div><!-- /mirror-doc -->
-
-        <div class="mirror-actions">
-          <button type="button" class="btn-ghost sm" (click)="printMirror()">🖨 Imprimir</button>
-          <button type="button" class="btn-ghost sm" (click)="downloadPDF()">⬇ PDF</button>
+    <!-- ── COLUMNA DERECHA: ESPEJO A4 ── -->
+    <div class="hoja-espejo-preview">
+      <div class="espejo-header-actions no-print">
+        <span class="espejo-live-badge"><span class="pulse-dot"></span> Vista Previa en Tiempo Real</span>
+        <div class="espejo-actions">
+          <button type="button" class="btn-ghost-sm" (click)="printMirror()">🖨 Imprimir</button>
+          <button type="button" class="btn-ghost-sm" (click)="exportarHojaEspejoPDF()">⬇ PDF</button>
         </div>
       </div>
-    </div><!-- /mirror-col -->
 
-  </div><!-- /pys-content -->
+      <div id="hojaEspejo">
+        <!-- ── PÁGINA 1 ── -->
+        <div class="a4-page">
 
-  <!-- ─── TOAST CONTAINER ──────────────────────────────────────────── -->
-  <div class="toast-container">
-    <div *ngFor="let toast of toasts; trackBy: trackById" class="toast" [class.toast--success]="toast.type === 'success'"
-      [class.toast--error]="toast.type === 'error'" [class.toast--warning]="toast.type === 'warning'"
-      [class.toast--info]="toast.type === 'info'">
-      <span class="toast__icon">{{ toast.icon }}</span>
-      <span class="toast__message">{{ toast.message }}</span>
-      <button class="toast__close" (click)="removeToast(toast.id)">×</button>
-    </div>
-  </div>
+          <table class="tabla-encabezado">
+            <tr>
+              <td rowspan="3" class="logo-cell">
+                <img src="/assets/img/logo.png" alt="INAMHI" class="logo">
+                <div style="font-size:8px;font-weight:bold;margin-top:4px;color:#1e293b;">TIEMPO CLIMA Y AGUA ECUADOR</div>
+              </td>
+              <td class="titulo-principal">INSTITUTO NACIONAL DE METEOROLOGÍA E HIDROLOGÍA</td>
+            </tr>
+            <tr>
+              <td class="subtitulo">DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</td>
+            </tr>
+            <tr>
+              <td class="titulo-documento seccion-titulo">FORMULARIO PAZ Y SALVO PARA EL PAGO DE LIQUIDACIÓN DE HABERES</td>
+            </tr>
+          </table>
 
-</div>
+          <!-- Datos Personales -->
+          <table class="tabla-pdf mt-2">
+            <tr><th colspan="4" class="seccion-titulo">DATOS PERSONALES</th></tr>
+            <tr>
+              <td class="etiqueta" style="width:25%">NOMBRES Y APELLIDOS:</td>
+              <td colspan="3" class="valor negrita">{{ formularioPazSalvo.get('nombres_apellidos')?.value | uppercase }}</td>
+            </tr>
+            <tr>
+              <td class="etiqueta">MODALIDAD LABORAL:</td>
+              <td colspan="3" style="font-size:8.5px">
+                <span style="margin-right:12px">Nombramiento Permanente
+                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'PERMANENTE'" disabled></span>
+                <span style="margin-right:12px">Nombramiento Provisional
+                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'PROVISIONAL'" disabled></span>
+                <span style="margin-right:12px">Contrato Ocasional
+                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'OCASIONAL'" disabled></span>
+                <span>Contrato de Trabajo
+                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'TRABAJO'" disabled></span>
+              </td>
+            </tr>
+            <tr>
+              <td class="etiqueta">CÉDULA / PASAPORTE:</td>
+              <td class="valor negrita">{{ formularioPazSalvo.get('cedula')?.value }}</td>
+              <td class="etiqueta" style="width:20%">FECHA INGRESO:</td>
+              <td class="valor negrita" style="width:25%">{{ formularioPazSalvo.get('fecha_ingreso')?.value }}</td>
+            </tr>
+            <tr>
+              <td class="etiqueta">DIRECCIÓN DOMICILIARIA:</td>
+              <td class="valor">{{ formularioPazSalvo.get('direccion')?.value | uppercase }}</td>
+              <td class="etiqueta">FECHA SALIDA:</td>
+              <td class="valor negrita">{{ formularioPazSalvo.get('fecha_salida')?.value }}</td>
+            </tr>
+            <tr>
+              <td class="etiqueta">Nº DOMICILIO / CELULAR:</td>
+              <td class="valor">{{ formularioPazSalvo.get('numero_domicilio')?.value }} / {{ formularioPazSalvo.get('celular')?.value }}</td>
+              <td class="etiqueta">CONTACTO EMERGENCIA:</td>
+              <td class="valor">{{ formularioPazSalvo.get('emergencia')?.value }}</td>
+            </tr>
+            <tr>
+              <td class="etiqueta">EMAIL 1 / EMAIL 2:</td>
+              <td class="valor">{{ formularioPazSalvo.get('email1')?.value }} / {{ formularioPazSalvo.get('email2')?.value }}</td>
+              <td class="etiqueta">PROVINCIA / CANTÓN:</td>
+              <td class="valor">{{ formularioPazSalvo.get('provincia')?.value | uppercase }} / {{ formularioPazSalvo.get('canton')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+          <!-- Dirección / Unidad -->
+          <table class="tabla-pdf mt-1">
+            <tr><th colspan="4" class="seccion-titulo">DATOS DE LA DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS</th></tr>
+            <tr>
+              <td class="etiqueta" style="width:25%">LUGAR DE TRABAJO:</td>
+              <td colspan="3" style="font-size:8.5px">
+                <span style="margin-right:20px">Planta Central
+                  <input type="radio" [checked]="formularioPazSalvo.get('lugar_trabajo')?.value === 'PLANTA'" disabled></span>
+                <span>Procesos Desconcentrados
+                  <input type="radio" [checked]="formularioPazSalvo.get('lugar_trabajo')?.value === 'DESCONCENTRADOS'" disabled></span>
+              </td>
+            </tr>
+            <tr>
+              <td class="etiqueta">DIRECCIÓN / UNIDAD:</td>
+              <td colspan="3" class="valor negrita">{{ formularioPazSalvo.get('unidad')?.value | uppercase }}</td>
+            </tr>
+            <tr>
+              <td class="etiqueta">CARGO DESEMPEÑADO:</td>
+              <td class="valor">{{ formularioPazSalvo.get('cargo')?.value | uppercase }}</td>
+              <td class="etiqueta">GRUPO OCUPACIONAL:</td>
+              <td class="valor">{{ formularioPazSalvo.get('grupo_ocupacional')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+          <!-- Trámites y Gestión Administrativa -->
+          <table class="tabla-pdf mt-1" style="text-align:center">
+            <tr><th colspan="4" class="seccion-titulo">TRÁMITES Y GESTIÓN ADMINISTRATIVA FINANCIERA</th></tr>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
+              <td style="width:50%;text-align:left">DETALLE</td>
+              <td style="width:10%">SÍ</td>
+              <td style="width:10%">NO</td>
+              <td style="width:30%;text-align:left">OBSERVACIONES / FIRMA</td>
+            </tr>
+            <tr>
+              <td style="font-size:8.5px;text-align:left">
+                Entrega informe / Archivos (Físico y Digital)<br>
+                Administrador de contrato: {{ formularioPazSalvo.get('tramites_desc_contrato')?.value }}<br>
+                Trámites en QUIPUX Cero / Claves Unidad
+              </td>
+              <td>{{ formularioPazSalvo.get('tramites_informe')?.value === 'SI' ? 'X' : '' }}</td>
+              <td>{{ formularioPazSalvo.get('tramites_informe')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size:8.5px;text-align:left">Jefe Inmediato:<br>{{ formularioPazSalvo.get('tramites_jefe_inmediato')?.value | uppercase }}</td>
+            </tr>
+            <tr>
+              <td style="font-size:8.5px;text-align:left">
+                Entregó bienes muebles y equipos<br>
+                Acta No: {{ formularioPazSalvo.get('admin_acta_bienes')?.value }} — Valor: ${{ formularioPazSalvo.get('admin_valor_bienes')?.value }}
+              </td>
+              <td>{{ formularioPazSalvo.get('admin_bienes')?.value === 'SI' ? 'X' : '' }}</td>
+              <td>{{ formularioPazSalvo.get('admin_bienes')?.value === 'NO' ? 'X' : '' }}</td>
+              <td rowspan="2" style="font-size:8.5px;text-align:left;vertical-align:top">
+                Responsable Adm.:<br>{{ formularioPazSalvo.get('admin_responsable')?.value | uppercase }}
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:8.5px;text-align:left">
+                Valores pendientes por deducibles — Valor: ${{ formularioPazSalvo.get('admin_deducibles_valor')?.value }}
+              </td>
+              <td>{{ formularioPazSalvo.get('admin_deducibles')?.value === 'SI' ? 'X' : '' }}</td>
+              <td>{{ formularioPazSalvo.get('admin_deducibles')?.value === 'NO' ? 'X' : '' }}</td>
+            </tr>
+          </table>
+
+          <!-- TIC -->
+          <table class="tabla-pdf mt-1" style="text-align:center">
+            <tr><th colspan="4" class="seccion-titulo">GESTIÓN DE TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIÓN (TIC)</th></tr>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
+              <td style="width:50%;text-align:left">DETALLE</td>
+              <td style="width:10%">SÍ</td>
+              <td style="width:10%">NO</td>
+              <td style="width:30%;text-align:left">OBSERVACIONES / FIRMA</td>
+            </tr>
+            <tr>
+              <td style="font-size:8.5px;text-align:left">
+                Verificación de equipo / Retiro accesos IP / Contraseñas<br>
+                Entrega Backup: {{ formularioPazSalvo.get('tic_ruta_backup')?.value }}<br>
+                Entrega tarjeta / Cierre cuentas institucionales
+              </td>
+              <td>{{ formularioPazSalvo.get('tic_verificacion')?.value === 'SI' ? 'X' : '' }}</td>
+              <td>{{ formularioPazSalvo.get('tic_verificacion')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size:8.5px;text-align:left">Responsable TIC:<br>{{ formularioPazSalvo.get('tic_responsable')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+          <!-- Financiero -->
+          <table class="tabla-pdf mt-1" style="text-align:center">
+            <tr><th colspan="4" class="seccion-titulo">GESTIÓN FINANCIERA</th></tr>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
+              <td style="width:50%;text-align:left">DETALLE</td>
+              <td style="width:10%">SÍ</td>
+              <td style="width:10%">NO</td>
+              <td style="width:30%;text-align:left">FIRMA DIRECTOR/A</td>
+            </tr>
+            <tr>
+              <td style="font-size:8.5px;text-align:left">
+                Valores pendientes de pago por saldos contables o anticipos<br>
+                Valores pendientes recuperación o devolución de muebles
+              </td>
+              <td>{{ formularioPazSalvo.get('fin_saldos')?.value === 'SI' ? 'X' : '' }}</td>
+              <td>{{ formularioPazSalvo.get('fin_saldos')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size:8.5px;text-align:left">Director/a Financiero:<br>{{ formularioPazSalvo.get('fin_director')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+        </div><!-- /a4-page 1 -->
+
+        <!-- ── PÁGINA 2 ── -->
+        <div class="a4-page">
+
+          <!-- Seguridad -->
+          <table class="tabla-pdf" style="text-align:center">
+            <tr><th colspan="4" class="seccion-titulo">SEGURIDAD DE LA INFORMACIÓN (AM 166 — EGSI)</th></tr>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
+              <td style="width:50%;text-align:left">DETALLE</td>
+              <td style="width:10%">SÍ</td>
+              <td style="width:10%">NO</td>
+              <td style="width:30%;text-align:left">FIRMA OFICIAL / RESPONSABLE</td>
+            </tr>
+            <tr>
+              <td style="font-size:8.5px;text-align:left">
+                Archivos Digitales y Físicos / Copia Informe Actividades<br>
+                Verificación de la Información Institucional
+              </td>
+              <td>{{ formularioPazSalvo.get('seg_archivos')?.value === 'SI' ? 'X' : '' }}</td>
+              <td>{{ formularioPazSalvo.get('seg_archivos')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size:8.5px;text-align:left">
+                Oficial: {{ formularioPazSalvo.get('seg_oficial')?.value | uppercase }}<br>
+                Resp.: {{ formularioPazSalvo.get('seg_responsable')?.value | uppercase }}
+              </td>
+            </tr>
+          </table>
+
+          <!-- RRHH -->
+          <table class="tabla-pdf mt-1" style="text-align:center">
+            <tr><th colspan="4" class="seccion-titulo">DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</th></tr>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
+              <td style="width:50%;text-align:left">DETALLE</td>
+              <td style="width:10%">SÍ</td>
+              <td style="width:10%">NO</td>
+              <td style="width:30%;text-align:left">FIRMA DIRECTOR/A</td>
+            </tr>
+            <tr>
+              <td style="font-size:8.5px;text-align:left">
+                Devengó cursos / Aplicó evaluación / Desvinculado del puesto<br>
+                Días vacaciones acumuladas: {{ formularioPazSalvo.get('rrhh_vacaciones')?.value }}<br>
+                Entrega declaración juramentada (Certificado: {{ formularioPazSalvo.get('rrhh_num_certificado')?.value }})<br>
+                Entrega credencial / Acta de bienes custodio
+              </td>
+              <td>{{ formularioPazSalvo.get('rrhh_cursos_eval')?.value === 'SI' ? 'X' : '' }}</td>
+              <td>{{ formularioPazSalvo.get('rrhh_cursos_eval')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size:8.5px;text-align:left">Director/a RRHH:<br>{{ formularioPazSalvo.get('rrhh_director')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+          <!-- Recepción -->
+          <table class="tabla-pdf mt-1">
+            <tr><th colspan="4" class="seccion-titulo">RECEPCIÓN DE DOCUMENTOS — RRHH</th></tr>
+            <tr>
+              <td class="etiqueta" style="width:25%">FECHA ENTREGA:</td>
+              <td style="width:25%">{{ formularioPazSalvo.get('recepcion_fecha')?.value }}</td>
+              <td class="etiqueta" style="width:25%">HOJAS RECIBIDAS:</td>
+              <td style="width:25%">{{ formularioPazSalvo.get('recepcion_hojas')?.value }}</td>
+            </tr>
+            <tr>
+              <td class="etiqueta">SERVIDOR QUE RECIBE:</td>
+              <td>{{ formularioPazSalvo.get('recepcion_servidor')?.value | uppercase }}</td>
+              <td class="etiqueta">CARGO:</td>
+              <td>{{ formularioPazSalvo.get('recepcion_cargo')?.value | uppercase }}</td>
+            </tr>
+          </table>
+
+          <!-- Texto legal -->
+          <div class="texto-legal mt-2">
+            <strong>AUTORIZACIÓN:</strong> Conforme lo establecido en el artículo 110 del Reglamento a la Ley Orgánica
+            de Servicio Público (LOSEP), quien suscribe el presente formulario de "paz y salvo" para la liquidación de
+            haberes que me corresponde, <strong>AUTORIZO</strong> a la DIRECCIÓN ADMINISTRATIVA FINANCIERA del INAMHI,
+            para que efectúe los descuentos detallados en el presente documento por reintegro y/o recuperación de
+            valores, bienes y/o especies que se hayan encontrado a mi cargo y no hayan sido devueltos en las condiciones
+            recibidas, los mismos que serán <strong>DESCONTADOS</strong> a través de mi rol de pagos y/o liquidación de haberes.
+          </div>
+
+          <!-- Firma del servidor -->
+          <table class="tabla-pdf mt-2" style="border:none;text-align:center;margin-top:50px">
+            <tr style="border:none">
+              <td class="caja-firma" style="width:50%;border:none">
+                <ng-container *ngIf="firmaImagePreview">
+                  <img [src]="firmaImagePreview" alt="Firma" style="max-height:60px;max-width:180px;display:block;margin:0 auto 4px">
+                </ng-container>
+                __________________________________<br>
+                <strong>FIRMA SERVIDOR SALIENTE</strong><br>
+                C.C.: {{ formularioPazSalvo.get('cedula')?.value }}<br>
+                Fecha: {{ formularioPazSalvo.get('fecha_firma')?.value }}
+              </td>
+              <td class="caja-firma" style="width:50%;border:none">
+                __________________________________<br>
+                <strong>TALENTO HUMANO</strong>
+              </td>
+            </tr>
+          </table>
+
+        </div><!-- /a4-page 2 -->
+      </div><!-- /hojaEspejo -->
+    </div><!-- /hoja-espejo-preview -->
+
+  </section><!-- /paz-salvo-container -->
+
+</div><!-- /page -->
