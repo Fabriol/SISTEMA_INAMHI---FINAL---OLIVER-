@@ -1,5 +1,13 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ViewChild,
+  ElementRef,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
 import {
   FormsModule,
   ReactiveFormsModule,
@@ -8,121 +16,112 @@ import {
   Validators,
   AbstractControl,
   ValidationErrors,
-  ValidatorFn
+  ValidatorFn,
 } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subject, of } from 'rxjs';
-import { catchError, debounceTime, finalize, takeUntil, timeout } from 'rxjs/operators';
+import {
+  catchError,
+  debounceTime,
+  finalize,
+  takeUntil,
+  timeout,
+} from 'rxjs/operators';
 import Swal from 'sweetalert2';
 import { FormulariosService } from '../../core/services/formularios';
 
-// ─── Interfaces ───────────────────────────────────────────────────────────────
-
-export interface ToastMessage {
-  id: number;
-  message: string;
-  type: 'success' | 'error' | 'warning' | 'info';
-  icon: string;
-}
+// ═══════════════════════════════════════════════════════════════
+//  INTERFACES
+// ═══════════════════════════════════════════════════════════════
 
 export interface StepConfig {
   title: string;
-  description: string;
-  formGroups: string[];
+  /** Lista de formControlNames planos que pertenecen a este step (para validación). */
+  campos: string[];
 }
 
-export interface ChecklistItem {
-  key: string;
-  label: string;
-  shortLabel?: string;
-  hasValor?: boolean;
-  hasCertificado?: boolean;
+export interface CampoFormulario {
+  id: string;
+  nombre: string;   // alias interno (igual a id, usado en puedeEditarCampo)
+  etiqueta: string;
+  seccion: string;
+  tipo: string;
+  seleccionado: boolean;
+  bloqueado: boolean;
 }
 
-export interface MirrorData {
-  nombresApellidos: string;
-  cedula: string;
-  numeroDomicilio: string;
-  numeroCelular: string;
-  numeroEmergencia: string;
-  email1: string;
-  email2: string;
-  direccion: string;
-  provincia: string;
-  canton: string;
-  tipoModalidad: string;
-  fechaIngreso: string;
-  fechaSalida: string;
-  tipoPlanta: string;
-  direccionUnidad: string;
-  cargoDesempenado: string;
-  grupoOcupacional: string;
-  jefeInmediato: string;
-  gestionDoc: { [key: string]: { estado: string; responsable: string } };
-  gestionDocObs: string;
-  gestionAdmin: { [key: string]: { estado: string; valor: number | null } };
-  nombreDirectorAdmin: string;
-  gestionTIC: { [key: string]: { estado: string; observacion: string } };
-  sistemas: { [key: string]: boolean };
-  gestionFinanciera: { [key: string]: { estado: string; valor: number | null; observacion: string } };
-  seguridadInfo: {
-    archivosDigitales: string;
-    archivosFisicos: string;
-    informeActividades: string;
-    verificacionInfo: string;
-    nombreOficialSeguridad: string;
-  };
-  gestionRRHH: { [key: string]: { estado: string; numeroCertificado: string } };
-  nombreDirectorRRHH: string;
-  recepcion: {
-    fechaEntrega: string;
-    nHojasRecibidas: number | null;
-    nombreQuienRecibe: string;
-    cargoQuienRecibe: string;
-  };
-  ccFirmante: string;
-  fechaFirma: string;
+export interface NotificacionItem {
+  id: number;
+  titulo: string;
+  mensaje: string;
+  leido: boolean;
 }
 
-// ─── Validators personalizados ────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+//  VALIDATORS PERSONALIZADOS
+// ═══════════════════════════════════════════════════════════════
 
+/** Valida cédula ecuatoriana de 10 dígitos con dígito verificador. */
 export function cedulaEcuatorianaValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    const value = control.value as string;
+    const value = (control.value as string) ?? '';
     if (!value) return null;
-    if (!/^[a-zA-Z0-9]{10,15}$/.test(value)) return { pattern: true };
 
-    if (/^\d{10}$/.test(value)) {
-      const provincia = parseInt(value.substring(0, 2), 10);
-      if (provincia < 1 || provincia > 24) return { cedulaInvalida: true };
+    if (!/^\d{10}$/.test(value)) return { pattern: true };
 
-      const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2];
-      let suma = 0;
-      for (let i = 0; i < 9; i++) {
-        let val = parseInt(value[i], 10) * coeficientes[i];
-        if (val >= 10) val -= 9;
-        suma += val;
-      }
-      const digitoVerificador = suma % 10 === 0 ? 0 : 10 - (suma % 10);
-      if (digitoVerificador !== parseInt(value[9], 10)) return { cedulaInvalida: true };
+    const provincia = parseInt(value.substring(0, 2), 10);
+    if (provincia < 1 || provincia > 24) return { cedulaInvalida: true };
+
+    const coef = [2, 1, 2, 1, 2, 1, 2, 1, 2];
+    let suma = 0;
+    for (let i = 0; i < 9; i++) {
+      let v = parseInt(value[i], 10) * coef[i];
+      if (v >= 10) v -= 9;
+      suma += v;
     }
+    const dv = suma % 10 === 0 ? 0 : 10 - (suma % 10);
+    if (dv !== parseInt(value[9], 10)) return { cedulaInvalida: true };
 
     return null;
   };
 }
 
-export function fechaPosteriorValidator(startDateKey: string): ValidatorFn {
+/** Valida que fecha_salida sea posterior a fecha_ingreso (cross-field en el FormGroup). */
+export function fechasValidator(
+  startKey: string,
+  endKey: string
+): ValidatorFn {
+  return (group: AbstractControl): ValidationErrors | null => {
+    const start = group.get(startKey)?.value;
+    const end = group.get(endKey)?.value;
+    if (!start || !end) return null;
+    return new Date(end) <= new Date(start) ? { fechasInvalidas: true } : null;
+  };
+}
+
+/** Valida que una fecha no sea futura. */
+export function noFuturaValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    if (!control.parent) return null;
-    const startDate = control.parent.get(startDateKey)?.value;
-    const endDate = control.value;
-    if (!startDate || !endDate) return null;
-    if (new Date(endDate) <= new Date(startDate)) return { fechaAnterior: true };
-    return null;
+    if (!control.value) return null;
+    const hoy = new Date();
+    hoy.setHours(23, 59, 59, 999);
+    return new Date(control.value) > hoy ? { fechaFutura: true } : null;
   };
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+/** Valida que email2 sea diferente de email1 (cross-field). */
+export function emailsDiferentesValidator(): ValidatorFn {
+  return (group: AbstractControl): ValidationErrors | null => {
+    const e1 = group.get('email1')?.value?.toLowerCase().trim();
+    const e2 = group.get('email2')?.value?.toLowerCase().trim();
+    if (!e1 || !e2) return null;
+    return e1 === e2 ? { emailsIguales: true } : null;
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  COMPONENTE
+// ═══════════════════════════════════════════════════════════════
 
 @Component({
   selector: 'app-formularios',
@@ -133,225 +132,172 @@ export function fechaPosteriorValidator(startDateKey: string): ValidatorFn {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Formularios implements OnInit, OnDestroy {
+
+  // ── Referencia al canvas de firma ───────────────────────────
   @ViewChild('firmaCanvas') firmaCanvasRef!: ElementRef<HTMLCanvasElement>;
 
   private destroy$ = new Subject<void>();
-  private toastCounter = 0;
-  private ctx: CanvasRenderingContext2D | null = null;
+  private canvasCtx: CanvasRenderingContext2D | null = null;
   private isDrawingCanvas = false;
   private alertaActiva = false;
 
-  // ─── Estado UI ──────────────────────────────────────────────
-  today = new Date();
-  currentStep = 0;
-  isSubmitting = false;
+  // ── Fecha de hoy (para max en inputs date) ──────────────────
+  hoy: string = new Date().toISOString().split('T')[0];
+
+  // ── Estado UI ───────────────────────────────────────────────
   cargando = false;
-  firmaMode: 'canvas' | 'upload' | 'firmaec' = 'canvas';
+  currentStep = 0;
+  asignacionSubmitted = false;
+  erroresPaso: string[] = [];
+
+  // ── Firma ───────────────────────────────────────────────────
+  firmaMode: 'canvas' | 'upload' = 'canvas';
   firmaImagePreview: string | null = null;
   hasFirma = false;
   firmaRequired = false;
-  toasts: ToastMessage[] = [];
-  mirrorData: Partial<MirrorData> = {};
 
-  // ─── Datos del sistema ──────────────────────────────────────
+  // ── Datos del sistema ───────────────────────────────────────
   formularios: any[] = [];
   formularioSeleccionado: any = null;
   usuariosDisponibles: any[] = [];
-  notificaciones: any[] = [];
-  pendientes: any[] = [];
+  notificaciones: NotificacionItem[] = [];
   usuario: any = {};
   asignacion = { usuario_id: '' };
 
+  // ── Control de campos ───────────────────────────────────────
+  /** Campos que el usuario actual puede editar (enviados por el admin). */
   camposAsignadosUsuario: string[] = [];
+  /** Campos que ya tienen respuesta guardada → readonly. */
   camposBloqueados: string[] = [];
+  /** Campos que ya fueron designados a alguien → checkbox bloqueado en panel admin. */
   camposYaDesignados: string[] = [];
 
-  // ─── Steps ──────────────────────────────────────────────────
+  // ── Steps ───────────────────────────────────────────────────
   steps: StepConfig[] = [
     {
       title: 'Información Principal',
-      description: 'Datos personales, modalidad y lugar de trabajo',
-      formGroups: ['datosPersonales', 'modalidadLaboral', 'lugarTrabajo'],
+      campos: [
+        'nombres_apellidos', 'modalidad', 'cedula',
+        'fecha_ingreso', 'fecha_salida', 'direccion',
+        'numero_domicilio', 'celular', 'emergencia',
+        'email1', 'email2', 'provincia', 'canton',
+        'lugar_trabajo', 'unidad', 'cargo', 'grupo_ocupacional',
+      ],
     },
     {
       title: 'Gestiones',
-      description: 'Documental, administrativa, TIC y financiera',
-      formGroups: ['gestionDocumental', 'gestionAdministrativa', 'gestionTIC', 'gestionFinanciera'],
+      campos: [
+        'tramites_informe', 'tramites_admin_contrato', 'tramites_desc_contrato',
+        'tramites_memo', 'tramites_jefe_inmediato', 'tramites_quipux_cero',
+        'tramites_servidor_recibe',
+        'admin_informe', 'admin_bienes', 'admin_acta_bienes',
+        'admin_valor_bienes', 'admin_deducibles', 'admin_deducibles_valor',
+        'admin_pasajes', 'admin_responsable',
+        'tic_verificacion', 'tic_backup', 'tic_ruta_backup',
+        'tic_tarjeta_cuentas', 'tic_responsable',
+        'fin_saldos', 'fin_recuperacion', 'fin_director',
+      ],
     },
     {
       title: 'RRHH, Seguridad y Firma',
-      description: 'Seguridad, RRHH, recepción y firma digital',
-      formGroups: ['seguridadInfo', 'gestionRRHH', 'recepcionDocumentos', 'autorizacion'],
+      campos: [
+        'seg_archivos', 'seg_oficial', 'seg_responsable',
+        'rrhh_cursos_eval', 'rrhh_vacaciones', 'rrhh_juramentada',
+        'rrhh_num_certificado', 'rrhh_num_declaracion',
+        'rrhh_credencial', 'rrhh_director',
+        'recepcion_fecha', 'recepcion_hojas',
+        'recepcion_servidor', 'recepcion_cargo',
+        'cedula_firmante', 'fecha_firma',
+      ],
     },
   ];
 
-  // ─── Catálogos ──────────────────────────────────────────────
-  provincias: string[] = [
-    'Azuay', 'Bolívar', 'Cañar', 'Carchi', 'Chimborazo', 'Cotopaxi',
-    'El Oro', 'Esmeraldas', 'Galápagos', 'Guayas', 'Imbabura', 'Loja',
-    'Los Ríos', 'Manabí', 'Morona Santiago', 'Napo', 'Orellana', 'Pastaza',
-    'Pichincha', 'Santa Elena', 'Santo Domingo', 'Sucumbíos',
-    'Tungurahua', 'Zamora Chinchipe',
-  ];
-
-  modalidades = [
-    { value: 'NOMBRAMIENTO_PERMANENTE', label: 'Nombramiento Permanente' },
-    { value: 'NOMBRAMIENTO_PROVISIONAL', label: 'Nombramiento Provisional' },
-    { value: 'CONTRATO_OCASIONAL', label: 'Contrato Ocasional' },
-    { value: 'CONTRATO_DE_TRABAJO', label: 'Contrato de Trabajo' },
-  ];
-
-  gruposOcupacionales = [
-    { value: 'NJS', label: 'NJS — No Jerárquico Superior' },
-    { value: 'SRVS', label: 'SRVS — Servidor Público de Servicios' },
-    { value: 'SP', label: 'SP — Servidor Público' },
-    { value: 'SPA', label: 'SPA — Servidor Público de Apoyo' },
-    { value: 'NMNP', label: 'NMNP — No Misional No Profesional' },
-    { value: 'OTRO', label: 'Otro' },
-  ];
-
-  // ─── Checklist items ────────────────────────────────────────
-  gestionDocumentalItems: ChecklistItem[] = [
-    { key: 'informeFin', label: 'Entrega informe de fin de gestión con detalle de actividades ejecutadas y pendientes (no requiere aprobación)', shortLabel: 'Informe fin de gestión' },
-    { key: 'fePresentacion', label: 'Fe de presentación de la entrega en recepción de documentos del informe de fin de gestión', shortLabel: 'Fe de presentación' },
-    { key: 'archivoFisico', label: 'Realiza la entrega de archivo de la documentación física y digital (LOSEP)', shortLabel: 'Archivo físico y digital' },
-    { key: 'administradorContrato', label: 'Es administrador de contrato', shortLabel: 'Admin. de contrato' },
-    { key: 'tramitesQuipux', label: 'Entrega los trámites asignados en el sistema de gestión documental QUIPUX (bandeja en cero)', shortLabel: 'Trámites QUIPUX en cero' },
-    { key: 'clavesAcceso', label: 'Tiene asignado claves de acceso en su unidad', shortLabel: 'Claves de acceso' },
-    { key: 'actaClavesUnidad', label: 'Realizó acta entrega de claves de su unidad', shortLabel: 'Acta entrega claves' },
-  ];
-
-  gestionAdminItemsLeft: ChecklistItem[] = [
-    { key: 'esAdminContrato', label: '¿Es administrador de contrato?' },
-    { key: 'bienesMuebles', label: '¿Entregó bienes muebles y equipos?' },
-    { key: 'valoresDeducibles', label: '¿Tiene valores pendientes por deducibles?', hasValor: true },
-    { key: 'pasajesAereos', label: '¿Tiene pasajes aéreos por justificar?', hasValor: true },
-  ];
-
-  gestionAdminItemsRight: ChecklistItem[] = [
-    { key: 'realizoEntregaInforme', label: '¿Realizó la entrega del informe?' },
-    { key: 'numeroActa', label: 'Número de Acta' },
-    { key: 'valorDescontar1', label: 'Valor a Descontar 1', hasValor: true },
-    { key: 'valorDescontar2', label: 'Valor a Descontar 2', hasValor: true },
-  ];
-
-  get gestionAdminAllItems(): ChecklistItem[] {
-    return [...this.gestionAdminItemsLeft, ...this.gestionAdminItemsRight];
-  }
-
-  gestionTICItems: ChecklistItem[] = [
-    { key: 'verificacionEquipo', label: '¿Se realizó la verificación del equipo informático?' },
-    { key: 'accesoIPFija', label: '¿Tiene acceso a IP fija, Wi-Fi y/o móvil?' },
-    { key: 'retiroControl', label: 'Retiro de control de acceso (contraseñas de sistemas de información)' },
-    { key: 'cierreCuentas', label: '¿Se realizó el cierre de las cuentas?' },
-    { key: 'tarjetaAcceso', label: '¿Se realizó la entrega y desactivación de la tarjeta de acceso?' },
-    { key: 'backup', label: 'Entrega del backup de la información generada (entregar ruta del backup)' },
-  ];
-
-  sistemasItems = [
-    { key: 'correoInstitucional', label: 'Correo Institucional' },
-    { key: 'quipux', label: 'QUIPUX' },
-    { key: 'eSIGEF', label: 'eSIGEF' },
-    { key: 'SPRYN', label: 'SPRYN' },
-    { key: 'eSByE', label: 'eSByE' },
-  ];
-
-  gestionFinancieraItems: ChecklistItem[] = [
-    { key: 'saldosContables', label: '¿Tiene valores pendientes de pago por saldos contables? (valores pendientes por viáticos, caja chica, pasajes aéreos)' },
-    { key: 'anticipoSueldos', label: '¿Tiene valores pendientes de pago por anticipo de sueldos?' },
-    { key: 'recuperacionValores', label: '¿Tiene valores pendientes de pago por recuperación de valores?' },
-    { key: 'devolucionMuebles', label: '¿Tiene valores pendientes de pago por devolución de muebles y equipos de oficina?' },
-  ];
-
-  gestionRRHHItems: ChecklistItem[] = [
-    { key: 'capacitacion', label: 'El responsable de capacitación certifica que el servidor saliente devengó los cursos recibidos en la institución', hasCertificado: true },
-    { key: 'evaluacionDesempeno', label: 'El responsable de evaluación del desempeño certifica que al servidor saliente se aplicó la evaluación del desempeño del año en curso' },
-    { key: 'viajesExterior', label: 'El responsable de viajes al exterior certifica que el servidor saliente realizó la devengación y/o capacitación de los viajes realizados durante el último año' },
-    { key: 'siith', label: 'El responsable del SIITH certifica que el servidor saliente fue desvinculado del puesto que renuncia' },
-    { key: 'vacaciones', label: 'El responsable de vacaciones certifica que el servidor saliente cuenta con un total de días acumulados vacaciones' },
-    { key: 'constanciaJurada', label: 'Entrega constancia y declaración juramentada de fin de gestión', hasCertificado: true },
-    { key: 'credencialInstitucional', label: 'Entrega credencial institucional, porta credencial y colgante' },
-    { key: 'actaBienes', label: 'Acta de bienes del custodio' },
-    { key: 'copiaActividades', label: 'Entrega copia de información de actividades y respaldos (CD)' },
-    { key: 'ropaProteccion', label: 'Entrega ropa de trabajo o equipo de protección' },
-  ];
-
-  // ─── Campos del formulario para designación (Admin) ─────────
-  camposFormulario: any[] = [
-    { id: 'nombres_apellidos', etiqueta: 'Nombres y Apellidos', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
-    { id: 'modalidad', etiqueta: 'Modalidad Laboral', seccion: 'Datos Personales', tipo: 'SELECT', seleccionado: false },
-    { id: 'cedula', etiqueta: 'Cédula / Pasaporte', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
-    { id: 'fecha_ingreso', etiqueta: 'Fecha de Ingreso', seccion: 'Datos Personales', tipo: 'FECHA', seleccionado: false },
-    { id: 'direccion', etiqueta: 'Dirección Domiciliaria', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
-    { id: 'numero_domicilio', etiqueta: 'Número Domicilio', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
-    { id: 'fecha_salida', etiqueta: 'Fecha de Salida', seccion: 'Datos Personales', tipo: 'FECHA', seleccionado: false },
-    { id: 'celular', etiqueta: 'Número Celular', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
-    { id: 'emergencia', etiqueta: 'Contacto Emergencia', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
-    { id: 'email1', etiqueta: 'Email 1', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
-    { id: 'email2', etiqueta: 'Email 2', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
-    { id: 'provincia', etiqueta: 'Provincia', seccion: 'Datos Personales', tipo: 'TEXT', seleccionado: false },
-    { id: 'canton', etiqueta: 'Cantón', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false },
-    { id: 'lugar_trabajo', etiqueta: 'Lugar de Trabajo', seccion: 'Dirección / Unidad', tipo: 'SELECT', seleccionado: false },
-    { id: 'unidad', etiqueta: 'Dirección / Unidad', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
-    { id: 'cargo', etiqueta: 'Cargo Desempeñado', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
-    { id: 'grupo_ocupacional', etiqueta: 'Grupo Ocupacional', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false },
-    { id: 'tramites_informe', etiqueta: 'Entrega informe de fin de gestión', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false },
-    { id: 'tramites_admin_contrato', etiqueta: '¿Es Administrador de Contrato?', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false },
-    { id: 'tramites_desc_contrato', etiqueta: 'Descripción del contrato', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false },
-    { id: 'tramites_memo', etiqueta: 'Número Memorando', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false },
-    { id: 'tramites_jefe_inmediato', etiqueta: 'Nombre del Jefe Inmediato', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false },
-    { id: 'tramites_quipux_cero', etiqueta: 'Trámites Quipux / Claves', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false },
-    { id: 'tramites_servidor_recibe', etiqueta: 'Servidor que recibe trámites', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false },
-    { id: 'admin_informe', etiqueta: 'Entrega informe administrativo', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false },
-    { id: 'admin_bienes', etiqueta: 'Entregó bienes y muebles', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false },
-    { id: 'admin_acta_bienes', etiqueta: 'Número de Acta', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false },
-    { id: 'admin_valor_bienes', etiqueta: 'Valor Bienes', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false },
-    { id: 'admin_deducibles', etiqueta: '¿Tiene Deducibles?', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false },
-    { id: 'admin_deducibles_valor', etiqueta: 'Valor Deducibles', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false },
-    { id: 'admin_pasajes', etiqueta: 'Pasajes aéreos', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false },
-    { id: 'admin_responsable', etiqueta: 'Responsable', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false },
-    { id: 'tic_verificacion', etiqueta: 'Verificación Equipo / Accesos', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false },
-    { id: 'tic_backup', etiqueta: 'Entrega Backup', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false },
-    { id: 'tic_ruta_backup', etiqueta: 'Ruta Backup', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false },
-    { id: 'tic_tarjeta_cuentas', etiqueta: 'Entrega Tarjeta / Cuentas', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false },
-    { id: 'tic_responsable', etiqueta: 'Responsable TIC', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false },
-    { id: 'fin_saldos', etiqueta: 'Valores pendientes (Saldos)', seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false },
-    { id: 'fin_recuperacion', etiqueta: 'Valores pendientes (Recuperación)', seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false },
-    { id: 'fin_director', etiqueta: 'Director/a Financiero/a', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false },
-    { id: 'seg_archivos', etiqueta: 'Archivos / Info Institucional', seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false },
-    { id: 'seg_oficial', etiqueta: 'Oficial de Seguridad', seccion: 'Seguridad', tipo: 'TEXTO', seleccionado: false },
-    { id: 'seg_responsable', etiqueta: 'Responsable Seguridad', seccion: 'Seguridad', tipo: 'TEXTO', seleccionado: false },
-    { id: 'rrhh_cursos_eval', etiqueta: 'Cursos / Evaluación', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false },
-    { id: 'rrhh_vacaciones', etiqueta: 'Días Vacaciones', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false },
-    { id: 'rrhh_juramentada', etiqueta: 'Constancia Juramentada', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false },
-    { id: 'rrhh_num_certificado', etiqueta: 'Núm. Certificado', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false },
-    { id: 'rrhh_num_declaracion', etiqueta: 'Núm. Declaración', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false },
-    { id: 'rrhh_credencial', etiqueta: 'Credencial / Copias CD', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false },
-    { id: 'rrhh_director', etiqueta: 'Director/a RRHH', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false },
-    { id: 'recepcion_fecha', etiqueta: 'Fecha de Entrega', seccion: 'Recepción', tipo: 'FECHA', seleccionado: false },
-    { id: 'recepcion_hojas', etiqueta: 'Hojas Recibidas', seccion: 'Recepción', tipo: 'TEXTO', seleccionado: false },
-    { id: 'recepcion_servidor', etiqueta: 'Servidor que recibe', seccion: 'Recepción', tipo: 'TEXTO', seleccionado: false },
-    { id: 'recepcion_cargo', etiqueta: 'Cargo Servidor', seccion: 'Recepción', tipo: 'TEXTO', seleccionado: false },
-  ];
-
-  seccionesAbiertas: any = {
+  // ── Secciones del acordeón (panel admin) ────────────────────
+  seccionesAbiertas: Record<string, boolean> = {
     personales: true,
-    direccion: false,
-    admin: false,
-    tramites: false,
-    tic: false,
+    direccion:  false,
+    tramites:   false,
+    admin:      false,
+    tic:        false,
     financiero: false,
-    seguridad: false,
-    rrhh: false,
-    recepcion: false,
+    seguridad:  false,
+    rrhh:       false,
+    recepcion:  false,
+    firma:      false,
   };
 
-  // ─── FormGroups ─────────────────────────────────────────────
-  mainForm!: FormGroup;
+  // ── Catálogo de campos para designación (admin) ─────────────
+  camposFormulario: CampoFormulario[] = [
+    // ── Datos Personales ──
+    { id: 'nombres_apellidos',  nombre: 'nombres_apellidos',  etiqueta: 'Nombres y Apellidos',    seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'modalidad',          nombre: 'modalidad',          etiqueta: 'Modalidad Laboral',       seccion: 'Datos Personales',      tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'cedula',             nombre: 'cedula',             etiqueta: 'Cédula / Pasaporte',      seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'fecha_ingreso',      nombre: 'fecha_ingreso',      etiqueta: 'Fecha de Ingreso',        seccion: 'Datos Personales',      tipo: 'FECHA',  seleccionado: false, bloqueado: false },
+    { id: 'fecha_salida',       nombre: 'fecha_salida',       etiqueta: 'Fecha de Salida',         seccion: 'Datos Personales',      tipo: 'FECHA',  seleccionado: false, bloqueado: false },
+    { id: 'direccion',          nombre: 'direccion',          etiqueta: 'Dirección Domiciliaria',  seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'numero_domicilio',   nombre: 'numero_domicilio',   etiqueta: 'Número Domicilio',        seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'celular',            nombre: 'celular',            etiqueta: 'Número Celular',          seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'emergencia',         nombre: 'emergencia',         etiqueta: 'Contacto Emergencia',     seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'email1',             nombre: 'email1',             etiqueta: 'Email Principal',         seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'email2',             nombre: 'email2',             etiqueta: 'Email Secundario',        seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'provincia',          nombre: 'provincia',          etiqueta: 'Provincia',               seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'canton',             nombre: 'canton',             etiqueta: 'Cantón',                  seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    // ── Dirección / Unidad ──
+    { id: 'lugar_trabajo',      nombre: 'lugar_trabajo',      etiqueta: 'Lugar de Trabajo',        seccion: 'Dirección / Unidad',    tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'unidad',             nombre: 'unidad',             etiqueta: 'Dirección / Unidad',      seccion: 'Dirección / Unidad',    tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'cargo',              nombre: 'cargo',              etiqueta: 'Cargo Desempeñado',       seccion: 'Dirección / Unidad',    tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'grupo_ocupacional',  nombre: 'grupo_ocupacional',  etiqueta: 'Grupo Ocupacional',       seccion: 'Dirección / Unidad',    tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    // ── Trámites y Unidad ──
+    { id: 'tramites_informe',          nombre: 'tramites_informe',          etiqueta: 'Entrega informe fin de gestión',      seccion: 'Trámites y Unidad',      tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tramites_admin_contrato',   nombre: 'tramites_admin_contrato',   etiqueta: '¿Es Administrador de Contrato?',     seccion: 'Trámites y Unidad',      tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tramites_desc_contrato',    nombre: 'tramites_desc_contrato',    etiqueta: 'Descripción del contrato',           seccion: 'Trámites y Unidad',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'tramites_memo',             nombre: 'tramites_memo',             etiqueta: 'Número Memorando',                   seccion: 'Trámites y Unidad',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'tramites_jefe_inmediato',   nombre: 'tramites_jefe_inmediato',   etiqueta: 'Nombre del Jefe Inmediato',          seccion: 'Trámites y Unidad',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'tramites_quipux_cero',      nombre: 'tramites_quipux_cero',      etiqueta: 'Trámites QUIPUX / Claves',           seccion: 'Trámites y Unidad',      tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tramites_servidor_recibe',  nombre: 'tramites_servidor_recibe',  etiqueta: 'Servidor que recibe trámites',       seccion: 'Trámites y Unidad',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    // ── Gestión Administrativa ──
+    { id: 'admin_informe',         nombre: 'admin_informe',         etiqueta: '¿Realizó entrega de informe?',     seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'admin_bienes',          nombre: 'admin_bienes',          etiqueta: '¿Entregó bienes y muebles?',       seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'admin_acta_bienes',     nombre: 'admin_acta_bienes',     etiqueta: 'Número de Acta',                   seccion: 'Gestión Administrativa', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'admin_valor_bienes',    nombre: 'admin_valor_bienes',    etiqueta: 'Valor a Descontar (Bienes)',       seccion: 'Gestión Administrativa', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'admin_deducibles',      nombre: 'admin_deducibles',      etiqueta: '¿Tiene Deducibles?',               seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'admin_deducibles_valor',nombre: 'admin_deducibles_valor',etiqueta: 'Valor Deducibles',                 seccion: 'Gestión Administrativa', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'admin_pasajes',         nombre: 'admin_pasajes',         etiqueta: '¿Pasajes aéreos por justificar?',  seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'admin_responsable',     nombre: 'admin_responsable',     etiqueta: 'Responsable Administrativo',       seccion: 'Gestión Administrativa', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    // ── Gestión TIC ──
+    { id: 'tic_verificacion',    nombre: 'tic_verificacion',    etiqueta: 'Verificación Equipo / Accesos',             seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_backup',          nombre: 'tic_backup',          etiqueta: 'Entrega Backup',                            seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_ruta_backup',     nombre: 'tic_ruta_backup',     etiqueta: 'Ruta del Backup',                           seccion: 'Gestión TIC', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'tic_tarjeta_cuentas', nombre: 'tic_tarjeta_cuentas', etiqueta: 'Entrega Tarjeta Acceso / Cierre Cuentas', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_responsable',     nombre: 'tic_responsable',     etiqueta: 'Responsable TIC',                           seccion: 'Gestión TIC', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    // ── Gestión Financiera ──
+    { id: 'fin_saldos',      nombre: 'fin_saldos',      etiqueta: 'Valores pendientes (Saldos)',      seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'fin_recuperacion',nombre: 'fin_recuperacion',etiqueta: 'Valores pendientes (Recuperación)',seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'fin_director',    nombre: 'fin_director',    etiqueta: 'Director/a Financiero/a',          seccion: 'Gestión Financiera', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    // ── Seguridad ──
+    { id: 'seg_archivos',    nombre: 'seg_archivos',    etiqueta: 'Archivos Digitales / Físicos',       seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'seg_oficial',     nombre: 'seg_oficial',     etiqueta: 'Oficial de Seguridad Institucional', seccion: 'Seguridad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'seg_responsable', nombre: 'seg_responsable', etiqueta: 'Responsable Seguridad',              seccion: 'Seguridad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    // ── Recursos Humanos ──
+    { id: 'rrhh_cursos_eval',     nombre: 'rrhh_cursos_eval',     etiqueta: 'Devengó cursos / Evaluación',       seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_vacaciones',      nombre: 'rrhh_vacaciones',      etiqueta: 'Días Vacaciones Acumuladas',        seccion: 'Recursos Humanos', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_juramentada',     nombre: 'rrhh_juramentada',     etiqueta: 'Constancia y Declaración Jurada',   seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_num_certificado', nombre: 'rrhh_num_certificado', etiqueta: 'N° Certificado Emitido',            seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'rrhh_num_declaracion', nombre: 'rrhh_num_declaracion', etiqueta: 'Número Declaración',                seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'rrhh_credencial',      nombre: 'rrhh_credencial',      etiqueta: 'Credencial / Copia Actividades / Acta Bienes', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_director',        nombre: 'rrhh_director',        etiqueta: 'Director/a de RRHH',                seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    // ── Recepción ──
+    { id: 'recepcion_fecha',    nombre: 'recepcion_fecha',    etiqueta: 'Fecha de Entrega Paz y Salvo', seccion: 'Recepción', tipo: 'FECHA',  seleccionado: false, bloqueado: false },
+    { id: 'recepcion_hojas',    nombre: 'recepcion_hojas',    etiqueta: 'N° Hojas Recibidas',           seccion: 'Recepción', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'recepcion_servidor', nombre: 'recepcion_servidor', etiqueta: 'Servidor/a que recibe',        seccion: 'Recepción', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'recepcion_cargo',    nombre: 'recepcion_cargo',    etiqueta: 'Cargo del Servidor/a',         seccion: 'Recepción', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    // ── Firma ──
+    { id: 'cedula_firmante', nombre: 'cedula_firmante', etiqueta: 'C.C. del Firmante',  seccion: 'Firma', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fecha_firma',     nombre: 'fecha_firma',     etiqueta: 'Fecha de Firma',     seccion: 'Firma', tipo: 'FECHA', seleccionado: false, bloqueado: false },
+  ];
 
-  get formularioPazSalvo(): FormGroup {
-  return this.mainForm;
-}
+  // ── FormGroup PLANO (1:1 con el HTML) ───────────────────────
+  formularioPazSalvo!: FormGroup;
 
   constructor(
     private fb: FormBuilder,
@@ -359,25 +305,28 @@ export class Formularios implements OnInit, OnDestroy {
     private formulariosService: FormulariosService,
   ) {}
 
+  // ─────────────────────────────────────────────────────────────
+  //  GETTERS derivados
+  // ─────────────────────────────────────────────────────────────
+
   get progressPercent(): number {
-    return ((this.currentStep + 1) / this.steps.length) * 100;
+    return Math.round(((this.currentStep + 1) / this.steps.length) * 100);
   }
 
-  
+  // ─────────────────────────────────────────────────────────────
+  //  LIFECYCLE
+  // ─────────────────────────────────────────────────────────────
 
-  // ─── Lifecycle ──────────────────────────────────────────────
   ngOnInit(): void {
-    this.usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+    this.usuario = this.parseUsuario();
     this.buildForm();
-    this.listenForMirrorUpdates();
+    this.listenForConditionalValidators();
     this.loadDraft();
     this.cargarFormularios();
     this.cargarNotificaciones();
 
     if (this.esAdmin()) {
       this.cargarUsuariosDisponibles();
-    } else {
-      this.cargarPendientes();
     }
   }
 
@@ -386,422 +335,436 @@ export class Formularios implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  // ─── Form Builder ───────────────────────────────────────────
+  private parseUsuario(): any {
+    try {
+      return JSON.parse(localStorage.getItem('usuario') ?? '{}');
+    } catch {
+      return {};
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  CONSTRUCCIÓN DEL FORMULARIO PLANO
+  //  Cada formControlName del HTML tiene su control aquí.
+  // ─────────────────────────────────────────────────────────────
+
   private buildForm(): void {
-    this.mainForm = this.fb.group({
-      datosPersonales: this.buildDatosPersonales(),
-      modalidadLaboral: this.buildModalidadLaboral(),
-      lugarTrabajo: this.buildLugarTrabajo(),
-      gestionDocumental: this.buildGestionDocumental(),
-      gestionAdministrativa: this.buildGestionAdministrativa(),
-      gestionTIC: this.buildGestionTIC(),
-      gestionFinanciera: this.buildGestionFinanciera(),
-      seguridadInfo: this.buildSeguridadInfo(),
-      gestionRRHH: this.buildGestionRRHH(),
-      recepcionDocumentos: this.buildRecepcionDocumentos(),
-      autorizacion: this.buildAutorizacion(),
-    });
-  }
+    this.formularioPazSalvo = this.fb.group(
+      {
+        // ── Step 0: Datos Personales ────────────────────────
+        nombres_apellidos: [
+          '',
+          [
+            Validators.required,
+            Validators.minLength(3),
+            Validators.maxLength(80),
+            Validators.pattern(/^[a-zA-ZÀ-ÿ\s]+$/),
+          ],
+        ],
+        modalidad: ['', Validators.required],
+        cedula: [
+          '',
+          [Validators.required, Validators.minLength(10), Validators.pattern(/^\d{10}$/), cedulaEcuatorianaValidator()],
+        ],
+        fecha_ingreso: ['', [Validators.required, noFuturaValidator()]],
+        fecha_salida:  ['', Validators.required],
+        direccion: [
+          '',
+          [Validators.required, Validators.minLength(5), Validators.maxLength(100)],
+        ],
+        numero_domicilio: [
+          '',
+          Validators.pattern(/^[\d\-]{0,10}$/),
+        ],
+        celular: [
+          '',
+          [Validators.required, Validators.pattern(/^09\d{8}$/)],
+        ],
+        emergencia: ['', Validators.pattern(/^09\d{8}$/)],
+        email1: ['', [Validators.required, Validators.email]],
+        email2: ['', Validators.email],
+        provincia: [
+          '',
+          [Validators.required, Validators.minLength(3), Validators.pattern(/^[a-zA-ZÀ-ÿ\s]+$/)],
+        ],
+        canton: [
+          '',
+          [Validators.required, Validators.minLength(3), Validators.pattern(/^[a-zA-ZÀ-ÿ\s]+$/)],
+        ],
 
-  private buildDatosPersonales(): FormGroup {
-    return this.fb.group({
-      nombresApellidos: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(100), Validators.pattern(/^[a-zA-ZÀ-ÿ\s]+$/)]],
-      cedula: ['', [Validators.required, cedulaEcuatorianaValidator()]],
-      numeroDomicilio: [''],
-      numeroCelular: ['', [Validators.pattern(/^0[9][0-9]{8}$/)]],
-      numeroEmergencia: [''],
-      email1: ['', [Validators.required, Validators.email, Validators.maxLength(100)]],
-      email2: ['', [Validators.email]],
-      direccion: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(200)]],
-      provincia: ['', Validators.required],
-      canton: ['', [Validators.required, Validators.maxLength(50)]],
-    });
-  }
+        // ── Step 0: Dirección / Unidad ──────────────────────
+        lugar_trabajo:     ['', Validators.required],
+        unidad:            ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
+        cargo:             ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
+        grupo_ocupacional: ['', Validators.required],
 
-  private buildModalidadLaboral(): FormGroup {
-    const g = this.fb.group({
-      tipoModalidad: ['', Validators.required],
-      fechaIngreso: ['', Validators.required],
-      fechaSalida: ['', [Validators.required, fechaPosteriorValidator('fechaIngreso')]],
-    });
-    g.get('fechaIngreso')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      g.get('fechaSalida')?.updateValueAndValidity();
-    });
-    return g;
-  }
+        // ── Step 1: Trámites y Unidad ───────────────────────
+        tramites_informe:         ['', Validators.required],
+        tramites_admin_contrato:  ['', Validators.required],
+        tramites_desc_contrato:   [''],
+        tramites_memo:            [''],
+        tramites_jefe_inmediato:  ['', [Validators.required, Validators.minLength(5)]],
+        tramites_quipux_cero:     ['', Validators.required],
+        tramites_servidor_recibe: ['', [Validators.required, Validators.minLength(5)]],
 
-  private buildLugarTrabajo(): FormGroup {
-    return this.fb.group({
-      tipoPlanta: ['PLANTA_CENTRAL'],
-      direccionUnidad: ['', Validators.required],
-      cargoDesempenado: ['', Validators.required],
-      grupoOcupacional: ['', Validators.required],
-      jefeInmediato: ['', Validators.required],
-    });
-  }
+        // ── Step 1: Gestión Administrativa ──────────────────
+        admin_informe:         ['', Validators.required],
+        admin_bienes:          ['', Validators.required],
+        admin_acta_bienes:     ['', Validators.pattern(/^[a-zA-Z0-9\-]*$/)],
+        admin_valor_bienes:    [null, Validators.min(0)],
+        admin_deducibles:      ['', Validators.required],
+        admin_deducibles_valor:[null],
+        admin_pasajes:         ['', Validators.required],
+        admin_responsable:     ['', [Validators.required, Validators.minLength(5)]],
 
-  private buildChecklistGroup(items: ChecklistItem[]): FormGroup {
-    const group: Record<string, FormGroup> = {};
-    items.forEach(item => {
-      const subFields: Record<string, unknown[]> = { estado: [''] };
-      if (item.hasValor) subFields['valor'] = [null];
-      if (item.hasCertificado) subFields['numeroCertificado'] = [''];
-      subFields['responsable'] = [''];
-      subFields['observacion'] = [''];
-      group[item.key] = this.fb.group(subFields);
-    });
-    return this.fb.group(group);
-  }
+        // ── Step 1: Gestión TIC ─────────────────────────────
+        tic_verificacion:    ['', Validators.required],
+        tic_backup:          ['', Validators.required],
+        tic_ruta_backup:     [''],
+        tic_tarjeta_cuentas: ['', Validators.required],
+        tic_responsable:     ['', [Validators.required, Validators.minLength(5)]],
 
-  private buildGestionDocumental(): FormGroup {
-    const g = this.buildChecklistGroup(this.gestionDocumentalItems);
-    (g as any).addControl('observaciones', this.fb.control(''));
-    return g;
-  }
+        // ── Step 1: Gestión Financiera ──────────────────────
+        fin_saldos:      ['', Validators.required],
+        fin_recuperacion:['', Validators.required],
+        fin_director:    ['', [Validators.required, Validators.minLength(5)]],
 
-  private buildGestionAdministrativa(): FormGroup {
-    const group: Record<string, unknown> = { nombreDirector: [''] };
-    this.gestionAdminAllItems.forEach(item => {
-      group[item.key] = this.fb.group({
-        estado: [''],
-        valor: [null],
-        responsable: [''],
-      });
-    });
-    return this.fb.group(group);
-  }
+        // ── Step 2: Seguridad de la Información ────────────
+        seg_archivos:    ['', Validators.required],
+        seg_oficial:     ['', [Validators.required, Validators.minLength(5)]],
+        seg_responsable: ['', [Validators.required, Validators.minLength(5)]],
 
-  private buildGestionTIC(): FormGroup {
-    const group: Record<string, unknown> = {
-      sistemas: this.fb.group({
-        correoInstitucional: [false],
-        quipux: [false],
-        eSIGEF: [false],
-        SPRYN: [false],
-        eSByE: [false],
-      }),
-    };
-    this.gestionTICItems.forEach(item => {
-      group[item.key] = this.fb.group({ estado: [''], observacion: [''] });
-    });
-    return this.fb.group(group);
-  }
+        // ── Step 2: Recursos Humanos ────────────────────────
+        rrhh_cursos_eval:    ['', Validators.required],
+        rrhh_vacaciones:     [null, [Validators.required, Validators.min(0)]],
+        rrhh_juramentada:    ['', Validators.required],
+        rrhh_num_certificado:['', Validators.pattern(/^[a-zA-Z0-9\-]*$/)],
+        rrhh_num_declaracion:['', Validators.pattern(/^[a-zA-Z0-9\-]*$/)],
+        rrhh_credencial:     ['', Validators.required],
+        rrhh_director:       ['', [Validators.required, Validators.minLength(5)]],
 
-  private buildGestionFinanciera(): FormGroup {
-    const group: Record<string, unknown> = {};
-    this.gestionFinancieraItems.forEach(item => {
-      group[item.key] = this.fb.group({ estado: [''], valor: [null], observacion: [''] });
-    });
-    return this.fb.group(group);
-  }
+        // ── Step 2: Recepción de Documentos ────────────────
+        recepcion_fecha:    ['', [Validators.required, noFuturaValidator()]],
+        recepcion_hojas:    [null, [Validators.required, Validators.min(1), Validators.max(50)]],
+        recepcion_servidor: ['', [Validators.required, Validators.minLength(5)]],
+        recepcion_cargo:    ['', [Validators.required, Validators.minLength(3)]],
 
-  private buildSeguridadInfo(): FormGroup {
-    return this.fb.group({
-      archivosDigitales: this.fb.group({ estado: [''] }),
-      archivosFisicos: this.fb.group({ estado: [''] }),
-      informeActividades: this.fb.group({ estado: [''] }),
-      verificacionInfo: this.fb.group({ estado: [''] }),
-      nombreOficialSeguridad: [''],
-    });
-  }
-
-  private buildGestionRRHH(): FormGroup {
-    const group: Record<string, unknown> = { nombreDirectorRRHH: [''] };
-    this.gestionRRHHItems.forEach(item => {
-      group[item.key] = this.fb.group({
-        estado: [''],
-        numeroCertificado: [''],
-      });
-    });
-    return this.fb.group(group);
-  }
-
-  private buildRecepcionDocumentos(): FormGroup {
-    return this.fb.group({
-      fechaEntrega: ['', Validators.required],
-      nHojasRecibidas: [null, [Validators.min(1)]],
-      nombreQuienRecibe: ['', Validators.required],
-      cargoQuienRecibe: [''],
-    });
-  }
-
-  private buildAutorizacion(): FormGroup {
-    return this.fb.group({
-      ccFirmante: ['', [Validators.required, cedulaEcuatorianaValidator()]],
-      fechaFirma: ['', Validators.required],
-      tokenFirmaEC: [''],
-    });
-  }
-
-  // ─── Mirror reactivo ────────────────────────────────────────
-  private listenForMirrorUpdates(): void {
-    this.mainForm.valueChanges
-      .pipe(debounceTime(150), takeUntil(this.destroy$))
-      .subscribe(v => {
-        this.updateMirror(v);
-        this.cdr.markForCheck();
-      });
-  }
-
-  private updateMirror(v: Record<string, unknown>): void {
-    const dp = (v['datosPersonales'] || {}) as Record<string, string>;
-    const ml = (v['modalidadLaboral'] || {}) as Record<string, string>;
-    const lt = (v['lugarTrabajo'] || {}) as Record<string, string>;
-    const gd = (v['gestionDocumental'] || {}) as Record<string, unknown>;
-    const ga = (v['gestionAdministrativa'] || {}) as Record<string, unknown>;
-    const tic = (v['gestionTIC'] || {}) as Record<string, unknown>;
-    const gf = (v['gestionFinanciera'] || {}) as Record<string, unknown>;
-    const si = (v['seguridadInfo'] || {}) as Record<string, unknown>;
-    const rrhh = (v['gestionRRHH'] || {}) as Record<string, unknown>;
-    const rec = (v['recepcionDocumentos'] || {}) as Record<string, unknown>;
-    const au = (v['autorizacion'] || {}) as Record<string, string>;
-
-    this.mirrorData = {
-      nombresApellidos: dp['nombresApellidos'],
-      cedula: dp['cedula'],
-      numeroDomicilio: dp['numeroDomicilio'],
-      numeroCelular: dp['numeroCelular'],
-      numeroEmergencia: dp['numeroEmergencia'],
-      email1: dp['email1'],
-      email2: dp['email2'],
-      direccion: dp['direccion'],
-      provincia: dp['provincia'],
-      canton: dp['canton'],
-      tipoModalidad: ml['tipoModalidad'],
-      fechaIngreso: ml['fechaIngreso'],
-      fechaSalida: ml['fechaSalida'],
-      tipoPlanta: lt['tipoPlanta'],
-      direccionUnidad: lt['direccionUnidad'],
-      cargoDesempenado: lt['cargoDesempenado'],
-      grupoOcupacional: lt['grupoOcupacional'],
-      jefeInmediato: lt['jefeInmediato'],
-      gestionDoc: this.extractGestionDoc(gd),
-      gestionDocObs: gd['observaciones'] as string,
-      gestionAdmin: this.extractGestionAdmin(ga),
-      nombreDirectorAdmin: ga['nombreDirector'] as string,
-      gestionTIC: this.extractGestionTIC(tic),
-      sistemas: (tic['sistemas'] || {}) as { [key: string]: boolean },
-      gestionFinanciera: this.extractGestionFinanciera(gf),
-      seguridadInfo: {
-        archivosDigitales: ((si['archivosDigitales'] as Record<string, string>)?.['estado'] || ''),
-        archivosFisicos: ((si['archivosFisicos'] as Record<string, string>)?.['estado'] || ''),
-        informeActividades: ((si['informeActividades'] as Record<string, string>)?.['estado'] || ''),
-        verificacionInfo: ((si['verificacionInfo'] as Record<string, string>)?.['estado'] || ''),
-        nombreOficialSeguridad: si['nombreOficialSeguridad'] as string,
+        // ── Step 2: Autorización y Firma ────────────────────
+        cedula_firmante: [
+          '',
+          [Validators.required, Validators.pattern(/^\d{10}$/), cedulaEcuatorianaValidator()],
+        ],
+        fecha_firma: ['', [Validators.required, noFuturaValidator()]],
       },
-      gestionRRHH: this.extractGestionRRHH(rrhh),
-      nombreDirectorRRHH: rrhh['nombreDirectorRRHH'] as string,
-      recepcion: {
-        fechaEntrega: rec['fechaEntrega'] as string,
-        nHojasRecibidas: rec['nHojasRecibidas'] as number | null,
-        nombreQuienRecibe: rec['nombreQuienRecibe'] as string,
-        cargoQuienRecibe: rec['cargoQuienRecibe'] as string,
-      },
-      ccFirmante: au['ccFirmante'],
-      fechaFirma: au['fechaFirma'],
-    };
+      {
+        validators: [
+          fechasValidator('fecha_ingreso', 'fecha_salida'),
+          emailsDiferentesValidator(),
+        ],
+      }
+    );
   }
 
-  private extractGestionDoc(gd: Record<string, unknown>): MirrorData['gestionDoc'] {
-    const result: MirrorData['gestionDoc'] = {};
-    this.gestionDocumentalItems.forEach(item => {
-      const sub = (gd[item.key] || {}) as Record<string, string>;
-      result[item.key] = { estado: sub['estado'] || '', responsable: sub['responsable'] || '' };
-    });
-    return result;
+  // ─────────────────────────────────────────────────────────────
+  //  VALIDATORS CONDICIONALES (reactivos)
+  // ─────────────────────────────────────────────────────────────
+
+  private listenForConditionalValidators(): void {
+    // tramites_admin_contrato → campos condicionales de contrato
+    this.formularioPazSalvo.get('tramites_admin_contrato')!
+      .valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((val: string) => {
+        const desc = this.formularioPazSalvo.get('tramites_desc_contrato')!;
+        const memo = this.formularioPazSalvo.get('tramites_memo')!;
+        if (val === 'SI') {
+          desc.setValidators([Validators.required, Validators.minLength(3)]);
+          memo.setValidators([Validators.required, Validators.minLength(3)]);
+        } else {
+          desc.clearValidators();
+          memo.clearValidators();
+        }
+        desc.updateValueAndValidity({ emitEvent: false });
+        memo.updateValueAndValidity({ emitEvent: false });
+      });
+
+    // admin_deducibles → valor condicional obligatorio
+    this.formularioPazSalvo.get('admin_deducibles')!
+      .valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((val: string) => {
+        const ctrl = this.formularioPazSalvo.get('admin_deducibles_valor')!;
+        if (val === 'SI') {
+          ctrl.setValidators([Validators.required, Validators.min(0.01)]);
+        } else {
+          ctrl.clearValidators();
+        }
+        ctrl.updateValueAndValidity({ emitEvent: false });
+      });
+
+    // tic_backup → ruta obligatoria cuando backup = SI
+    this.formularioPazSalvo.get('tic_backup')!
+      .valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((val: string) => {
+        const ctrl = this.formularioPazSalvo.get('tic_ruta_backup')!;
+        if (val === 'SI') {
+          ctrl.setValidators([Validators.required, Validators.minLength(5)]);
+        } else {
+          ctrl.clearValidators();
+        }
+        ctrl.updateValueAndValidity({ emitEvent: false });
+      });
+
+    // fecha_ingreso → re-validar fecha_salida cuando cambia
+    this.formularioPazSalvo.get('fecha_ingreso')!
+      .valueChanges.pipe(debounceTime(100), takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.formularioPazSalvo.get('fecha_salida')!
+          .updateValueAndValidity({ emitEvent: false });
+      });
   }
 
-  private extractGestionAdmin(ga: Record<string, unknown>): MirrorData['gestionAdmin'] {
-    const result: MirrorData['gestionAdmin'] = {};
-    this.gestionAdminAllItems.forEach(item => {
-      const sub = (ga[item.key] || {}) as Record<string, unknown>;
-      result[item.key] = { estado: (sub['estado'] as string) || '', valor: sub['valor'] as number | null };
-    });
-    return result;
-  }
+  // ─────────────────────────────────────────────────────────────
+  //  HELPERS DE ROL
+  // ─────────────────────────────────────────────────────────────
 
-  private extractGestionTIC(tic: Record<string, unknown>): MirrorData['gestionTIC'] {
-    const result: MirrorData['gestionTIC'] = {};
-    this.gestionTICItems.forEach(item => {
-      const sub = (tic[item.key] || {}) as Record<string, string>;
-      result[item.key] = { estado: sub['estado'] || '', observacion: sub['observacion'] || '' };
-    });
-    return result;
-  }
-
-  private extractGestionFinanciera(gf: Record<string, unknown>): MirrorData['gestionFinanciera'] {
-    const result: MirrorData['gestionFinanciera'] = {};
-    this.gestionFinancieraItems.forEach(item => {
-      const sub = (gf[item.key] || {}) as Record<string, unknown>;
-      result[item.key] = {
-        estado: (sub['estado'] as string) || '',
-        valor: sub['valor'] as number | null,
-        observacion: (sub['observacion'] as string) || '',
-      };
-    });
-    return result;
-  }
-
-  private extractGestionRRHH(rrhh: Record<string, unknown>): MirrorData['gestionRRHH'] {
-    const result: MirrorData['gestionRRHH'] = {};
-    this.gestionRRHHItems.forEach(item => {
-      const sub = (rrhh[item.key] || {}) as Record<string, string>;
-      result[item.key] = { estado: sub['estado'] || '', numeroCertificado: sub['numeroCertificado'] || '' };
-    });
-    return result;
-  }
-
-  // ─── Helpers de rol ─────────────────────────────────────────
   esAdmin(): boolean {
     return this.usuario?.rol === 'Administrador';
   }
 
-  limpiarTexto(texto: any): string {
-    return String(texto || '').trim().replace(/\s+/g, ' ');
+  /**
+   * Devuelve true si el usuario actual puede editar el campo.
+   * - Administrador: puede editar todo.
+   * - Usuario normal: solo campos asignados que no estén bloqueados.
+   */
+  puedeEditarCampo(campo: string): boolean {
+    if (this.esAdmin()) return true;
+    return (
+      this.camposAsignadosUsuario.includes(campo) &&
+      !this.camposBloqueados.includes(campo)
+    );
   }
 
-  // ─── Navegación por steps ───────────────────────────────────
+  private limpiarTexto(texto: unknown): string {
+    return String(texto ?? '').trim().replace(/\s+/g, ' ');
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  NAVEGACIÓN POR STEPS
+  // ─────────────────────────────────────────────────────────────
+
   nextStep(): void {
-    if (!this.validateCurrentStep()) {
-      this.showToast('Corrija los errores antes de continuar.', 'error', '❌');
-      this.markCurrentStepDirty();
+    const errores = this.obtenerErroresPaso(this.currentStep);
+    if (errores.length > 0) {
+      this.erroresPaso = errores;
+      this.marcarCamposPasoTouched(this.currentStep);
+      this.cdr.markForCheck();
       return;
     }
+    this.erroresPaso = [];
     if (this.currentStep < this.steps.length - 1) {
       this.currentStep++;
-      this.scrollToTop();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       this.cdr.markForCheck();
     }
   }
 
   prevStep(): void {
+    this.erroresPaso = [];
     if (this.currentStep > 0) {
       this.currentStep--;
-      this.scrollToTop();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       this.cdr.markForCheck();
     }
   }
 
   goToStep(index: number): void {
+    // Solo permite ir a pasos anteriores o al actual
     if (index <= this.currentStep) {
+      this.erroresPaso = [];
       this.currentStep = index;
-      this.scrollToTop();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       this.cdr.markForCheck();
     }
   }
 
-  private scrollToTop(): void {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+  private obtenerErroresPaso(step: number): string[] {
+    const errores: string[] = [];
+    const campos = this.steps[step]?.campos ?? [];
+    campos.forEach(campo => {
+      const ctrl = this.formularioPazSalvo.get(campo);
+      if (!ctrl) return;
 
-  private validateCurrentStep(): boolean {
-    const groups = this.steps[this.currentStep].formGroups;
-    return groups.every(groupName => {
-      const group = this.mainForm.get(groupName);
-      return group ? group.valid : true;
+      // Skip campos no asignados al usuario (para no-admin)
+      if (!this.esAdmin() && !this.camposAsignadosUsuario.includes(campo)) return;
+
+      ctrl.markAsTouched();
+      ctrl.updateValueAndValidity({ emitEvent: false });
+
+      if (ctrl.invalid) {
+        const def = this.camposFormulario.find(c => c.id === campo);
+        errores.push(def?.etiqueta ?? campo);
+      }
     });
+
+    // Validadores cross-field del grupo
+    if (step === 0) {
+      if (this.formularioPazSalvo.errors?.['fechasInvalidas']) {
+        errores.push('La fecha de salida debe ser posterior a la fecha de ingreso.');
+      }
+      if (this.formularioPazSalvo.errors?.['emailsIguales']) {
+        errores.push('El email secundario no puede ser igual al principal.');
+      }
+    }
+    return [...new Set(errores)];
   }
 
-  private markCurrentStepDirty(): void {
-    const groups = this.steps[this.currentStep].formGroups;
-    groups.forEach(groupName => {
-      const group = this.mainForm.get(groupName) as FormGroup;
-      if (group) this.markGroupDirty(group);
-    });
-  }
-
-  private markGroupDirty(group: FormGroup): void {
-    Object.values(group.controls).forEach(ctrl => {
-      if (ctrl instanceof FormGroup) {
-        this.markGroupDirty(ctrl);
-      } else {
-        ctrl.markAsDirty();
+  private marcarCamposPasoTouched(step: number): void {
+    const campos = this.steps[step]?.campos ?? [];
+    campos.forEach(campo => {
+      const ctrl = this.formularioPazSalvo.get(campo);
+      if (ctrl) {
         ctrl.markAsTouched();
+        ctrl.markAsDirty();
       }
     });
   }
 
-  // ─── Validación helpers ─────────────────────────────────────
-  isInvalid(path: string): boolean {
-    const ctrl = this.mainForm.get(path);
-    return !!ctrl && ctrl.invalid && (ctrl.dirty || ctrl.touched);
+  // ─────────────────────────────────────────────────────────────
+  //  BORRADOR
+  // ─────────────────────────────────────────────────────────────
+
+  saveDraft(): void {
+    try {
+      localStorage.setItem(
+        'pazYSalvoDraft',
+        JSON.stringify(this.formularioPazSalvo.value)
+      );
+      this.showSwalToast('Borrador guardado correctamente.', 'success');
+    } catch {
+      this.showSwalToast('No se pudo guardar el borrador.', 'warning');
+    }
   }
 
-  getError(path: string, error: string): boolean {
-    return !!this.mainForm.get(path)?.hasError(error);
+  private loadDraft(): void {
+    try {
+      const draft = localStorage.getItem('pazYSalvoDraft');
+      if (draft) {
+        this.formularioPazSalvo.patchValue(JSON.parse(draft), { emitEvent: false });
+        this.showSwalToast('Se cargó un borrador guardado anteriormente.', 'info');
+      }
+    } catch {
+      // silencioso
+    }
   }
 
-  puedeEditarCampo(campo: string): boolean {
-    if (this.esAdmin()) return true;
-    return this.camposAsignadosUsuario.includes(campo) && !this.camposBloqueados.includes(campo);
-  }
+  // ─────────────────────────────────────────────────────────────
+  //  FIRMA
+  // ─────────────────────────────────────────────────────────────
 
-  // ─── Firma ──────────────────────────────────────────────────
-  setFirmaMode(mode: 'canvas' | 'upload' | 'firmaec'): void {
+  setFirmaMode(mode: 'canvas' | 'upload'): void {
     this.firmaMode = mode;
     if (mode === 'canvas') {
-      setTimeout(() => this.initCanvas(), 50);
+      setTimeout(() => this.initCanvas(), 60);
     }
     this.cdr.markForCheck();
   }
 
   private initCanvas(): void {
-    if (!this.firmaCanvasRef) return;
+    if (!this.firmaCanvasRef?.nativeElement) return;
     const canvas = this.firmaCanvasRef.nativeElement;
-    this.ctx = canvas.getContext('2d');
-    if (!this.ctx) return;
-    this.ctx.strokeStyle = '#0d2b5e';
-    this.ctx.lineWidth = 2.5;
-    this.ctx.lineCap = 'round';
-    this.ctx.lineJoin = 'round';
+    this.canvasCtx = canvas.getContext('2d');
+    if (!this.canvasCtx) return;
+    this.canvasCtx.strokeStyle = '#0d2b5e';
+    this.canvasCtx.lineWidth = 2.5;
+    this.canvasCtx.lineCap = 'round';
+    this.canvasCtx.lineJoin = 'round';
   }
 
   startDrawing(event: MouseEvent): void {
-    if (!this.ctx) this.initCanvas();
+    if (!this.canvasCtx) this.initCanvas();
+    if (!this.canvasCtx) return;
     this.isDrawingCanvas = true;
-    this.ctx?.beginPath();
-    const pos = this.getCanvasPos(event);
-    this.ctx?.moveTo(pos.x, pos.y);
+    const pos = this.getMousePos(event);
+    this.canvasCtx.beginPath();
+    this.canvasCtx.moveTo(pos.x, pos.y);
     this.hasFirma = true;
     this.firmaRequired = false;
+    this.cdr.markForCheck();
   }
 
   draw(event: MouseEvent): void {
-    if (!this.isDrawingCanvas || !this.ctx) return;
+    if (!this.isDrawingCanvas || !this.canvasCtx) return;
     event.preventDefault();
-    const pos = this.getCanvasPos(event);
-    this.ctx.lineTo(pos.x, pos.y);
-    this.ctx.stroke();
+    const pos = this.getMousePos(event);
+    this.canvasCtx.lineTo(pos.x, pos.y);
+    this.canvasCtx.stroke();
   }
 
   startDrawingTouch(event: TouchEvent): void {
     event.preventDefault();
-    if (!this.ctx) this.initCanvas();
+    if (!this.canvasCtx) this.initCanvas();
+    if (!this.canvasCtx) return;
     this.isDrawingCanvas = true;
-    const pos = this.getTouchCanvasPos(event);
-    this.ctx?.beginPath();
-    this.ctx?.moveTo(pos.x, pos.y);
+    const pos = this.getTouchPos(event);
+    this.canvasCtx.beginPath();
+    this.canvasCtx.moveTo(pos.x, pos.y);
     this.hasFirma = true;
     this.firmaRequired = false;
+    this.cdr.markForCheck();
   }
 
   drawTouch(event: TouchEvent): void {
-    if (!this.isDrawingCanvas || !this.ctx) return;
+    if (!this.isDrawingCanvas || !this.canvasCtx) return;
     event.preventDefault();
-    const pos = this.getTouchCanvasPos(event);
-    this.ctx.lineTo(pos.x, pos.y);
-    this.ctx.stroke();
+    const pos = this.getTouchPos(event);
+    this.canvasCtx.lineTo(pos.x, pos.y);
+    this.canvasCtx.stroke();
   }
 
   stopDrawing(): void {
+    if (!this.isDrawingCanvas) return;
     this.isDrawingCanvas = false;
-    if (this.firmaMode === 'canvas' && this.hasFirma && this.firmaCanvasRef) {
+    if (
+      this.firmaMode === 'canvas' &&
+      this.hasFirma &&
+      this.firmaCanvasRef?.nativeElement
+    ) {
       this.firmaImagePreview = this.firmaCanvasRef.nativeElement.toDataURL('image/png');
       this.cdr.markForCheck();
     }
   }
 
-  private getCanvasPos(event: MouseEvent): { x: number; y: number } {
+  clearFirma(): void {
+    this.firmaImagePreview = null;
+    this.hasFirma = false;
+    if (this.canvasCtx && this.firmaCanvasRef?.nativeElement) {
+      const c = this.firmaCanvasRef.nativeElement;
+      this.canvasCtx.clearRect(0, 0, c.width, c.height);
+    }
+    this.cdr.markForCheck();
+  }
+
+  onFirmaFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    // Validar tamaño máx 2 MB
+    if (file.size > 2 * 1024 * 1024) {
+      this.showSwalToast('La imagen no debe superar 2 MB.', 'warning');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.firmaImagePreview = e.target?.result as string;
+      this.hasFirma = true;
+      this.firmaRequired = false;
+      this.cdr.markForCheck();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  private getMousePos(event: MouseEvent): { x: number; y: number } {
     const canvas = this.firmaCanvasRef.nativeElement;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -812,7 +775,7 @@ export class Formularios implements OnInit, OnDestroy {
     };
   }
 
-  private getTouchCanvasPos(event: TouchEvent): { x: number; y: number } {
+  private getTouchPos(event: TouchEvent): { x: number; y: number } {
     const canvas = this.firmaCanvasRef.nativeElement;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -824,106 +787,135 @@ export class Formularios implements OnInit, OnDestroy {
     };
   }
 
-  clearFirma(): void {
-    this.firmaImagePreview = null;
-    this.hasFirma = false;
-    if (this.ctx && this.firmaCanvasRef) {
-      const canvas = this.firmaCanvasRef.nativeElement;
-      this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // ─────────────────────────────────────────────────────────────
+  //  VALIDAR Y GUARDAR (botón del último paso)
+  // ─────────────────────────────────────────────────────────────
+
+  validarYActualizarEspejo(): void {
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Validación', 'Seleccione un formulario primero.');
+      return;
     }
-    this.cdr.markForCheck();
-  }
 
-  onFirmaFileChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      this.firmaImagePreview = e.target?.result as string;
-      this.hasFirma = true;
-      this.firmaRequired = false;
-      this.cdr.markForCheck();
-    };
-    reader.readAsDataURL(file);
-  }
-
-  // ─── Submit ─────────────────────────────────────────────────
-  onSubmit(): void {
-    this.markGroupDirty(this.mainForm as FormGroup);
-
+    // Validar firma obligatoria en último paso
     if (!this.hasFirma) {
       this.firmaRequired = true;
-      this.showToast('La firma digital es OBLIGATORIA.', 'error', '✍️');
+      this.cdr.markForCheck();
+      this.alertaRapida('Firma requerida', 'Debe registrar su firma para continuar.');
+      return;
+    }
+
+    if (this.esAdmin()) {
+      this.validarTodoYEnviar();
+    } else {
+      this.guardarCamposAsignados();
+    }
+  }
+
+  private validarTodoYEnviar(): void {
+    // Marcar todos los campos como tocados para mostrar errores
+    Object.keys(this.formularioPazSalvo.controls).forEach(key => {
+      this.formularioPazSalvo.get(key)?.markAsTouched();
+    });
+
+    if (this.formularioPazSalvo.invalid) {
+      this.alertaRapida('Formulario incompleto', 'Revise todos los campos obligatorios antes de validar.');
       this.cdr.markForCheck();
       return;
     }
 
-    if (this.mainForm.invalid) {
-      this.showToast('El formulario tiene errores. Revise todos los campos.', 'error', '❌');
-      this.cdr.markForCheck();
-      return;
-    }
-
-    this.isSubmitting = true;
-    this.cdr.markForCheck();
-
-    const payload = {
-      ...this.mainForm.value,
-      firma: this.firmaImagePreview,
-      submittedAt: new Date().toISOString(),
-    };
-
-    // Reemplazar con servicio real cuando esté disponible
-    setTimeout(() => {
-      console.log('[PazYSalvo] Payload:', payload);
-      this.isSubmitting = false;
-      this.showToast('Formulario enviado correctamente.', 'success', '✅');
+    Swal.fire({
+      icon: 'success',
+      title: 'Formulario validado',
+      text: 'El formulario Paz y Salvo ha sido validado correctamente.',
+      confirmButtonText: 'Aceptar',
+    }).then(() => {
       localStorage.removeItem('pazYSalvoDraft');
+    });
+  }
+
+  private guardarCamposAsignados(): void {
+    const camposAGuardar = this.camposAsignadosUsuario.filter(campo => {
+      if (this.camposBloqueados.includes(campo)) return false;
+      const ctrl = this.formularioPazSalvo.get(campo);
+      return ctrl && this.limpiarTexto(ctrl.value) !== '';
+    });
+
+    if (camposAGuardar.length === 0) {
+      this.alertaRapida('Sin cambios', 'No hay campos nuevos para guardar.');
+      return;
+    }
+
+    // Validar solo los campos asignados
+    let hayErrores = false;
+    camposAGuardar.forEach(campo => {
+      const ctrl = this.formularioPazSalvo.get(campo);
+      ctrl?.markAsTouched();
+      ctrl?.updateValueAndValidity({ emitEvent: false });
+      if (ctrl?.invalid) hayErrores = true;
+    });
+
+    if (hayErrores) {
+      this.alertaRapida('Validación', 'Corrija los errores en los campos asignados.');
       this.cdr.markForCheck();
-    }, 1800);
-  }
-
-  // ─── Draft ──────────────────────────────────────────────────
-  saveDraft(): void {
-    try {
-      localStorage.setItem('pazYSalvoDraft', JSON.stringify(this.mainForm.value));
-      this.showToast('Borrador guardado correctamente.', 'info', '💾');
-    } catch {
-      this.showToast('No se pudo guardar el borrador.', 'warning', '⚠️');
+      return;
     }
+
+    this.cargando = true;
+    let guardados = 0;
+    let errores = 0;
+
+    camposAGuardar.forEach(campo => {
+      const ctrl = this.formularioPazSalvo.get(campo);
+      this.formulariosService
+        .responder({
+          formulario_id: this.formularioSeleccionado.id,
+          campo,
+          respuesta: this.limpiarTexto(ctrl?.value),
+        })
+        .subscribe({
+          next: () => {
+            guardados++;
+            if (guardados + errores === camposAGuardar.length) {
+              this.cargando = false;
+              this.cdr.markForCheck();
+              if (errores === 0) {
+                Swal.fire('Guardado', 'Campos guardados correctamente.', 'success');
+                localStorage.removeItem('pazYSalvoDraft');
+                this.cargarDetalleFormulario(this.formularioSeleccionado);
+              } else {
+                Swal.fire('Advertencia', `Se guardaron ${guardados} campos. Fallaron ${errores}.`, 'warning');
+              }
+            }
+          },
+          error: () => {
+            errores++;
+            if (guardados + errores === camposAGuardar.length) {
+              this.cargando = false;
+              this.cdr.markForCheck();
+              Swal.fire('Error parcial', `Se guardaron ${guardados} campos. Fallaron ${errores}.`, 'warning');
+            }
+          },
+        });
+    });
   }
 
-  private loadDraft(): void {
-    try {
-      const draft = localStorage.getItem('pazYSalvoDraft');
-      if (draft) {
-        this.mainForm.patchValue(JSON.parse(draft));
-        this.showToast('Se cargó un borrador guardado.', 'info', '💾');
-      }
-    } catch {
-      // silencioso
-    }
-  }
-
-  // ─── Gestión de formularios (servicio) ──────────────────────
-  alertaRapida(titulo: string, texto: string): void {
-    if (this.alertaActiva) return;
-    this.alertaActiva = true;
-    Swal.fire({ icon: 'warning', title: titulo, text: texto, timer: 1800, showConfirmButton: false })
-      .then(() => (this.alertaActiva = false));
-  }
+  // ─────────────────────────────────────────────────────────────
+  //  CARGA DE FORMULARIOS (servicio)
+  // ─────────────────────────────────────────────────────────────
 
   cargarFormularios(): void {
     this.cargando = true;
     this.formulariosService.listar().pipe(
-      timeout(4000),
+      timeout(8000),
       catchError((err: any) => {
-        Swal.fire('Error', err.error?.mensaje || 'Error al cargar formularios', 'error');
+        Swal.fire('Error', err?.error?.mensaje ?? 'Error al cargar formularios.', 'error');
         return of([]);
       }),
       finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
-    ).subscribe((data: any[]) => { this.formularios = data || []; });
+    ).subscribe((data: any[]) => {
+      this.formularios = data ?? [];
+    });
   }
 
   crearFormulario(): void {
@@ -932,111 +924,140 @@ export class Formularios implements OnInit, OnDestroy {
       return;
     }
     this.cargando = true;
-    this.formulariosService.crear({ titulo: 'PAZ Y SALVO', descripcion: 'Formulario oficial de Paz y Salvo' }).pipe(
-      timeout(4000),
-      catchError((err: any) => {
-        Swal.fire('Error', err.error?.mensaje || 'Error al crear formulario', 'error');
-        return of(null);
-      }),
-      finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
-    ).subscribe((res: any) => {
-      if (!res) return;
-      Swal.fire('Creado', 'Formulario Paz y Salvo creado correctamente.', 'success');
-      this.cargarFormularios();
-    });
+    this.formulariosService
+      .crear({ titulo: 'PAZ Y SALVO', descripcion: 'Formulario oficial de Paz y Salvo' })
+      .pipe(
+        timeout(8000),
+        catchError((err: any) => {
+          Swal.fire('Error', err?.error?.mensaje ?? 'Error al crear formulario.', 'error');
+          return of(null);
+        }),
+        finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
+      )
+      .subscribe((res: any) => {
+        if (!res) return;
+        Swal.fire('Creado', 'Formulario Paz y Salvo creado correctamente.', 'success');
+        this.cargarFormularios();
+      });
   }
 
   verFormulario(f: any): void {
     this.formularioSeleccionado = f;
+    this.erroresPaso = [];
+    this.currentStep = 0;
     this.cargarDetalleFormulario(f);
+    this.cdr.markForCheck();
   }
 
   cargarDetalleFormulario(f: any): void {
     this.cargando = true;
-    this.mainForm.reset();
+    this.formularioPazSalvo.reset();
     this.camposAsignadosUsuario = [];
     this.camposBloqueados = [];
     this.camposYaDesignados = [];
     this.camposFormulario.forEach(c => { c.bloqueado = false; c.seleccionado = false; });
 
     this.formulariosService.ver(f.id).pipe(
-      timeout(4000),
+      timeout(8000),
       catchError((err: any) => {
-        Swal.fire('Error', err.error?.mensaje || 'No se pudo cargar formulario', 'error');
+        Swal.fire('Error', err?.error?.mensaje ?? 'No se pudo cargar el formulario.', 'error');
         return of(null);
       }),
       finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
     ).subscribe((data: any) => {
       if (!data) return;
-      this.formularioSeleccionado = data.formulario;
-      const preguntas = data.preguntas || [];
-      const valores: any = {};
+
+      this.formularioSeleccionado = data.formulario ?? f;
+      const preguntas: any[] = data.preguntas ?? [];
+      const valores: Record<string, unknown> = {};
 
       preguntas.forEach((p: any) => {
-        const campo = p.codigo || p.campo || p.pregunta;
-        if (campo && this.mainForm.get(campo)) {
-          this.camposAsignadosUsuario.push(campo);
-          if (p.respuesta) { valores[campo] = p.respuesta; this.camposBloqueados.push(campo); }
-          if (p.ya_asignado === 1 || p.asignacion_id) this.camposYaDesignados.push(campo);
+        const campo: string = p.codigo ?? p.campo ?? p.pregunta ?? '';
+        if (!campo || !this.formularioPazSalvo.get(campo)) return;
+
+        this.camposAsignadosUsuario.push(campo);
+
+        if (p.respuesta !== null && p.respuesta !== undefined && p.respuesta !== '') {
+          valores[campo] = p.respuesta;
+          this.camposBloqueados.push(campo);
+        }
+
+        if (p.ya_asignado === 1 || p.asignacion_id) {
+          this.camposYaDesignados.push(campo);
         }
       });
 
-      this.camposYaDesignados = [...new Set(this.camposYaDesignados)];
+      // Deduplicar
+      this.camposAsignadosUsuario = [...new Set(this.camposAsignadosUsuario)];
+      this.camposBloqueados       = [...new Set(this.camposBloqueados)];
+      this.camposYaDesignados     = [...new Set(this.camposYaDesignados)];
+
+      // Marcar campos ya designados como bloqueados en el catálogo de checkboxes (admin)
       this.camposFormulario.forEach(c => {
         c.bloqueado = this.camposYaDesignados.includes(c.id);
         if (c.bloqueado) c.seleccionado = false;
       });
-      this.camposAsignadosUsuario = [...new Set(this.camposAsignadosUsuario)];
-      this.camposBloqueados = [...new Set(this.camposBloqueados)];
 
-      this.mainForm.patchValue(valores);
-      this.bloquearCamposNoPermitidos();
+      this.formularioPazSalvo.patchValue(valores, { emitEvent: false });
+      this.aplicarPermisosCampos();
       this.cdr.markForCheck();
     });
   }
 
-  bloquearCamposNoPermitidos(): void {
-    const recorrerGrupo = (group: FormGroup) => {
-      Object.keys(group.controls).forEach(key => {
-        const ctrl = group.get(key);
-        if (ctrl instanceof FormGroup) {
-          recorrerGrupo(ctrl);
-        } else {
-          if (this.esAdmin()) {
-            ctrl?.enable({ emitEvent: false });
-          } else if (!this.camposAsignadosUsuario.includes(key) || this.camposBloqueados.includes(key)) {
-            ctrl?.disable({ emitEvent: false });
-          } else {
-            ctrl?.enable({ emitEvent: false });
-          }
-        }
-      });
-    };
-    recorrerGrupo(this.mainForm);
+  /** Habilita / deshabilita controles según rol y asignación. */
+  private aplicarPermisosCampos(): void {
+    Object.keys(this.formularioPazSalvo.controls).forEach(key => {
+      const ctrl = this.formularioPazSalvo.get(key);
+      if (!ctrl) return;
+
+      if (this.esAdmin()) {
+        ctrl.enable({ emitEvent: false });
+      } else if (
+        this.camposAsignadosUsuario.includes(key) &&
+        !this.camposBloqueados.includes(key)
+      ) {
+        ctrl.enable({ emitEvent: false });
+      } else {
+        ctrl.disable({ emitEvent: false });
+      }
+    });
   }
 
   cargarUsuariosDisponibles(): void {
     this.formulariosService.usuariosDisponibles().pipe(
-      timeout(4000), catchError(() => of([]))
-    ).subscribe((data: any[]) => { this.usuariosDisponibles = data || []; });
-  }
-
-  cargarPendientes(): void {
-    this.formulariosService.misPendientes().pipe(catchError(() => of([])))
-      .subscribe((data: any[]) => { this.pendientes = data || []; });
+      timeout(8000),
+      catchError(() => of([]))
+    ).subscribe((data: any[]) => {
+      this.usuariosDisponibles = data ?? [];
+      this.cdr.markForCheck();
+    });
   }
 
   cargarNotificaciones(): void {
-    this.formulariosService.notificaciones().pipe(catchError(() => of([])))
-      .subscribe((data: any[]) => { this.notificaciones = data || []; });
+    this.formulariosService.notificaciones().pipe(
+      catchError(() => of([]))
+    ).subscribe((data: any[]) => {
+      this.notificaciones = data ?? [];
+      this.cdr.markForCheck();
+    });
   }
 
-  marcarNotificacionLeida(n: any): void {
-    this.formulariosService.marcarNotificacionLeida(n.id).subscribe(() => { n.leido = 1; });
+  marcarNotificacionLeida(n: NotificacionItem): void {
+    if (n.leido) return;
+    this.formulariosService.marcarNotificacionLeida(n.id).subscribe({
+      next: () => {
+        n.leido = true;
+        this.cdr.markForCheck();
+      },
+      error: () => { /* silencioso */ },
+    });
   }
 
-  // ─── Designación de campos ──────────────────────────────────
-  camposSeleccionados(): any[] {
+  // ─────────────────────────────────────────────────────────────
+  //  DESIGNACIÓN DE CAMPOS (panel admin)
+  // ─────────────────────────────────────────────────────────────
+
+  camposSeleccionados(): CampoFormulario[] {
     return this.camposFormulario.filter(c => c.seleccionado && !c.bloqueado);
   }
 
@@ -1049,210 +1070,189 @@ export class Formularios implements OnInit, OnDestroy {
   }
 
   designarCampos(): void {
-    const bloqueadosSeleccionados = this.camposFormulario.filter(c => c.seleccionado && c.bloqueado);
-    if (bloqueadosSeleccionados.length > 0) {
-      this.alertaRapida('Bloqueado', 'No puede designar campos que ya fueron asignados.');
-      return;
-    }
-    if (!this.esAdmin()) return;
+    this.asignacionSubmitted = true;
+
     if (!this.formularioSeleccionado?.id) {
       this.alertaRapida('Validación', 'Seleccione un formulario primero.');
       return;
     }
+
     const seleccionados = this.camposSeleccionados();
     if (seleccionados.length === 0) {
-      this.alertaRapida('Validación', 'Seleccione al menos un campo.');
+      this.alertaRapida('Validación', 'Seleccione al menos un campo disponible.');
       return;
     }
+
     if (!this.asignacion.usuario_id) {
       this.alertaRapida('Validación', 'Seleccione un usuario destino.');
       return;
     }
 
-    const data = {
+    const payload = {
       formulario_id: this.formularioSeleccionado.id,
-      campos: seleccionados.map(c => ({ codigo: c.id, pregunta: c.etiqueta, seccion: c.seccion, tipo: c.tipo })),
+      campos: seleccionados.map(c => ({
+        codigo:   c.id,
+        pregunta: c.etiqueta,
+        seccion:  c.seccion,
+        tipo:     c.tipo,
+      })),
       usuario_id: this.asignacion.usuario_id,
       rol: null,
     };
 
     this.cargando = true;
-    this.formulariosService.asignar(data).pipe(
-      timeout(4000),
+    this.formulariosService.asignar(payload).pipe(
+      timeout(8000),
       catchError((err: any) => {
-        Swal.fire('Error', err.error?.mensaje || err.error?.error || 'Error al designar campos', 'error');
+        Swal.fire('Error', err?.error?.mensaje ?? err?.error?.error ?? 'Error al designar campos.', 'error');
         return of(null);
       }),
       finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
     ).subscribe((res: any) => {
       if (!res) return;
-      Swal.fire('Enviado', res.mensaje || 'Campos designados correctamente.', 'success');
+      Swal.fire('Enviado', res.mensaje ?? 'Campos designados correctamente.', 'success');
       this.asignacion = { usuario_id: '' };
+      this.asignacionSubmitted = false;
       this.limpiarSeleccionCampos();
       this.cargarDetalleFormulario(this.formularioSeleccionado);
     });
   }
 
-  // ─── Guardar respuestas ─────────────────────────────────────
-  validarYActualizarEspejo(): void {
-    if (!this.formularioSeleccionado?.id) {
-      this.alertaRapida('Validación', 'Seleccione un formulario primero.');
-      return;
-    }
-    if (!this.validarPazSalvo()) return;
-    if (!this.esAdmin()) {
-      this.guardarCamposAsignados();
-      return;
-    }
-    Swal.fire('Correcto', 'Formulario validado correctamente.', 'success');
-  }
+  // ─────────────────────────────────────────────────────────────
+  //  ELIMINAR FORMULARIO
+  // ─────────────────────────────────────────────────────────────
 
-  validarPazSalvo(): boolean {
-    if (this.esAdmin()) {
-      if (this.mainForm.invalid) {
-        this.mainForm.markAllAsTouched();
-        this.alertaRapida('Validación', 'Revise todos los campos obligatorios.');
-        return false;
-      }
-      return true;
-    }
-
-    const camposEditables = this.camposAsignadosUsuario.filter(c => !this.camposBloqueados.includes(c));
-    if (camposEditables.length === 0) {
-      this.alertaRapida('Sin campos', 'No tiene campos pendientes para llenar.');
-      return false;
-    }
-
-    for (const campo of camposEditables) {
-      const control = this.mainForm.get(campo);
-      if (!control) continue;
-      control.markAsTouched();
-      control.updateValueAndValidity();
-      if (control.invalid || !this.limpiarTexto(control.value)) {
-        this.alertaRapida('Validación', `Revise el campo: ${campo}`);
-        return false;
-      }
-    }
-    return true;
-  }
-
-  guardarCamposAsignados(): void {
-    const campos = this.camposAsignadosUsuario.filter(campo => {
-      const control = this.mainForm.get(campo);
-      return !this.camposBloqueados.includes(campo) && control && this.limpiarTexto(control.value) !== '';
-    });
-
-    if (campos.length === 0) {
-      this.alertaRapida('Validación', 'No hay campos nuevos para guardar.');
-      return;
-    }
-
-    let guardados = 0;
-    campos.forEach(campo => {
-      const control = this.mainForm.get(campo);
-      this.formulariosService.responder({
-        formulario_id: this.formularioSeleccionado.id,
-        campo,
-        respuesta: this.limpiarTexto(control?.value),
-      }).subscribe({
-        next: () => {
-          guardados++;
-          if (guardados === campos.length) {
-            Swal.fire('Guardado', 'Campos asignados guardados correctamente.', 'success');
-            this.cargarDetalleFormulario(this.formularioSeleccionado);
-            this.cargarPendientes();
-          }
-        },
-        error: (err) => {
-          Swal.fire('Error', err?.error?.mensaje || err?.error?.error || 'Error al guardar campos', 'error');
-        },
-      });
-    });
-  }
-
-  // ─── Eliminar formulario ────────────────────────────────────
   eliminarFormulario(f: any, event: Event): void {
     event.stopPropagation();
+
     if (!this.esAdmin()) {
       this.alertaRapida('Sin permisos', 'Solo el Administrador puede eliminar formularios.');
       return;
     }
+
     Swal.fire({
       title: '¿Eliminar formulario?',
-      text: `Se eliminará: ${f.titulo}`,
+      text: `Esta acción no se puede deshacer: "${f.titulo}"`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc2626',
     }).then(result => {
       if (!result.isConfirmed) return;
+
       this.cargando = true;
       this.formulariosService.eliminar(f.id).pipe(
-        timeout(4000),
+        timeout(8000),
         catchError((err: any) => {
-          Swal.fire('Error', err.error?.mensaje || 'Error al eliminar formulario', 'error');
+          Swal.fire('Error', err?.error?.mensaje ?? 'Error al eliminar formulario.', 'error');
           return of(null);
         }),
         finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
       ).subscribe((res: any) => {
         if (!res) return;
         Swal.fire('Eliminado', 'Formulario eliminado correctamente.', 'success');
-        if (this.formularioSeleccionado?.id === f.id) this.formularioSeleccionado = null;
+        if (this.formularioSeleccionado?.id === f.id) {
+          this.formularioSeleccionado = null;
+        }
         this.cargarFormularios();
       });
     });
   }
 
-  // ─── Exportar PDF ────────────────────────────────────────────
-  async exportarHojaEspejoPDF(): Promise<void> {
-    if (!this.formularioSeleccionado?.id) return;
-    const html2canvas = (await import('html2canvas')).default;
-    const jsPDF = (await import('jspdf')).default;
-    const element = document.querySelector('.a4-page') as HTMLElement;
-    if (!element) { Swal.fire('Error', 'No se encontró el documento A4', 'error'); return; }
-    const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgWidth = 210;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-    pdf.save('formulario-paz-y-salvo.pdf');
-  }
-
-  descargarPDF(): void {
-    if (!this.formularioSeleccionado?.id) {
-      this.alertaRapida('Validación', 'Seleccione un formulario primero.');
-      return;
-    }
-    window.open(`http://localhost:5000/api/formularios/${this.formularioSeleccionado.id}/pdf`, '_blank');
-  }
+  // ─────────────────────────────────────────────────────────────
+  //  EXPORTAR / IMPRIMIR
+  // ─────────────────────────────────────────────────────────────
 
   printMirror(): void {
     window.print();
   }
 
-  // ─── Acordeón ────────────────────────────────────────────────
+  async exportarHojaEspejoPDF(): Promise<void> {
+    const element = document.querySelector('#hojaEspejo') as HTMLElement;
+    if (!element) {
+      Swal.fire('Error', 'No se encontró el documento para exportar.', 'error');
+      return;
+    }
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth  = 210;
+      const pageHeight = 297;
+      const imgHeight  = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft   = imgHeight;
+      let position     = 0;
+
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const nombreArchivo = `paz-y-salvo-${this.formularioSeleccionado?.id ?? 'formulario'}.pdf`;
+      pdf.save(nombreArchivo);
+    } catch {
+      Swal.fire('Error', 'No se pudo generar el PDF. Intente de nuevo.', 'error');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  ACORDEÓN (panel admin)
+  // ─────────────────────────────────────────────────────────────
+
   toggleSeccion(key: string): void {
     this.seccionesAbiertas[key] = !this.seccionesAbiertas[key];
   }
 
   isOpen(key: string): boolean {
-    return this.seccionesAbiertas[key];
+    return !!this.seccionesAbiertas[key];
   }
 
-  // ─── Toasts ─────────────────────────────────────────────────
-  showToast(message: string, type: ToastMessage['type'], icon: string): void {
-    const id = ++this.toastCounter;
-    const icons: Record<ToastMessage['type'], string> = {
-      success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️',
-    };
-    this.toasts.push({ id, message, type, icon: icon || icons[type] });
-    this.cdr.markForCheck();
-    setTimeout(() => this.removeToast(id), 4500);
+  // ─────────────────────────────────────────────────────────────
+  //  HELPERS INTERNOS
+  // ─────────────────────────────────────────────────────────────
+
+  /** Muestra un toast no bloqueante usando SweetAlert2. */
+  private showSwalToast(
+    mensaje: string,
+    icono: 'success' | 'error' | 'warning' | 'info' = 'info'
+  ): void {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: icono,
+      title: mensaje,
+      showConfirmButton: false,
+      timer: 3500,
+      timerProgressBar: true,
+    });
   }
 
-  removeToast(id: number): void {
-    this.toasts = this.toasts.filter(t => t.id !== id);
-    this.cdr.markForCheck();
+  /** Muestra una alerta modal pequeña y no apilable. */
+  alertaRapida(titulo: string, texto: string): void {
+    if (this.alertaActiva) return;
+    this.alertaActiva = true;
+    Swal.fire({
+      icon: 'warning',
+      title: titulo,
+      text: texto,
+      timer: 2500,
+      showConfirmButton: false,
+    }).then(() => (this.alertaActiva = false));
   }
 }

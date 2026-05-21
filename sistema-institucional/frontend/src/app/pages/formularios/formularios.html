@@ -12,7 +12,9 @@
     <button class="back" routerLink="/dashboard">← Volver</button>
   </div>
 
-  <div class="loading" *ngIf="cargando">Cargando información...</div>
+  <div class="loading" *ngIf="cargando">
+    <span class="loading-spinner"></span> Cargando información...
+  </div>
 
   <!-- ════════════════════════════════════════════════
        NOTIFICACIONES
@@ -20,13 +22,21 @@
   <section class="card fade-in" *ngIf="notificaciones.length > 0">
     <div class="card-title">
       <h2>🔔 Notificaciones</h2>
-      <span>Total: {{ notificaciones.length }}</span>
+      <span class="badge-count">Total: {{ notificaciones.length }}</span>
     </div>
     <div class="lista">
-      <div class="item" *ngFor="let n of notificaciones" (click)="marcarNotificacionLeida(n)">
+      <div class="item"
+           *ngFor="let n of notificaciones"
+           (click)="marcarNotificacionLeida(n)"
+           [class.item-leido]="n.leido"
+           role="button"
+           tabindex="0"
+           [attr.aria-label]="'Notificación: ' + n.titulo + '. ' + (n.leido ? 'Leída' : 'Nueva')">
         <h3>{{ n.titulo }}</h3>
         <p>{{ n.mensaje }}</p>
-        <span class="estado">{{ n.leido ? 'LEÍDO' : 'NUEVO' }}</span>
+        <span class="estado" [class.estado-leido]="n.leido" [class.estado-nuevo]="!n.leido">
+          {{ n.leido ? 'LEÍDO' : 'NUEVO' }}
+        </span>
       </div>
     </div>
   </section>
@@ -40,10 +50,15 @@
         <h2>Crear formulario Paz y Salvo</h2>
         <p>Se creará automáticamente el formulario oficial.</p>
       </div>
-      <span>Solo administrador</span>
+      <span class="badge-admin">Solo administrador</span>
     </div>
     <div class="actions">
-      <button class="btn-primary" type="button" (click)="crearFormulario()" [disabled]="cargando">
+      <button class="btn-primary"
+              type="button"
+              (click)="crearFormulario()"
+              [disabled]="cargando"
+              [attr.aria-busy]="cargando">
+        <span *ngIf="cargando" class="btn-spinner"></span>
         {{ cargando ? 'Creando...' : 'Crear formulario Paz y Salvo' }}
       </button>
     </div>
@@ -55,14 +70,24 @@
   <section class="card fade-in">
     <div class="card-title">
       <h2>Listado de formularios</h2>
-      <span>Total: {{ formularios.length }}</span>
+      <span class="badge-count">Total: {{ formularios.length }}</span>
     </div>
     <div class="lista" *ngIf="formularios.length > 0">
-      <div class="item hover-scale" *ngFor="let f of formularios" (click)="verFormulario(f)"
-        [class.item-activo]="formularioSeleccionado?.id === f.id">
+      <div class="item hover-scale"
+           *ngFor="let f of formularios"
+           (click)="verFormulario(f)"
+           [class.item-activo]="formularioSeleccionado?.id === f.id"
+           role="button"
+           tabindex="0"
+           [attr.aria-pressed]="formularioSeleccionado?.id === f.id"
+           [attr.aria-label]="'Formulario: ' + f.titulo + '. Estado: ' + (f.estado || 'BORRADOR')">
         <div class="card-title">
           <h3>{{ f.titulo }}</h3>
-          <button *ngIf="esAdmin()" type="button" class="btn-danger" (click)="eliminarFormulario(f, $event)">
+          <button *ngIf="esAdmin()"
+                  type="button"
+                  class="btn-danger"
+                  (click)="eliminarFormulario(f, $event)"
+                  [attr.aria-label]="'Eliminar formulario ' + f.titulo">
             Eliminar
           </button>
         </div>
@@ -84,7 +109,7 @@
   <section *ngIf="formularioSeleccionado && esAdmin()" class="card fade-in">
     <div class="card-title">
       <h2>Designar campos del formulario</h2>
-      <span>{{ camposSeleccionados().length }} seleccionado(s)</span>
+      <span class="badge-count">{{ camposSeleccionados().length }} seleccionado(s)</span>
     </div>
     <div class="actions">
       <button type="button" (click)="seleccionarTodosCampos()">Seleccionar disponibles</button>
@@ -95,18 +120,26 @@
 
       <!-- 1. Datos Personales -->
       <div class="accordion-item">
-        <div class="accordion-header" (click)="toggleSeccion('personales')">
+        <div class="accordion-header"
+             (click)="toggleSeccion('personales')"
+             role="button"
+             tabindex="0"
+             [attr.aria-expanded]="isOpen('personales')">
           <h3>1. Datos Personales</h3>
-          <span>{{ isOpen('personales') ? '−' : '+' }}</span>
+          <span aria-hidden="true">{{ isOpen('personales') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('personales')">
+        <div class="accordion-body" *ngIf="isOpen('personales')" role="region">
           <div class="grid-campos">
-            <label class="campo-card" *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Datos Personales')"
-              [class.campo-designado]="c.bloqueado">
-              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
+            <label class="campo-card"
+                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Datos Personales')"
+                   [class.campo-designado]="c.bloqueado">
+              <input type="checkbox"
+                     [(ngModel)]="c.seleccionado"
+                     [disabled]="c.bloqueado"
+                     [attr.aria-describedby]="'campo-estado-' + c.nombre">
               <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
+              <span class="estado" [id]="'campo-estado-' + c.nombre" *ngIf="c.bloqueado">YA DESIGNADO</span>
+              <span class="estado" [id]="'campo-estado-' + c.nombre" *ngIf="!c.bloqueado">DISPONIBLE</span>
             </label>
           </div>
         </div>
@@ -114,15 +147,19 @@
 
       <!-- 2. Dirección / Unidad -->
       <div class="accordion-item">
-        <div class="accordion-header" (click)="toggleSeccion('direccion')">
+        <div class="accordion-header"
+             (click)="toggleSeccion('direccion')"
+             role="button"
+             tabindex="0"
+             [attr.aria-expanded]="isOpen('direccion')">
           <h3>2. Dirección / Unidad</h3>
-          <span>{{ isOpen('direccion') ? '−' : '+' }}</span>
+          <span aria-hidden="true">{{ isOpen('direccion') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('direccion')">
+        <div class="accordion-body" *ngIf="isOpen('direccion')" role="region">
           <div class="grid-campos">
             <label class="campo-card"
-              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Dirección / Unidad')"
-              [class.campo-designado]="c.bloqueado">
+                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Dirección / Unidad')"
+                   [class.campo-designado]="c.bloqueado">
               <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
               <h4>{{ c.etiqueta }}</h4>
               <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
@@ -134,15 +171,19 @@
 
       <!-- 3. Trámites y Unidad -->
       <div class="accordion-item">
-        <div class="accordion-header" (click)="toggleSeccion('tramites')">
+        <div class="accordion-header"
+             (click)="toggleSeccion('tramites')"
+             role="button"
+             tabindex="0"
+             [attr.aria-expanded]="isOpen('tramites')">
           <h3>3. Trámites y Unidad</h3>
-          <span>{{ isOpen('tramites') ? '−' : '+' }}</span>
+          <span aria-hidden="true">{{ isOpen('tramites') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('tramites')">
+        <div class="accordion-body" *ngIf="isOpen('tramites')" role="region">
           <div class="grid-campos">
             <label class="campo-card"
-              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Trámites y Unidad')"
-              [class.campo-designado]="c.bloqueado">
+                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Trámites y Unidad')"
+                   [class.campo-designado]="c.bloqueado">
               <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
               <h4>{{ c.etiqueta }}</h4>
               <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
@@ -154,15 +195,19 @@
 
       <!-- 4. Gestión Administrativa -->
       <div class="accordion-item">
-        <div class="accordion-header" (click)="toggleSeccion('admin')">
+        <div class="accordion-header"
+             (click)="toggleSeccion('admin')"
+             role="button"
+             tabindex="0"
+             [attr.aria-expanded]="isOpen('admin')">
           <h3>4. Gestión Administrativa</h3>
-          <span>{{ isOpen('admin') ? '−' : '+' }}</span>
+          <span aria-hidden="true">{{ isOpen('admin') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('admin')">
+        <div class="accordion-body" *ngIf="isOpen('admin')" role="region">
           <div class="grid-campos">
             <label class="campo-card"
-              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Administrativa')"
-              [class.campo-designado]="c.bloqueado">
+                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Administrativa')"
+                   [class.campo-designado]="c.bloqueado">
               <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
               <h4>{{ c.etiqueta }}</h4>
               <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
@@ -174,15 +219,19 @@
 
       <!-- 5. Gestión TIC -->
       <div class="accordion-item">
-        <div class="accordion-header" (click)="toggleSeccion('tic')">
+        <div class="accordion-header"
+             (click)="toggleSeccion('tic')"
+             role="button"
+             tabindex="0"
+             [attr.aria-expanded]="isOpen('tic')">
           <h3>5. Gestión TIC</h3>
-          <span>{{ isOpen('tic') ? '−' : '+' }}</span>
+          <span aria-hidden="true">{{ isOpen('tic') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('tic')">
+        <div class="accordion-body" *ngIf="isOpen('tic')" role="region">
           <div class="grid-campos">
             <label class="campo-card"
-              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión TIC')"
-              [class.campo-designado]="c.bloqueado">
+                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión TIC')"
+                   [class.campo-designado]="c.bloqueado">
               <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
               <h4>{{ c.etiqueta }}</h4>
               <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
@@ -194,15 +243,19 @@
 
       <!-- 6. Gestión Financiera -->
       <div class="accordion-item">
-        <div class="accordion-header" (click)="toggleSeccion('financiero')">
+        <div class="accordion-header"
+             (click)="toggleSeccion('financiero')"
+             role="button"
+             tabindex="0"
+             [attr.aria-expanded]="isOpen('financiero')">
           <h3>6. Gestión Financiera</h3>
-          <span>{{ isOpen('financiero') ? '−' : '+' }}</span>
+          <span aria-hidden="true">{{ isOpen('financiero') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('financiero')">
+        <div class="accordion-body" *ngIf="isOpen('financiero')" role="region">
           <div class="grid-campos">
             <label class="campo-card"
-              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Financiera')"
-              [class.campo-designado]="c.bloqueado">
+                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Financiera')"
+                   [class.campo-designado]="c.bloqueado">
               <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
               <h4>{{ c.etiqueta }}</h4>
               <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
@@ -214,15 +267,19 @@
 
       <!-- 7. Seguridad de la Información -->
       <div class="accordion-item">
-        <div class="accordion-header" (click)="toggleSeccion('seguridad')">
+        <div class="accordion-header"
+             (click)="toggleSeccion('seguridad')"
+             role="button"
+             tabindex="0"
+             [attr.aria-expanded]="isOpen('seguridad')">
           <h3>7. Seguridad de la Información</h3>
-          <span>{{ isOpen('seguridad') ? '−' : '+' }}</span>
+          <span aria-hidden="true">{{ isOpen('seguridad') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('seguridad')">
+        <div class="accordion-body" *ngIf="isOpen('seguridad')" role="region">
           <div class="grid-campos">
             <label class="campo-card"
-              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Seguridad')"
-              [class.campo-designado]="c.bloqueado">
+                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Seguridad')"
+                   [class.campo-designado]="c.bloqueado">
               <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
               <h4>{{ c.etiqueta }}</h4>
               <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
@@ -234,15 +291,19 @@
 
       <!-- 8. Recursos Humanos -->
       <div class="accordion-item">
-        <div class="accordion-header" (click)="toggleSeccion('rrhh')">
+        <div class="accordion-header"
+             (click)="toggleSeccion('rrhh')"
+             role="button"
+             tabindex="0"
+             [attr.aria-expanded]="isOpen('rrhh')">
           <h3>8. Recursos Humanos</h3>
-          <span>{{ isOpen('rrhh') ? '−' : '+' }}</span>
+          <span aria-hidden="true">{{ isOpen('rrhh') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('rrhh')">
+        <div class="accordion-body" *ngIf="isOpen('rrhh')" role="region">
           <div class="grid-campos">
             <label class="campo-card"
-              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recursos Humanos')"
-              [class.campo-designado]="c.bloqueado">
+                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recursos Humanos')"
+                   [class.campo-designado]="c.bloqueado">
               <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
               <h4>{{ c.etiqueta }}</h4>
               <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
@@ -254,15 +315,19 @@
 
       <!-- 9. Recepción de Documentos -->
       <div class="accordion-item">
-        <div class="accordion-header" (click)="toggleSeccion('recepcion')">
+        <div class="accordion-header"
+             (click)="toggleSeccion('recepcion')"
+             role="button"
+             tabindex="0"
+             [attr.aria-expanded]="isOpen('recepcion')">
           <h3>9. Recepción de Documentos</h3>
-          <span>{{ isOpen('recepcion') ? '−' : '+' }}</span>
+          <span aria-hidden="true">{{ isOpen('recepcion') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('recepcion')">
+        <div class="accordion-body" *ngIf="isOpen('recepcion')" role="region">
           <div class="grid-campos">
             <label class="campo-card"
-              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recepción')"
-              [class.campo-designado]="c.bloqueado">
+                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recepción')"
+                   [class.campo-designado]="c.bloqueado">
               <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
               <h4>{{ c.etiqueta }}</h4>
               <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
@@ -274,15 +339,19 @@
 
       <!-- 10. Autorización y Firma -->
       <div class="accordion-item">
-        <div class="accordion-header" (click)="toggleSeccion('firma')">
+        <div class="accordion-header"
+             (click)="toggleSeccion('firma')"
+             role="button"
+             tabindex="0"
+             [attr.aria-expanded]="isOpen('firma')">
           <h3>10. Autorización y Firma</h3>
-          <span>{{ isOpen('firma') ? '−' : '+' }}</span>
+          <span aria-hidden="true">{{ isOpen('firma') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('firma')">
+        <div class="accordion-body" *ngIf="isOpen('firma')" role="region">
           <div class="grid-campos">
             <label class="campo-card"
-              *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Firma')"
-              [class.campo-designado]="c.bloqueado">
+                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Firma')"
+                   [class.campo-designado]="c.bloqueado">
               <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
               <h4>{{ c.etiqueta }}</h4>
               <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
@@ -295,22 +364,37 @@
     </div><!-- /accordion -->
 
     <div class="form-grid" style="margin-top: 22px;">
-      <div class="field">
-        <label>Asignar a usuario</label>
-        <select [(ngModel)]="asignacion.usuario_id">
+      <div class="field" [class.field-error]="asignacionSubmitted && !asignacion.usuario_id">
+        <label for="select-usuario">Asignar a usuario <span class="req">*</span></label>
+        <select id="select-usuario"
+                [(ngModel)]="asignacion.usuario_id"
+                [class.input-error]="asignacionSubmitted && !asignacion.usuario_id"
+                aria-required="true"
+                [attr.aria-invalid]="asignacionSubmitted && !asignacion.usuario_id">
           <option value="">Seleccione usuario</option>
           <option *ngFor="let u of usuariosDisponibles" [value]="u.id">
             {{ u.nombres }} {{ u.apellidos }} — {{ u.rol }}
           </option>
         </select>
+        <span class="field-error-msg" *ngIf="asignacionSubmitted && !asignacion.usuario_id" role="alert">
+          ⚠ Debe seleccionar un usuario.
+        </span>
       </div>
     </div>
 
     <div class="actions">
-      <button class="btn-success" type="button" (click)="designarCampos()"
-        [disabled]="camposSeleccionados().length === 0 || !asignacion.usuario_id">
+      <button class="btn-success"
+              type="button"
+              (click)="designarCampos()"
+              [disabled]="camposSeleccionados().length === 0 || !asignacion.usuario_id"
+              [attr.aria-disabled]="camposSeleccionados().length === 0 || !asignacion.usuario_id"
+              [title]="camposSeleccionados().length === 0 ? 'Seleccione al menos un campo' : (!asignacion.usuario_id ? 'Seleccione un usuario' : '')">
         Enviar / Designar campos
       </button>
+      <span class="hint-deshabilitado"
+            *ngIf="camposSeleccionados().length === 0 || !asignacion.usuario_id">
+        {{ camposSeleccionados().length === 0 ? 'Seleccione al menos un campo' : 'Seleccione un usuario' }}
+      </span>
     </div>
   </section>
 
@@ -322,9 +406,13 @@
     <!-- ── COLUMNA IZQUIERDA: FORMULARIO COMPLETO ── -->
     <div class="formulario-ingreso no-print">
       <div class="header-titles">
+
         <!-- Progress bar de pasos -->
-        <div class="pys-progress">
-          <div class="pys-progress__bar">
+        <div class="pys-progress" role="navigation" aria-label="Pasos del formulario">
+          <div class="pys-progress__bar" role="progressbar"
+               [attr.aria-valuenow]="progressPercent"
+               aria-valuemin="0" aria-valuemax="100"
+               [attr.aria-label]="'Progreso: ' + progressPercent + '%'">
             <div class="pys-progress__fill" [style.width.%]="progressPercent"></div>
           </div>
           <div class="pys-progress__steps">
@@ -332,7 +420,11 @@
               class="step-dot"
               [class.active]="currentStep === i"
               [class.completed]="currentStep > i"
-              (click)="goToStep(i)">
+              (click)="goToStep(i)"
+              role="button"
+              tabindex="0"
+              [attr.aria-current]="currentStep === i ? 'step' : null"
+              [attr.aria-label]="step.title + (currentStep > i ? ' — completado' : (currentStep === i ? ' — paso actual' : ''))">
               <div class="step-dot__circle">
                 <ng-container *ngIf="currentStep > i">✓</ng-container>
                 <ng-container *ngIf="currentStep <= i">{{ i + 1 }}</ng-container>
@@ -346,7 +438,7 @@
         <p>{{ formularioSeleccionado?.descripcion || 'Llene los campos asignados.' }}</p>
       </div>
 
-      <form [formGroup]="formularioPazSalvo" class="form-grid-layout">
+      <form [formGroup]="formularioPazSalvo" class="form-grid-layout" novalidate>
 
         <!-- ══════════ STEP 0 — DATOS PERSONALES + MODALIDAD + LUGAR ══════════ -->
         <ng-container *ngIf="currentStep === 0">
@@ -354,162 +446,482 @@
           <!-- Datos Personales -->
           <div class="form-card-dark">
             <div class="form-card-dark__header">
-              <span class="card-icon-badge">👤</span>
+              <span class="card-icon-badge" aria-hidden="true">👤</span>
               <div>
                 <h3>1. Datos Personales</h3>
                 <p class="card-desc">Información básica del servidor saliente</p>
               </div>
             </div>
             <div class="form-grid">
-              <div class="input-group span-2">
-                <label>Nombres y Apellidos <span class="req">*</span></label>
-                <input maxlength="80" class="dark-input" formControlName="nombres_apellidos"
-                  placeholder="Ej. Juan Carlos Pérez Rodríguez"
-                  [readonly]="!puedeEditarCampo('nombres_apellidos')">
-                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('nombres_apellidos')?.invalid && formularioPazSalvo.get('nombres_apellidos')?.touched">
-                  Nombre inválido (solo letras, mínimo 3 caracteres).
-                </span>
+
+              <!-- Nombres y Apellidos -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('nombres_apellidos')?.invalid && formularioPazSalvo.get('nombres_apellidos')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('nombres_apellidos')?.valid && formularioPazSalvo.get('nombres_apellidos')?.touched">
+                <label for="nombres_apellidos">Nombres y Apellidos <span class="req" aria-hidden="true">*</span></label>
+                <input id="nombres_apellidos"
+                       maxlength="80"
+                       class="dark-input"
+                       formControlName="nombres_apellidos"
+                       placeholder="Ej. Juan Carlos Pérez Rodríguez"
+                       [readonly]="!puedeEditarCampo('nombres_apellidos')"
+                       autocomplete="name"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('nombres_apellidos')?.invalid && formularioPazSalvo.get('nombres_apellidos')?.touched"
+                       aria-describedby="error-nombres_apellidos">
+                <div class="field-feedback" aria-live="polite">
+                  <span class="field-error-msg"
+                        id="error-nombres_apellidos"
+                        *ngIf="formularioPazSalvo.get('nombres_apellidos')?.errors?.['required'] && formularioPazSalvo.get('nombres_apellidos')?.touched"
+                        role="alert">
+                    ⚠ Este campo es obligatorio.
+                  </span>
+                  <span class="field-error-msg"
+                        id="error-nombres_apellidos"
+                        *ngIf="formularioPazSalvo.get('nombres_apellidos')?.errors?.['minlength'] && formularioPazSalvo.get('nombres_apellidos')?.touched"
+                        role="alert">
+                    ⚠ Mínimo 3 caracteres.
+                  </span>
+                  <span class="field-error-msg"
+                        *ngIf="formularioPazSalvo.get('nombres_apellidos')?.errors?.['pattern'] && formularioPazSalvo.get('nombres_apellidos')?.touched"
+                        role="alert">
+                    ⚠ Solo letras y espacios (sin números ni símbolos).
+                  </span>
+                  <span class="char-count"
+                        *ngIf="formularioPazSalvo.get('nombres_apellidos')?.value?.length > 0">
+                    {{ formularioPazSalvo.get('nombres_apellidos')?.value?.length }}/80
+                  </span>
+                </div>
               </div>
 
-              <div class="input-group">
-                <label>Modalidad Laboral <span class="req">*</span></label>
-                <select class="dark-input" formControlName="modalidad"
-                  [attr.disabled]="!puedeEditarCampo('modalidad') ? true : null">
+              <!-- Modalidad Laboral -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('modalidad')?.invalid && formularioPazSalvo.get('modalidad')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('modalidad')?.valid && formularioPazSalvo.get('modalidad')?.value && formularioPazSalvo.get('modalidad')?.touched">
+                <label for="modalidad">Modalidad Laboral <span class="req" aria-hidden="true">*</span></label>
+                <select id="modalidad"
+                        class="dark-input"
+                        formControlName="modalidad"
+                        [attr.disabled]="!puedeEditarCampo('modalidad') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('modalidad')?.invalid && formularioPazSalvo.get('modalidad')?.touched"
+                        aria-describedby="error-modalidad">
                   <option value="">Seleccione...</option>
                   <option value="PERMANENTE">Nombramiento Permanente</option>
                   <option value="PROVISIONAL">Nombramiento Provisional</option>
                   <option value="OCASIONAL">Contrato Ocasional</option>
                   <option value="TRABAJO">Contrato de Trabajo</option>
                 </select>
-              </div>
-
-              <div class="input-group">
-                <label>Cédula / Pasaporte <span class="req">*</span></label>
-                <input maxlength="15" class="dark-input" formControlName="cedula"
-                  placeholder="Ej. 1723456789"
-                  [readonly]="!puedeEditarCampo('cedula')">
-                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula')?.invalid && formularioPazSalvo.get('cedula')?.touched">
-                  Cédula / pasaporte inválido (mín. 10 caracteres).
+                <span class="field-error-msg"
+                      id="error-modalidad"
+                      *ngIf="formularioPazSalvo.get('modalidad')?.invalid && formularioPazSalvo.get('modalidad')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una modalidad.
                 </span>
               </div>
 
-              <div class="input-group">
-                <label>Fecha de Ingreso <span class="req">*</span></label>
-                <input type="date" class="dark-input" formControlName="fecha_ingreso"
-                  [readonly]="!puedeEditarCampo('fecha_ingreso')">
+              <!-- Cédula / Pasaporte -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('cedula')?.invalid && formularioPazSalvo.get('cedula')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('cedula')?.valid && formularioPazSalvo.get('cedula')?.touched">
+                <label for="cedula">Cédula / Pasaporte <span class="req" aria-hidden="true">*</span></label>
+                <input id="cedula"
+                       maxlength="15"
+                       class="dark-input"
+                       formControlName="cedula"
+                       placeholder="Ej. 1723456789"
+                       [readonly]="!puedeEditarCampo('cedula')"
+                       autocomplete="off"
+                       inputmode="numeric"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('cedula')?.invalid && formularioPazSalvo.get('cedula')?.touched"
+                       aria-describedby="error-cedula">
+                <div class="field-feedback" aria-live="polite">
+                  <span class="field-error-msg"
+                        id="error-cedula"
+                        *ngIf="formularioPazSalvo.get('cedula')?.errors?.['required'] && formularioPazSalvo.get('cedula')?.touched"
+                        role="alert">
+                    ⚠ Este campo es obligatorio.
+                  </span>
+                  <span class="field-error-msg"
+                        *ngIf="formularioPazSalvo.get('cedula')?.errors?.['minlength'] && formularioPazSalvo.get('cedula')?.touched"
+                        role="alert">
+                    ⚠ Mínimo 10 caracteres.
+                  </span>
+                  <span class="field-error-msg"
+                        *ngIf="formularioPazSalvo.get('cedula')?.errors?.['pattern'] && formularioPazSalvo.get('cedula')?.touched"
+                        role="alert">
+                    ⚠ Solo números (cédula ecuatoriana de 10 dígitos).
+                  </span>
+                  <span class="field-error-msg"
+                        *ngIf="formularioPazSalvo.get('cedula')?.errors?.['cedulaInvalida'] && formularioPazSalvo.get('cedula')?.touched"
+                        role="alert">
+                    ⚠ Cédula ecuatoriana inválida (dígito verificador incorrecto).
+                  </span>
+                </div>
               </div>
 
-              <div class="input-group">
-                <label>Fecha de Salida <span class="req">*</span></label>
-                <input type="date" class="dark-input" formControlName="fecha_salida"
-                  [readonly]="!puedeEditarCampo('fecha_salida')">
-                <span class="field-error-msg" *ngIf="formularioPazSalvo.errors?.['fechasInvalidas'] && formularioPazSalvo.get('fecha_salida')?.touched">
-                  La fecha de salida debe ser posterior al ingreso.
+              <!-- Fecha de Ingreso -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('fecha_ingreso')?.invalid && formularioPazSalvo.get('fecha_ingreso')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('fecha_ingreso')?.valid && formularioPazSalvo.get('fecha_ingreso')?.touched">
+                <label for="fecha_ingreso">Fecha de Ingreso <span class="req" aria-hidden="true">*</span></label>
+                <input id="fecha_ingreso"
+                       type="date"
+                       class="dark-input"
+                       formControlName="fecha_ingreso"
+                       [readonly]="!puedeEditarCampo('fecha_ingreso')"
+                       [max]="hoy"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('fecha_ingreso')?.invalid && formularioPazSalvo.get('fecha_ingreso')?.touched"
+                       aria-describedby="error-fecha_ingreso">
+                <span class="field-error-msg"
+                      id="error-fecha_ingreso"
+                      *ngIf="formularioPazSalvo.get('fecha_ingreso')?.errors?.['required'] && formularioPazSalvo.get('fecha_ingreso')?.touched"
+                      role="alert">
+                  ⚠ Ingrese la fecha de ingreso.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('fecha_ingreso')?.errors?.['fechaFutura'] && formularioPazSalvo.get('fecha_ingreso')?.touched"
+                      role="alert">
+                  ⚠ La fecha de ingreso no puede ser futura.
                 </span>
               </div>
 
-              <div class="input-group span-2">
-                <label>Dirección Domiciliaria <span class="req">*</span></label>
-                <input maxlength="100" class="dark-input" formControlName="direccion"
-                  placeholder="Calle, número, sector"
-                  [readonly]="!puedeEditarCampo('direccion')">
-              </div>
-
-              <div class="input-group">
-                <label>Número Domicilio</label>
-                <input maxlength="10" class="dark-input" formControlName="numero_domicilio"
-                  placeholder="Ej. 02-2345678"
-                  [readonly]="!puedeEditarCampo('numero_domicilio')">
-              </div>
-
-              <div class="input-group">
-                <label>Número Celular <span class="req">*</span></label>
-                <input maxlength="10" class="dark-input" formControlName="celular"
-                  placeholder="Ej. 0991234567"
-                  [readonly]="!puedeEditarCampo('celular')">
-                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('celular')?.invalid && formularioPazSalvo.get('celular')?.touched">
-                  Celular inválido (10 dígitos, empieza en 09).
+              <!-- Fecha de Salida -->
+              <div class="input-group"
+                   [class.has-error]="(formularioPazSalvo.get('fecha_salida')?.invalid || formularioPazSalvo.errors?.['fechasInvalidas']) && formularioPazSalvo.get('fecha_salida')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('fecha_salida')?.valid && !formularioPazSalvo.errors?.['fechasInvalidas'] && formularioPazSalvo.get('fecha_salida')?.touched">
+                <label for="fecha_salida">Fecha de Salida <span class="req" aria-hidden="true">*</span></label>
+                <input id="fecha_salida"
+                       type="date"
+                       class="dark-input"
+                       formControlName="fecha_salida"
+                       [readonly]="!puedeEditarCampo('fecha_salida')"
+                       [min]="formularioPazSalvo.get('fecha_ingreso')?.value"
+                       aria-required="true"
+                       [attr.aria-invalid]="(formularioPazSalvo.get('fecha_salida')?.invalid || formularioPazSalvo.errors?.['fechasInvalidas']) && formularioPazSalvo.get('fecha_salida')?.touched"
+                       aria-describedby="error-fecha_salida">
+                <span class="field-error-msg"
+                      id="error-fecha_salida"
+                      *ngIf="formularioPazSalvo.get('fecha_salida')?.errors?.['required'] && formularioPazSalvo.get('fecha_salida')?.touched"
+                      role="alert">
+                  ⚠ Ingrese la fecha de salida.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.errors?.['fechasInvalidas'] && formularioPazSalvo.get('fecha_salida')?.touched"
+                      role="alert">
+                  ⚠ La fecha de salida debe ser posterior a la fecha de ingreso.
                 </span>
               </div>
 
-              <div class="input-group">
-                <label>Contacto Emergencia</label>
-                <input maxlength="10" class="dark-input" formControlName="emergencia"
-                  placeholder="Ej. 0987654321"
-                  [readonly]="!puedeEditarCampo('emergencia')">
+              <!-- Dirección Domiciliaria -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('direccion')?.invalid && formularioPazSalvo.get('direccion')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('direccion')?.valid && formularioPazSalvo.get('direccion')?.touched">
+                <label for="direccion">Dirección Domiciliaria <span class="req" aria-hidden="true">*</span></label>
+                <input id="direccion"
+                       maxlength="100"
+                       class="dark-input"
+                       formControlName="direccion"
+                       placeholder="Calle principal, número, sector"
+                       [readonly]="!puedeEditarCampo('direccion')"
+                       autocomplete="street-address"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('direccion')?.invalid && formularioPazSalvo.get('direccion')?.touched"
+                       aria-describedby="error-direccion">
+                <div class="field-feedback" aria-live="polite">
+                  <span class="field-error-msg"
+                        id="error-direccion"
+                        *ngIf="formularioPazSalvo.get('direccion')?.errors?.['required'] && formularioPazSalvo.get('direccion')?.touched"
+                        role="alert">
+                    ⚠ Ingrese la dirección domiciliaria.
+                  </span>
+                  <span class="field-error-msg"
+                        *ngIf="formularioPazSalvo.get('direccion')?.errors?.['minlength'] && formularioPazSalvo.get('direccion')?.touched"
+                        role="alert">
+                    ⚠ Mínimo 5 caracteres.
+                  </span>
+                  <span class="char-count"
+                        *ngIf="formularioPazSalvo.get('direccion')?.value?.length > 0">
+                    {{ formularioPazSalvo.get('direccion')?.value?.length }}/100
+                  </span>
+                </div>
               </div>
 
-              <div class="input-group">
-                <label>Email Principal <span class="req">*</span></label>
-                <input maxlength="60" type="email" class="dark-input" formControlName="email1"
-                  placeholder="correo@ejemplo.com"
-                  [readonly]="!puedeEditarCampo('email1')">
-                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('email1')?.invalid && formularioPazSalvo.get('email1')?.touched">
-                  Email inválido.
+              <!-- Número Domicilio -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('numero_domicilio')?.invalid && formularioPazSalvo.get('numero_domicilio')?.touched">
+                <label for="numero_domicilio">Número Domicilio</label>
+                <input id="numero_domicilio"
+                       maxlength="10"
+                       class="dark-input"
+                       formControlName="numero_domicilio"
+                       placeholder="Ej. 02-2345678"
+                       [readonly]="!puedeEditarCampo('numero_domicilio')"
+                       [attr.aria-invalid]="formularioPazSalvo.get('numero_domicilio')?.invalid && formularioPazSalvo.get('numero_domicilio')?.touched"
+                       aria-describedby="error-numero_domicilio">
+                <span class="field-error-msg"
+                      id="error-numero_domicilio"
+                      *ngIf="formularioPazSalvo.get('numero_domicilio')?.errors?.['pattern'] && formularioPazSalvo.get('numero_domicilio')?.touched"
+                      role="alert">
+                  ⚠ Formato inválido (ej. 02-2345678).
                 </span>
               </div>
 
-              <div class="input-group">
-                <label>Email Secundario</label>
-                <input maxlength="60" type="email" class="dark-input" formControlName="email2"
-                  placeholder="correo.alternativo@ejemplo.com"
-                  [readonly]="!puedeEditarCampo('email2')">
+              <!-- Número Celular -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('celular')?.invalid && formularioPazSalvo.get('celular')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('celular')?.valid && formularioPazSalvo.get('celular')?.touched">
+                <label for="celular">Número Celular <span class="req" aria-hidden="true">*</span></label>
+                <input id="celular"
+                       maxlength="10"
+                       class="dark-input"
+                       formControlName="celular"
+                       placeholder="Ej. 0991234567"
+                       [readonly]="!puedeEditarCampo('celular')"
+                       inputmode="tel"
+                       autocomplete="tel"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('celular')?.invalid && formularioPazSalvo.get('celular')?.touched"
+                       aria-describedby="error-celular">
+                <span class="field-error-msg"
+                      id="error-celular"
+                      *ngIf="formularioPazSalvo.get('celular')?.errors?.['required'] && formularioPazSalvo.get('celular')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el número celular.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('celular')?.errors?.['pattern'] && formularioPazSalvo.get('celular')?.touched"
+                      role="alert">
+                  ⚠ Celular inválido (10 dígitos, debe empezar en 09).
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Provincia <span class="req">*</span></label>
-                <input maxlength="30" class="dark-input" formControlName="provincia"
-                  placeholder="Ej. Pichincha"
-                  [readonly]="!puedeEditarCampo('provincia')">
+              <!-- Contacto Emergencia -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('emergencia')?.invalid && formularioPazSalvo.get('emergencia')?.touched">
+                <label for="emergencia">Contacto Emergencia</label>
+                <input id="emergencia"
+                       maxlength="10"
+                       class="dark-input"
+                       formControlName="emergencia"
+                       placeholder="Ej. 0987654321"
+                       [readonly]="!puedeEditarCampo('emergencia')"
+                       inputmode="tel"
+                       [attr.aria-invalid]="formularioPazSalvo.get('emergencia')?.invalid && formularioPazSalvo.get('emergencia')?.touched"
+                       aria-describedby="error-emergencia">
+                <span class="field-error-msg"
+                      id="error-emergencia"
+                      *ngIf="formularioPazSalvo.get('emergencia')?.errors?.['pattern'] && formularioPazSalvo.get('emergencia')?.touched"
+                      role="alert">
+                  ⚠ Celular inválido (10 dígitos, debe empezar en 09).
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Cantón <span class="req">*</span></label>
-                <input maxlength="30" class="dark-input" formControlName="canton"
-                  placeholder="Ej. Quito"
-                  [readonly]="!puedeEditarCampo('canton')">
+              <!-- Email Principal -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('email1')?.invalid && formularioPazSalvo.get('email1')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('email1')?.valid && formularioPazSalvo.get('email1')?.touched">
+                <label for="email1">Email Principal <span class="req" aria-hidden="true">*</span></label>
+                <input id="email1"
+                       maxlength="60"
+                       type="email"
+                       class="dark-input"
+                       formControlName="email1"
+                       placeholder="correo@ejemplo.com"
+                       [readonly]="!puedeEditarCampo('email1')"
+                       autocomplete="email"
+                       inputmode="email"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('email1')?.invalid && formularioPazSalvo.get('email1')?.touched"
+                       aria-describedby="error-email1">
+                <span class="field-error-msg"
+                      id="error-email1"
+                      *ngIf="formularioPazSalvo.get('email1')?.errors?.['required'] && formularioPazSalvo.get('email1')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el email principal.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('email1')?.errors?.['email'] && formularioPazSalvo.get('email1')?.touched"
+                      role="alert">
+                  ⚠ Formato de email inválido (ej. usuario@dominio.com).
+                </span>
               </div>
+
+              <!-- Email Secundario -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('email2')?.invalid && formularioPazSalvo.get('email2')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('email2')?.valid && formularioPazSalvo.get('email2')?.value && formularioPazSalvo.get('email2')?.touched">
+                <label for="email2">Email Secundario</label>
+                <input id="email2"
+                       maxlength="60"
+                       type="email"
+                       class="dark-input"
+                       formControlName="email2"
+                       placeholder="correo.alternativo@ejemplo.com"
+                       [readonly]="!puedeEditarCampo('email2')"
+                       autocomplete="email"
+                       inputmode="email"
+                       [attr.aria-invalid]="formularioPazSalvo.get('email2')?.invalid && formularioPazSalvo.get('email2')?.touched"
+                       aria-describedby="error-email2">
+                <span class="field-error-msg"
+                      id="error-email2"
+                      *ngIf="formularioPazSalvo.get('email2')?.errors?.['email'] && formularioPazSalvo.get('email2')?.touched"
+                      role="alert">
+                  ⚠ Formato de email inválido.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.errors?.['emailsIguales'] && formularioPazSalvo.get('email2')?.touched"
+                      role="alert">
+                  ⚠ El email secundario no puede ser igual al principal.
+                </span>
+              </div>
+
+              <!-- Provincia -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('provincia')?.invalid && formularioPazSalvo.get('provincia')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('provincia')?.valid && formularioPazSalvo.get('provincia')?.touched">
+                <label for="provincia">Provincia <span class="req" aria-hidden="true">*</span></label>
+                <input id="provincia"
+                       maxlength="30"
+                       class="dark-input"
+                       formControlName="provincia"
+                       placeholder="Ej. Pichincha"
+                       [readonly]="!puedeEditarCampo('provincia')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('provincia')?.invalid && formularioPazSalvo.get('provincia')?.touched"
+                       aria-describedby="error-provincia">
+                <span class="field-error-msg"
+                      id="error-provincia"
+                      *ngIf="formularioPazSalvo.get('provincia')?.invalid && formularioPazSalvo.get('provincia')?.touched"
+                      role="alert">
+                  ⚠ Ingrese la provincia (solo letras, mín. 3 caracteres).
+                </span>
+              </div>
+
+              <!-- Cantón -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('canton')?.invalid && formularioPazSalvo.get('canton')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('canton')?.valid && formularioPazSalvo.get('canton')?.touched">
+                <label for="canton">Cantón <span class="req" aria-hidden="true">*</span></label>
+                <input id="canton"
+                       maxlength="30"
+                       class="dark-input"
+                       formControlName="canton"
+                       placeholder="Ej. Quito"
+                       [readonly]="!puedeEditarCampo('canton')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('canton')?.invalid && formularioPazSalvo.get('canton')?.touched"
+                       aria-describedby="error-canton">
+                <span class="field-error-msg"
+                      id="error-canton"
+                      *ngIf="formularioPazSalvo.get('canton')?.invalid && formularioPazSalvo.get('canton')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el cantón (solo letras, mín. 3 caracteres).
+                </span>
+              </div>
+
             </div>
           </div>
 
           <!-- Lugar de Trabajo -->
           <div class="form-card-dark">
             <div class="form-card-dark__header">
-              <span class="card-icon-badge">🏢</span>
+              <span class="card-icon-badge" aria-hidden="true">🏢</span>
               <div>
                 <h3>2. Datos Dirección / Unidad</h3>
                 <p class="card-desc">Tipo de planta, unidad, cargo y grupo ocupacional</p>
               </div>
             </div>
             <div class="form-grid">
-              <div class="input-group span-2">
-                <label>Lugar de Trabajo <span class="req">*</span></label>
-                <select class="dark-input" formControlName="lugar_trabajo"
-                  [attr.disabled]="!puedeEditarCampo('lugar_trabajo') ? true : null">
+
+              <!-- Lugar de Trabajo -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('lugar_trabajo')?.invalid && formularioPazSalvo.get('lugar_trabajo')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('lugar_trabajo')?.valid && formularioPazSalvo.get('lugar_trabajo')?.value && formularioPazSalvo.get('lugar_trabajo')?.touched">
+                <label for="lugar_trabajo">Lugar de Trabajo <span class="req" aria-hidden="true">*</span></label>
+                <select id="lugar_trabajo"
+                        class="dark-input"
+                        formControlName="lugar_trabajo"
+                        [attr.disabled]="!puedeEditarCampo('lugar_trabajo') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('lugar_trabajo')?.invalid && formularioPazSalvo.get('lugar_trabajo')?.touched"
+                        aria-describedby="error-lugar_trabajo">
                   <option value="">Seleccione...</option>
                   <option value="PLANTA">Planta Central</option>
                   <option value="DESCONCENTRADOS">Procesos Desconcentrados</option>
                 </select>
+                <span class="field-error-msg"
+                      id="error-lugar_trabajo"
+                      *ngIf="formularioPazSalvo.get('lugar_trabajo')?.invalid && formularioPazSalvo.get('lugar_trabajo')?.touched"
+                      role="alert">
+                  ⚠ Seleccione el lugar de trabajo.
+                </span>
               </div>
 
-              <div class="input-group span-2">
-                <label>Dirección / Unidad <span class="req">*</span></label>
-                <input maxlength="80" class="dark-input" formControlName="unidad"
-                  placeholder="Ej. Dirección de Climatología"
-                  [readonly]="!puedeEditarCampo('unidad')">
+              <!-- Dirección / Unidad -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('unidad')?.invalid && formularioPazSalvo.get('unidad')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('unidad')?.valid && formularioPazSalvo.get('unidad')?.touched">
+                <label for="unidad">Dirección / Unidad <span class="req" aria-hidden="true">*</span></label>
+                <input id="unidad"
+                       maxlength="80"
+                       class="dark-input"
+                       formControlName="unidad"
+                       placeholder="Ej. Dirección de Climatología"
+                       [readonly]="!puedeEditarCampo('unidad')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('unidad')?.invalid && formularioPazSalvo.get('unidad')?.touched"
+                       aria-describedby="error-unidad">
+                <div class="field-feedback" aria-live="polite">
+                  <span class="field-error-msg"
+                        id="error-unidad"
+                        *ngIf="formularioPazSalvo.get('unidad')?.invalid && formularioPazSalvo.get('unidad')?.touched"
+                        role="alert">
+                    ⚠ Ingrese la dirección o unidad (mín. 3 caracteres).
+                  </span>
+                  <span class="char-count"
+                        *ngIf="formularioPazSalvo.get('unidad')?.value?.length > 0">
+                    {{ formularioPazSalvo.get('unidad')?.value?.length }}/80
+                  </span>
+                </div>
               </div>
 
-              <div class="input-group">
-                <label>Cargo Desempeñado <span class="req">*</span></label>
-                <input maxlength="50" class="dark-input" formControlName="cargo"
-                  placeholder="Ej. Analista de Sistemas"
-                  [readonly]="!puedeEditarCampo('cargo')">
+              <!-- Cargo -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('cargo')?.invalid && formularioPazSalvo.get('cargo')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('cargo')?.valid && formularioPazSalvo.get('cargo')?.touched">
+                <label for="cargo">Cargo Desempeñado <span class="req" aria-hidden="true">*</span></label>
+                <input id="cargo"
+                       maxlength="50"
+                       class="dark-input"
+                       formControlName="cargo"
+                       placeholder="Ej. Analista de Sistemas"
+                       [readonly]="!puedeEditarCampo('cargo')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('cargo')?.invalid && formularioPazSalvo.get('cargo')?.touched"
+                       aria-describedby="error-cargo">
+                <span class="field-error-msg"
+                      id="error-cargo"
+                      *ngIf="formularioPazSalvo.get('cargo')?.invalid && formularioPazSalvo.get('cargo')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el cargo (mín. 3 caracteres).
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Grupo Ocupacional <span class="req">*</span></label>
-                <select class="dark-input" formControlName="grupo_ocupacional"
-                  [attr.disabled]="!puedeEditarCampo('grupo_ocupacional') ? true : null">
+              <!-- Grupo Ocupacional -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('grupo_ocupacional')?.invalid && formularioPazSalvo.get('grupo_ocupacional')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('grupo_ocupacional')?.valid && formularioPazSalvo.get('grupo_ocupacional')?.value && formularioPazSalvo.get('grupo_ocupacional')?.touched">
+                <label for="grupo_ocupacional">Grupo Ocupacional <span class="req" aria-hidden="true">*</span></label>
+                <select id="grupo_ocupacional"
+                        class="dark-input"
+                        formControlName="grupo_ocupacional"
+                        [attr.disabled]="!puedeEditarCampo('grupo_ocupacional') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('grupo_ocupacional')?.invalid && formularioPazSalvo.get('grupo_ocupacional')?.touched"
+                        aria-describedby="error-grupo_ocupacional">
                   <option value="">Seleccione grupo</option>
                   <option value="NJS">NJS — No Jerárquico Superior</option>
                   <option value="SRVS">SRVS — Servidor Público de Servicios</option>
@@ -518,7 +930,14 @@
                   <option value="NMNP">NMNP — No Misional No Profesional</option>
                   <option value="OTRO">Otro</option>
                 </select>
+                <span class="field-error-msg"
+                      id="error-grupo_ocupacional"
+                      *ngIf="formularioPazSalvo.get('grupo_ocupacional')?.invalid && formularioPazSalvo.get('grupo_ocupacional')?.touched"
+                      role="alert">
+                  ⚠ Seleccione el grupo ocupacional.
+                </span>
               </div>
+
             </div>
           </div>
 
@@ -530,246 +949,553 @@
           <!-- Trámites y Gestión Documental -->
           <div class="form-card-dark">
             <div class="form-card-dark__header">
-              <span class="card-icon-badge">📋</span>
+              <span class="card-icon-badge" aria-hidden="true">📋</span>
               <div>
                 <h3>3. Trámites y Unidad</h3>
                 <p class="card-desc">Entrega de informes y documentos</p>
               </div>
             </div>
             <div class="form-grid">
-              <div class="input-group span-2">
-                <label>Entrega informe de fin de gestión y entrega física/digital <span class="req">*</span></label>
-                <select class="dark-input" formControlName="tramites_informe"
-                  [attr.disabled]="!puedeEditarCampo('tramites_informe') ? true : null">
+
+              <!-- Entrega informe -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('tramites_informe')?.invalid && formularioPazSalvo.get('tramites_informe')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('tramites_informe')?.valid && formularioPazSalvo.get('tramites_informe')?.value && formularioPazSalvo.get('tramites_informe')?.touched">
+                <label for="tramites_informe">Entrega informe de fin de gestión y entrega física/digital <span class="req" aria-hidden="true">*</span></label>
+                <select id="tramites_informe"
+                        class="dark-input"
+                        formControlName="tramites_informe"
+                        [attr.disabled]="!puedeEditarCampo('tramites_informe') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('tramites_informe')?.invalid && formularioPazSalvo.get('tramites_informe')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('tramites_informe')?.invalid && formularioPazSalvo.get('tramites_informe')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group span-2">
-                <label>¿Es Administrador de Contrato? <span class="req">*</span></label>
-                <select class="dark-input" formControlName="tramites_admin_contrato"
-                  [attr.disabled]="!puedeEditarCampo('tramites_admin_contrato') ? true : null">
+              <!-- Administrador de Contrato -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('tramites_admin_contrato')?.invalid && formularioPazSalvo.get('tramites_admin_contrato')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('tramites_admin_contrato')?.valid && formularioPazSalvo.get('tramites_admin_contrato')?.value && formularioPazSalvo.get('tramites_admin_contrato')?.touched">
+                <label for="tramites_admin_contrato">¿Es Administrador de Contrato? <span class="req" aria-hidden="true">*</span></label>
+                <select id="tramites_admin_contrato"
+                        class="dark-input"
+                        formControlName="tramites_admin_contrato"
+                        [attr.disabled]="!puedeEditarCampo('tramites_admin_contrato') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('tramites_admin_contrato')?.invalid && formularioPazSalvo.get('tramites_admin_contrato')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('tramites_admin_contrato')?.invalid && formularioPazSalvo.get('tramites_admin_contrato')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
+              <!-- Campos condicionales: admin contrato = SI -->
               <ng-container *ngIf="formularioPazSalvo.get('tramites_admin_contrato')?.value === 'SI'">
-                <div class="input-group">
-                  <label>Descripción del contrato <span class="req">*</span></label>
-                  <input class="dark-input" formControlName="tramites_desc_contrato"
-                    placeholder="Descripción"
-                    [readonly]="!puedeEditarCampo('tramites_desc_contrato')">
+
+                <div class="input-group"
+                     [class.has-error]="formularioPazSalvo.get('tramites_desc_contrato')?.invalid && formularioPazSalvo.get('tramites_desc_contrato')?.touched"
+                     [class.has-success]="formularioPazSalvo.get('tramites_desc_contrato')?.valid && formularioPazSalvo.get('tramites_desc_contrato')?.touched">
+                  <label for="tramites_desc_contrato">Descripción del contrato <span class="req" aria-hidden="true">*</span></label>
+                  <input id="tramites_desc_contrato"
+                         class="dark-input"
+                         formControlName="tramites_desc_contrato"
+                         placeholder="Descripción del contrato"
+                         [readonly]="!puedeEditarCampo('tramites_desc_contrato')"
+                         aria-required="true"
+                         [attr.aria-invalid]="formularioPazSalvo.get('tramites_desc_contrato')?.invalid && formularioPazSalvo.get('tramites_desc_contrato')?.touched">
+                  <span class="field-error-msg"
+                        *ngIf="formularioPazSalvo.get('tramites_desc_contrato')?.invalid && formularioPazSalvo.get('tramites_desc_contrato')?.touched"
+                        role="alert">
+                    ⚠ Ingrese la descripción del contrato.
+                  </span>
                 </div>
-                <div class="input-group">
-                  <label>Número Memorando <span class="req">*</span></label>
-                  <input class="dark-input" formControlName="tramites_memo"
-                    placeholder="Nº Memorando"
-                    [readonly]="!puedeEditarCampo('tramites_memo')">
+
+                <div class="input-group"
+                     [class.has-error]="formularioPazSalvo.get('tramites_memo')?.invalid && formularioPazSalvo.get('tramites_memo')?.touched"
+                     [class.has-success]="formularioPazSalvo.get('tramites_memo')?.valid && formularioPazSalvo.get('tramites_memo')?.touched">
+                  <label for="tramites_memo">Número Memorando <span class="req" aria-hidden="true">*</span></label>
+                  <input id="tramites_memo"
+                         class="dark-input"
+                         formControlName="tramites_memo"
+                         placeholder="Nº Memorando (ej. MEMO-2024-001)"
+                         [readonly]="!puedeEditarCampo('tramites_memo')"
+                         aria-required="true"
+                         [attr.aria-invalid]="formularioPazSalvo.get('tramites_memo')?.invalid && formularioPazSalvo.get('tramites_memo')?.touched">
+                  <span class="field-error-msg"
+                        *ngIf="formularioPazSalvo.get('tramites_memo')?.invalid && formularioPazSalvo.get('tramites_memo')?.touched"
+                        role="alert">
+                    ⚠ Ingrese el número de memorando.
+                  </span>
                 </div>
+
               </ng-container>
 
-              <div class="input-group span-2">
-                <label>Nombre del Jefe Inmediato <span class="req">*</span></label>
-                <input class="dark-input" formControlName="tramites_jefe_inmediato"
-                  placeholder="Nombre completo y cargo"
-                  [readonly]="!puedeEditarCampo('tramites_jefe_inmediato')">
+              <!-- Jefe Inmediato -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('tramites_jefe_inmediato')?.invalid && formularioPazSalvo.get('tramites_jefe_inmediato')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('tramites_jefe_inmediato')?.valid && formularioPazSalvo.get('tramites_jefe_inmediato')?.touched">
+                <label for="tramites_jefe_inmediato">Nombre del Jefe Inmediato <span class="req" aria-hidden="true">*</span></label>
+                <input id="tramites_jefe_inmediato"
+                       class="dark-input"
+                       formControlName="tramites_jefe_inmediato"
+                       placeholder="Nombre completo y cargo"
+                       [readonly]="!puedeEditarCampo('tramites_jefe_inmediato')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('tramites_jefe_inmediato')?.invalid && formularioPazSalvo.get('tramites_jefe_inmediato')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('tramites_jefe_inmediato')?.invalid && formularioPazSalvo.get('tramites_jefe_inmediato')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el nombre del jefe inmediato (mín. 5 caracteres).
+                </span>
               </div>
 
-              <div class="input-group span-2">
-                <label>Trámites en QUIPUX (Bandeja Cero) / Claves de Acceso <span class="req">*</span></label>
-                <select class="dark-input" formControlName="tramites_quipux_cero"
-                  [attr.disabled]="!puedeEditarCampo('tramites_quipux_cero') ? true : null">
+              <!-- Quipux -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('tramites_quipux_cero')?.invalid && formularioPazSalvo.get('tramites_quipux_cero')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('tramites_quipux_cero')?.valid && formularioPazSalvo.get('tramites_quipux_cero')?.value && formularioPazSalvo.get('tramites_quipux_cero')?.touched">
+                <label for="tramites_quipux_cero">Trámites en QUIPUX (Bandeja Cero) / Claves de Acceso <span class="req" aria-hidden="true">*</span></label>
+                <select id="tramites_quipux_cero"
+                        class="dark-input"
+                        formControlName="tramites_quipux_cero"
+                        [attr.disabled]="!puedeEditarCampo('tramites_quipux_cero') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('tramites_quipux_cero')?.invalid && formularioPazSalvo.get('tramites_quipux_cero')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('tramites_quipux_cero')?.invalid && formularioPazSalvo.get('tramites_quipux_cero')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group span-2">
-                <label>Nombre servidor que recibe trámites <span class="req">*</span></label>
-                <input class="dark-input" formControlName="tramites_servidor_recibe"
-                  placeholder="Nombre completo"
-                  [readonly]="!puedeEditarCampo('tramites_servidor_recibe')">
+              <!-- Servidor que recibe -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('tramites_servidor_recibe')?.invalid && formularioPazSalvo.get('tramites_servidor_recibe')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('tramites_servidor_recibe')?.valid && formularioPazSalvo.get('tramites_servidor_recibe')?.touched">
+                <label for="tramites_servidor_recibe">Nombre servidor que recibe trámites <span class="req" aria-hidden="true">*</span></label>
+                <input id="tramites_servidor_recibe"
+                       class="dark-input"
+                       formControlName="tramites_servidor_recibe"
+                       placeholder="Nombre completo"
+                       [readonly]="!puedeEditarCampo('tramites_servidor_recibe')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('tramites_servidor_recibe')?.invalid && formularioPazSalvo.get('tramites_servidor_recibe')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('tramites_servidor_recibe')?.invalid && formularioPazSalvo.get('tramites_servidor_recibe')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el nombre del servidor que recibe (mín. 5 caracteres).
+                </span>
               </div>
+
             </div>
           </div>
 
           <!-- Gestión Administrativa -->
           <div class="form-card-dark">
             <div class="form-card-dark__header">
-              <span class="card-icon-badge">🏛️</span>
+              <span class="card-icon-badge" aria-hidden="true">🏛️</span>
               <div>
                 <h3>4. Gestión Administrativa</h3>
                 <p class="card-desc">Dirección Administrativa Financiera</p>
               </div>
             </div>
             <div class="form-grid">
-              <div class="input-group">
-                <label>¿Realizó entrega de informe? <span class="req">*</span></label>
-                <select class="dark-input" formControlName="admin_informe"
-                  [attr.disabled]="!puedeEditarCampo('admin_informe') ? true : null">
+
+              <!-- Entrega informe admin -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('admin_informe')?.invalid && formularioPazSalvo.get('admin_informe')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('admin_informe')?.valid && formularioPazSalvo.get('admin_informe')?.value && formularioPazSalvo.get('admin_informe')?.touched">
+                <label for="admin_informe">¿Realizó entrega de informe? <span class="req" aria-hidden="true">*</span></label>
+                <select id="admin_informe"
+                        class="dark-input"
+                        formControlName="admin_informe"
+                        [attr.disabled]="!puedeEditarCampo('admin_informe') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('admin_informe')?.invalid && formularioPazSalvo.get('admin_informe')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('admin_informe')?.invalid && formularioPazSalvo.get('admin_informe')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>¿Entregó bienes y muebles? <span class="req">*</span></label>
-                <select class="dark-input" formControlName="admin_bienes"
-                  [attr.disabled]="!puedeEditarCampo('admin_bienes') ? true : null">
+              <!-- Bienes muebles -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('admin_bienes')?.invalid && formularioPazSalvo.get('admin_bienes')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('admin_bienes')?.valid && formularioPazSalvo.get('admin_bienes')?.value && formularioPazSalvo.get('admin_bienes')?.touched">
+                <label for="admin_bienes">¿Entregó bienes y muebles? <span class="req" aria-hidden="true">*</span></label>
+                <select id="admin_bienes"
+                        class="dark-input"
+                        formControlName="admin_bienes"
+                        [attr.disabled]="!puedeEditarCampo('admin_bienes') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('admin_bienes')?.invalid && formularioPazSalvo.get('admin_bienes')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('admin_bienes')?.invalid && formularioPazSalvo.get('admin_bienes')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Número de Acta</label>
-                <input class="dark-input" formControlName="admin_acta_bienes"
-                  placeholder="Nº de acta"
-                  [readonly]="!puedeEditarCampo('admin_acta_bienes')">
+              <!-- Número de Acta -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('admin_acta_bienes')?.invalid && formularioPazSalvo.get('admin_acta_bienes')?.touched">
+                <label for="admin_acta_bienes">Número de Acta</label>
+                <input id="admin_acta_bienes"
+                       class="dark-input"
+                       formControlName="admin_acta_bienes"
+                       placeholder="Nº de acta"
+                       [readonly]="!puedeEditarCampo('admin_acta_bienes')"
+                       [attr.aria-invalid]="formularioPazSalvo.get('admin_acta_bienes')?.invalid && formularioPazSalvo.get('admin_acta_bienes')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('admin_acta_bienes')?.errors?.['pattern'] && formularioPazSalvo.get('admin_acta_bienes')?.touched"
+                      role="alert">
+                  ⚠ Solo letras, números y guiones.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Valor a Descontar (Bienes)</label>
-                <input type="number" class="dark-input" formControlName="admin_valor_bienes"
-                  placeholder="0.00" min="0" step="0.01"
-                  [readonly]="!puedeEditarCampo('admin_valor_bienes')">
+              <!-- Valor a Descontar Bienes -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('admin_valor_bienes')?.invalid && formularioPazSalvo.get('admin_valor_bienes')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('admin_valor_bienes')?.valid && formularioPazSalvo.get('admin_valor_bienes')?.value !== null && formularioPazSalvo.get('admin_valor_bienes')?.touched">
+                <label for="admin_valor_bienes">Valor a Descontar (Bienes) <span class="hint-label">$ USD</span></label>
+                <input id="admin_valor_bienes"
+                       type="number"
+                       class="dark-input"
+                       formControlName="admin_valor_bienes"
+                       placeholder="0.00"
+                       min="0"
+                       step="0.01"
+                       [readonly]="!puedeEditarCampo('admin_valor_bienes')"
+                       [attr.aria-invalid]="formularioPazSalvo.get('admin_valor_bienes')?.invalid && formularioPazSalvo.get('admin_valor_bienes')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('admin_valor_bienes')?.errors?.['min'] && formularioPazSalvo.get('admin_valor_bienes')?.touched"
+                      role="alert">
+                  ⚠ El valor no puede ser negativo.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>¿Valores pendientes por deducibles? <span class="req">*</span></label>
-                <select class="dark-input" formControlName="admin_deducibles"
-                  [attr.disabled]="!puedeEditarCampo('admin_deducibles') ? true : null">
+              <!-- Deducibles -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('admin_deducibles')?.invalid && formularioPazSalvo.get('admin_deducibles')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('admin_deducibles')?.valid && formularioPazSalvo.get('admin_deducibles')?.value && formularioPazSalvo.get('admin_deducibles')?.touched">
+                <label for="admin_deducibles">¿Valores pendientes por deducibles? <span class="req" aria-hidden="true">*</span></label>
+                <select id="admin_deducibles"
+                        class="dark-input"
+                        formControlName="admin_deducibles"
+                        [attr.disabled]="!puedeEditarCampo('admin_deducibles') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('admin_deducibles')?.invalid && formularioPazSalvo.get('admin_deducibles')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('admin_deducibles')?.invalid && formularioPazSalvo.get('admin_deducibles')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group" *ngIf="formularioPazSalvo.get('admin_deducibles')?.value === 'SI'">
-                <label>Valor a Descontar (Deducibles) <span class="req">*</span></label>
-                <input type="number" class="dark-input" formControlName="admin_deducibles_valor"
-                  placeholder="0.00" min="0.01" step="0.01"
-                  [readonly]="!puedeEditarCampo('admin_deducibles_valor')">
+              <!-- Valor deducibles (condicional) -->
+              <div class="input-group"
+                   *ngIf="formularioPazSalvo.get('admin_deducibles')?.value === 'SI'"
+                   [class.has-error]="formularioPazSalvo.get('admin_deducibles_valor')?.invalid && formularioPazSalvo.get('admin_deducibles_valor')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('admin_deducibles_valor')?.valid && formularioPazSalvo.get('admin_deducibles_valor')?.touched">
+                <label for="admin_deducibles_valor">Valor a Descontar (Deducibles) <span class="req" aria-hidden="true">*</span> <span class="hint-label">$ USD</span></label>
+                <input id="admin_deducibles_valor"
+                       type="number"
+                       class="dark-input"
+                       formControlName="admin_deducibles_valor"
+                       placeholder="0.01"
+                       min="0.01"
+                       step="0.01"
+                       [readonly]="!puedeEditarCampo('admin_deducibles_valor')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('admin_deducibles_valor')?.invalid && formularioPazSalvo.get('admin_deducibles_valor')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('admin_deducibles_valor')?.errors?.['required'] && formularioPazSalvo.get('admin_deducibles_valor')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el valor de los deducibles.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('admin_deducibles_valor')?.errors?.['min'] && formularioPazSalvo.get('admin_deducibles_valor')?.touched"
+                      role="alert">
+                  ⚠ El valor debe ser mayor a $0.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>¿Pasajes aéreos por justificar? <span class="req">*</span></label>
-                <select class="dark-input" formControlName="admin_pasajes"
-                  [attr.disabled]="!puedeEditarCampo('admin_pasajes') ? true : null">
+              <!-- Pasajes aéreos -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('admin_pasajes')?.invalid && formularioPazSalvo.get('admin_pasajes')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('admin_pasajes')?.valid && formularioPazSalvo.get('admin_pasajes')?.value && formularioPazSalvo.get('admin_pasajes')?.touched">
+                <label for="admin_pasajes">¿Pasajes aéreos por justificar? <span class="req" aria-hidden="true">*</span></label>
+                <select id="admin_pasajes"
+                        class="dark-input"
+                        formControlName="admin_pasajes"
+                        [attr.disabled]="!puedeEditarCampo('admin_pasajes') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('admin_pasajes')?.invalid && formularioPazSalvo.get('admin_pasajes')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('admin_pasajes')?.invalid && formularioPazSalvo.get('admin_pasajes')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Nombre Responsable Administrativo <span class="req">*</span></label>
-                <input class="dark-input" formControlName="admin_responsable"
-                  placeholder="Nombre completo"
-                  [readonly]="!puedeEditarCampo('admin_responsable')">
+              <!-- Responsable Administrativo -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('admin_responsable')?.invalid && formularioPazSalvo.get('admin_responsable')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('admin_responsable')?.valid && formularioPazSalvo.get('admin_responsable')?.touched">
+                <label for="admin_responsable">Nombre Responsable Administrativo <span class="req" aria-hidden="true">*</span></label>
+                <input id="admin_responsable"
+                       class="dark-input"
+                       formControlName="admin_responsable"
+                       placeholder="Nombre completo"
+                       [readonly]="!puedeEditarCampo('admin_responsable')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('admin_responsable')?.invalid && formularioPazSalvo.get('admin_responsable')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('admin_responsable')?.invalid && formularioPazSalvo.get('admin_responsable')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el nombre del responsable administrativo.
+                </span>
               </div>
+
             </div>
           </div>
 
           <!-- Gestión TIC -->
           <div class="form-card-dark">
             <div class="form-card-dark__header">
-              <span class="card-icon-badge">💻</span>
+              <span class="card-icon-badge" aria-hidden="true">💻</span>
               <div>
                 <h3>5. Gestión TIC</h3>
                 <p class="card-desc">Tecnologías de la Información y Comunicación</p>
               </div>
             </div>
             <div class="form-grid">
-              <div class="input-group">
-                <label>Verificación Equipo / IP / Accesos <span class="req">*</span></label>
-                <select class="dark-input" formControlName="tic_verificacion"
-                  [attr.disabled]="!puedeEditarCampo('tic_verificacion') ? true : null">
+
+              <!-- Verificación -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('tic_verificacion')?.invalid && formularioPazSalvo.get('tic_verificacion')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('tic_verificacion')?.valid && formularioPazSalvo.get('tic_verificacion')?.value && formularioPazSalvo.get('tic_verificacion')?.touched">
+                <label for="tic_verificacion">Verificación Equipo / IP / Accesos <span class="req" aria-hidden="true">*</span></label>
+                <select id="tic_verificacion"
+                        class="dark-input"
+                        formControlName="tic_verificacion"
+                        [attr.disabled]="!puedeEditarCampo('tic_verificacion') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('tic_verificacion')?.invalid && formularioPazSalvo.get('tic_verificacion')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('tic_verificacion')?.invalid && formularioPazSalvo.get('tic_verificacion')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Entrega Backup <span class="req">*</span></label>
-                <select class="dark-input" formControlName="tic_backup"
-                  [attr.disabled]="!puedeEditarCampo('tic_backup') ? true : null">
+              <!-- Backup -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('tic_backup')?.invalid && formularioPazSalvo.get('tic_backup')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('tic_backup')?.valid && formularioPazSalvo.get('tic_backup')?.value && formularioPazSalvo.get('tic_backup')?.touched">
+                <label for="tic_backup">Entrega Backup <span class="req" aria-hidden="true">*</span></label>
+                <select id="tic_backup"
+                        class="dark-input"
+                        formControlName="tic_backup"
+                        [attr.disabled]="!puedeEditarCampo('tic_backup') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('tic_backup')?.invalid && formularioPazSalvo.get('tic_backup')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('tic_backup')?.invalid && formularioPazSalvo.get('tic_backup')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group span-2">
-                <label>Ruta del Backup</label>
-                <input class="dark-input" formControlName="tic_ruta_backup"
-                  placeholder="Ruta o descripción del backup"
-                  [readonly]="!puedeEditarCampo('tic_ruta_backup')">
+              <!-- Ruta Backup (condicional cuando backup = SI) -->
+              <div class="input-group span-2"
+                   *ngIf="formularioPazSalvo.get('tic_backup')?.value === 'SI'"
+                   [class.has-error]="formularioPazSalvo.get('tic_ruta_backup')?.invalid && formularioPazSalvo.get('tic_ruta_backup')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('tic_ruta_backup')?.valid && formularioPazSalvo.get('tic_ruta_backup')?.touched">
+                <label for="tic_ruta_backup">Ruta del Backup <span class="req" aria-hidden="true">*</span></label>
+                <input id="tic_ruta_backup"
+                       class="dark-input"
+                       formControlName="tic_ruta_backup"
+                       placeholder="Ruta o descripción del backup (ej. \\servidor\backup\2024)"
+                       [readonly]="!puedeEditarCampo('tic_ruta_backup')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('tic_ruta_backup')?.invalid && formularioPazSalvo.get('tic_ruta_backup')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('tic_ruta_backup')?.invalid && formularioPazSalvo.get('tic_ruta_backup')?.touched"
+                      role="alert">
+                  ⚠ Ingrese la ruta del backup (mín. 5 caracteres).
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Entrega Tarjeta Acceso / Cierre Cuentas <span class="req">*</span></label>
-                <select class="dark-input" formControlName="tic_tarjeta_cuentas"
-                  [attr.disabled]="!puedeEditarCampo('tic_tarjeta_cuentas') ? true : null">
+              <!-- Ruta Backup (opcional cuando backup = NO o vacío) -->
+              <div class="input-group span-2"
+                   *ngIf="formularioPazSalvo.get('tic_backup')?.value !== 'SI'">
+                <label for="tic_ruta_backup_opt">Ruta del Backup <span class="hint-label">(opcional)</span></label>
+                <input id="tic_ruta_backup_opt"
+                       class="dark-input"
+                       formControlName="tic_ruta_backup"
+                       placeholder="Ruta o descripción del backup"
+                       [readonly]="!puedeEditarCampo('tic_ruta_backup')">
+              </div>
+
+              <!-- Tarjeta / Cuentas -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('tic_tarjeta_cuentas')?.invalid && formularioPazSalvo.get('tic_tarjeta_cuentas')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('tic_tarjeta_cuentas')?.valid && formularioPazSalvo.get('tic_tarjeta_cuentas')?.value && formularioPazSalvo.get('tic_tarjeta_cuentas')?.touched">
+                <label for="tic_tarjeta_cuentas">Entrega Tarjeta Acceso / Cierre Cuentas <span class="req" aria-hidden="true">*</span></label>
+                <select id="tic_tarjeta_cuentas"
+                        class="dark-input"
+                        formControlName="tic_tarjeta_cuentas"
+                        [attr.disabled]="!puedeEditarCampo('tic_tarjeta_cuentas') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('tic_tarjeta_cuentas')?.invalid && formularioPazSalvo.get('tic_tarjeta_cuentas')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('tic_tarjeta_cuentas')?.invalid && formularioPazSalvo.get('tic_tarjeta_cuentas')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Nombre Responsable TIC <span class="req">*</span></label>
-                <input class="dark-input" formControlName="tic_responsable"
-                  placeholder="Nombre completo"
-                  [readonly]="!puedeEditarCampo('tic_responsable')">
+              <!-- Responsable TIC -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('tic_responsable')?.invalid && formularioPazSalvo.get('tic_responsable')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('tic_responsable')?.valid && formularioPazSalvo.get('tic_responsable')?.touched">
+                <label for="tic_responsable">Nombre Responsable TIC <span class="req" aria-hidden="true">*</span></label>
+                <input id="tic_responsable"
+                       class="dark-input"
+                       formControlName="tic_responsable"
+                       placeholder="Nombre completo"
+                       [readonly]="!puedeEditarCampo('tic_responsable')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('tic_responsable')?.invalid && formularioPazSalvo.get('tic_responsable')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('tic_responsable')?.invalid && formularioPazSalvo.get('tic_responsable')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el nombre del responsable TIC.
+                </span>
               </div>
+
             </div>
           </div>
 
           <!-- Gestión Financiera -->
           <div class="form-card-dark">
             <div class="form-card-dark__header">
-              <span class="card-icon-badge">💰</span>
+              <span class="card-icon-badge" aria-hidden="true">💰</span>
               <div>
                 <h3>6. Gestión Financiera</h3>
                 <p class="card-desc">Valores pendientes de pago</p>
               </div>
             </div>
             <div class="form-grid">
-              <div class="input-group span-2">
-                <label>¿Valores pendientes (Saldos contables, Anticipos)? <span class="req">*</span></label>
-                <select class="dark-input" formControlName="fin_saldos"
-                  [attr.disabled]="!puedeEditarCampo('fin_saldos') ? true : null">
+
+              <!-- Saldos contables -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('fin_saldos')?.invalid && formularioPazSalvo.get('fin_saldos')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('fin_saldos')?.valid && formularioPazSalvo.get('fin_saldos')?.value && formularioPazSalvo.get('fin_saldos')?.touched">
+                <label for="fin_saldos">¿Valores pendientes (Saldos contables, Anticipos)? <span class="req" aria-hidden="true">*</span></label>
+                <select id="fin_saldos"
+                        class="dark-input"
+                        formControlName="fin_saldos"
+                        [attr.disabled]="!puedeEditarCampo('fin_saldos') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('fin_saldos')?.invalid && formularioPazSalvo.get('fin_saldos')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('fin_saldos')?.invalid && formularioPazSalvo.get('fin_saldos')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group span-2">
-                <label>¿Valores pendientes (Recuperación, Devolución muebles)? <span class="req">*</span></label>
-                <select class="dark-input" formControlName="fin_recuperacion"
-                  [attr.disabled]="!puedeEditarCampo('fin_recuperacion') ? true : null">
+              <!-- Recuperación -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('fin_recuperacion')?.invalid && formularioPazSalvo.get('fin_recuperacion')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('fin_recuperacion')?.valid && formularioPazSalvo.get('fin_recuperacion')?.value && formularioPazSalvo.get('fin_recuperacion')?.touched">
+                <label for="fin_recuperacion">¿Valores pendientes (Recuperación, Devolución muebles)? <span class="req" aria-hidden="true">*</span></label>
+                <select id="fin_recuperacion"
+                        class="dark-input"
+                        formControlName="fin_recuperacion"
+                        [attr.disabled]="!puedeEditarCampo('fin_recuperacion') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('fin_recuperacion')?.invalid && formularioPazSalvo.get('fin_recuperacion')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('fin_recuperacion')?.invalid && formularioPazSalvo.get('fin_recuperacion')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group span-2">
-                <label>Nombre Director/a Administrativo/a Financiero/a <span class="req">*</span></label>
-                <input class="dark-input" formControlName="fin_director"
-                  placeholder="Nombre completo"
-                  [readonly]="!puedeEditarCampo('fin_director')">
+              <!-- Director Financiero -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('fin_director')?.invalid && formularioPazSalvo.get('fin_director')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('fin_director')?.valid && formularioPazSalvo.get('fin_director')?.touched">
+                <label for="fin_director">Nombre Director/a Administrativo/a Financiero/a <span class="req" aria-hidden="true">*</span></label>
+                <input id="fin_director"
+                       class="dark-input"
+                       formControlName="fin_director"
+                       placeholder="Nombre completo"
+                       [readonly]="!puedeEditarCampo('fin_director')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('fin_director')?.invalid && formularioPazSalvo.get('fin_director')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('fin_director')?.invalid && formularioPazSalvo.get('fin_director')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el nombre del director/a financiero/a.
+                </span>
               </div>
+
             </div>
           </div>
 
@@ -781,159 +1507,358 @@
           <!-- Seguridad de la Información -->
           <div class="form-card-dark">
             <div class="form-card-dark__header">
-              <span class="card-icon-badge">🔒</span>
+              <span class="card-icon-badge" aria-hidden="true">🔒</span>
               <div>
                 <h3>7. Seguridad de la Información</h3>
                 <p class="card-desc">Acuerdo Ministerial 166 — EGSI</p>
               </div>
             </div>
             <div class="form-grid">
-              <div class="input-group span-2">
-                <label>Archivos Digitales / Físicos / Verificación de información <span class="req">*</span></label>
-                <select class="dark-input" formControlName="seg_archivos"
-                  [attr.disabled]="!puedeEditarCampo('seg_archivos') ? true : null">
+
+              <!-- Archivos digitales -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('seg_archivos')?.invalid && formularioPazSalvo.get('seg_archivos')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('seg_archivos')?.valid && formularioPazSalvo.get('seg_archivos')?.value && formularioPazSalvo.get('seg_archivos')?.touched">
+                <label for="seg_archivos">Archivos Digitales / Físicos / Verificación de información <span class="req" aria-hidden="true">*</span></label>
+                <select id="seg_archivos"
+                        class="dark-input"
+                        formControlName="seg_archivos"
+                        [attr.disabled]="!puedeEditarCampo('seg_archivos') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('seg_archivos')?.invalid && formularioPazSalvo.get('seg_archivos')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('seg_archivos')?.invalid && formularioPazSalvo.get('seg_archivos')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Oficial de Seguridad Institucional <span class="req">*</span></label>
-                <input class="dark-input" formControlName="seg_oficial"
-                  placeholder="Nombre completo"
-                  [readonly]="!puedeEditarCampo('seg_oficial')">
+              <!-- Oficial de Seguridad -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('seg_oficial')?.invalid && formularioPazSalvo.get('seg_oficial')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('seg_oficial')?.valid && formularioPazSalvo.get('seg_oficial')?.touched">
+                <label for="seg_oficial">Oficial de Seguridad Institucional <span class="req" aria-hidden="true">*</span></label>
+                <input id="seg_oficial"
+                       class="dark-input"
+                       formControlName="seg_oficial"
+                       placeholder="Nombre completo"
+                       [readonly]="!puedeEditarCampo('seg_oficial')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('seg_oficial')?.invalid && formularioPazSalvo.get('seg_oficial')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('seg_oficial')?.invalid && formularioPazSalvo.get('seg_oficial')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el nombre del oficial de seguridad.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Responsable Seguridad <span class="req">*</span></label>
-                <input class="dark-input" formControlName="seg_responsable"
-                  placeholder="Nombre completo"
-                  [readonly]="!puedeEditarCampo('seg_responsable')">
+              <!-- Responsable Seguridad -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('seg_responsable')?.invalid && formularioPazSalvo.get('seg_responsable')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('seg_responsable')?.valid && formularioPazSalvo.get('seg_responsable')?.touched">
+                <label for="seg_responsable">Responsable Seguridad <span class="req" aria-hidden="true">*</span></label>
+                <input id="seg_responsable"
+                       class="dark-input"
+                       formControlName="seg_responsable"
+                       placeholder="Nombre completo"
+                       [readonly]="!puedeEditarCampo('seg_responsable')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('seg_responsable')?.invalid && formularioPazSalvo.get('seg_responsable')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('seg_responsable')?.invalid && formularioPazSalvo.get('seg_responsable')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el nombre del responsable de seguridad.
+                </span>
               </div>
+
             </div>
           </div>
 
           <!-- Gestión RRHH -->
           <div class="form-card-dark">
             <div class="form-card-dark__header">
-              <span class="card-icon-badge">👥</span>
+              <span class="card-icon-badge" aria-hidden="true">👥</span>
               <div>
                 <h3>8. Dirección de Administración de RRHH</h3>
                 <p class="card-desc">Certificaciones y entrega de documentos</p>
               </div>
             </div>
             <div class="form-grid">
-              <div class="input-group span-2">
-                <label>¿Devengó cursos / Aplicó evaluación / Desvinculado puesto? <span class="req">*</span></label>
-                <select class="dark-input" formControlName="rrhh_cursos_eval"
-                  [attr.disabled]="!puedeEditarCampo('rrhh_cursos_eval') ? true : null">
+
+              <!-- Cursos / Evaluación -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('rrhh_cursos_eval')?.invalid && formularioPazSalvo.get('rrhh_cursos_eval')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('rrhh_cursos_eval')?.valid && formularioPazSalvo.get('rrhh_cursos_eval')?.value && formularioPazSalvo.get('rrhh_cursos_eval')?.touched">
+                <label for="rrhh_cursos_eval">¿Devengó cursos / Aplicó evaluación / Desvinculado puesto? <span class="req" aria-hidden="true">*</span></label>
+                <select id="rrhh_cursos_eval"
+                        class="dark-input"
+                        formControlName="rrhh_cursos_eval"
+                        [attr.disabled]="!puedeEditarCampo('rrhh_cursos_eval') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('rrhh_cursos_eval')?.invalid && formularioPazSalvo.get('rrhh_cursos_eval')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('rrhh_cursos_eval')?.invalid && formularioPazSalvo.get('rrhh_cursos_eval')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Días de Vacaciones Acumuladas <span class="req">*</span></label>
-                <input type="number" class="dark-input" formControlName="rrhh_vacaciones"
-                  placeholder="Nº de días"
-                  [readonly]="!puedeEditarCampo('rrhh_vacaciones')">
+              <!-- Vacaciones -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('rrhh_vacaciones')?.invalid && formularioPazSalvo.get('rrhh_vacaciones')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('rrhh_vacaciones')?.valid && formularioPazSalvo.get('rrhh_vacaciones')?.value !== null && formularioPazSalvo.get('rrhh_vacaciones')?.touched">
+                <label for="rrhh_vacaciones">Días de Vacaciones Acumuladas <span class="req" aria-hidden="true">*</span></label>
+                <input id="rrhh_vacaciones"
+                       type="number"
+                       class="dark-input"
+                       formControlName="rrhh_vacaciones"
+                       placeholder="Ej. 15"
+                       min="0"
+                       step="1"
+                       [readonly]="!puedeEditarCampo('rrhh_vacaciones')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('rrhh_vacaciones')?.invalid && formularioPazSalvo.get('rrhh_vacaciones')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('rrhh_vacaciones')?.errors?.['required'] && formularioPazSalvo.get('rrhh_vacaciones')?.touched"
+                      role="alert">
+                  ⚠ Ingrese los días de vacaciones (puede ser 0).
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('rrhh_vacaciones')?.errors?.['min'] && formularioPazSalvo.get('rrhh_vacaciones')?.touched"
+                      role="alert">
+                  ⚠ El valor no puede ser negativo.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Entrega Constancia y Declaración Juramentada <span class="req">*</span></label>
-                <select class="dark-input" formControlName="rrhh_juramentada"
-                  [attr.disabled]="!puedeEditarCampo('rrhh_juramentada') ? true : null">
+              <!-- Declaración Juramentada -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('rrhh_juramentada')?.invalid && formularioPazSalvo.get('rrhh_juramentada')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('rrhh_juramentada')?.valid && formularioPazSalvo.get('rrhh_juramentada')?.value && formularioPazSalvo.get('rrhh_juramentada')?.touched">
+                <label for="rrhh_juramentada">Entrega Constancia y Declaración Juramentada <span class="req" aria-hidden="true">*</span></label>
+                <select id="rrhh_juramentada"
+                        class="dark-input"
+                        formControlName="rrhh_juramentada"
+                        [attr.disabled]="!puedeEditarCampo('rrhh_juramentada') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('rrhh_juramentada')?.invalid && formularioPazSalvo.get('rrhh_juramentada')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('rrhh_juramentada')?.invalid && formularioPazSalvo.get('rrhh_juramentada')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>N° de Certificado Emitido</label>
-                <input class="dark-input" formControlName="rrhh_num_certificado"
-                  placeholder="Número"
-                  [readonly]="!puedeEditarCampo('rrhh_num_certificado')">
+              <!-- Número Certificado -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('rrhh_num_certificado')?.invalid && formularioPazSalvo.get('rrhh_num_certificado')?.touched">
+                <label for="rrhh_num_certificado">N° de Certificado Emitido</label>
+                <input id="rrhh_num_certificado"
+                       class="dark-input"
+                       formControlName="rrhh_num_certificado"
+                       placeholder="Número"
+                       [readonly]="!puedeEditarCampo('rrhh_num_certificado')"
+                       [attr.aria-invalid]="formularioPazSalvo.get('rrhh_num_certificado')?.invalid && formularioPazSalvo.get('rrhh_num_certificado')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('rrhh_num_certificado')?.errors?.['pattern'] && formularioPazSalvo.get('rrhh_num_certificado')?.touched"
+                      role="alert">
+                  ⚠ Solo letras, números y guiones.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Número Declaración</label>
-                <input class="dark-input" formControlName="rrhh_num_declaracion"
-                  placeholder="Número"
-                  [readonly]="!puedeEditarCampo('rrhh_num_declaracion')">
+              <!-- Número Declaración -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('rrhh_num_declaracion')?.invalid && formularioPazSalvo.get('rrhh_num_declaracion')?.touched">
+                <label for="rrhh_num_declaracion">Número Declaración</label>
+                <input id="rrhh_num_declaracion"
+                       class="dark-input"
+                       formControlName="rrhh_num_declaracion"
+                       placeholder="Número"
+                       [readonly]="!puedeEditarCampo('rrhh_num_declaracion')"
+                       [attr.aria-invalid]="formularioPazSalvo.get('rrhh_num_declaracion')?.invalid && formularioPazSalvo.get('rrhh_num_declaracion')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('rrhh_num_declaracion')?.errors?.['pattern'] && formularioPazSalvo.get('rrhh_num_declaracion')?.touched"
+                      role="alert">
+                  ⚠ Solo letras, números y guiones.
+                </span>
               </div>
 
-              <div class="input-group span-2">
-                <label>¿Entrega Credencial / Copia Actividades / Acta Bienes Custodio? <span class="req">*</span></label>
-                <select class="dark-input" formControlName="rrhh_credencial"
-                  [attr.disabled]="!puedeEditarCampo('rrhh_credencial') ? true : null">
+              <!-- Credencial -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('rrhh_credencial')?.invalid && formularioPazSalvo.get('rrhh_credencial')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('rrhh_credencial')?.valid && formularioPazSalvo.get('rrhh_credencial')?.value && formularioPazSalvo.get('rrhh_credencial')?.touched">
+                <label for="rrhh_credencial">¿Entrega Credencial / Copia Actividades / Acta Bienes Custodio? <span class="req" aria-hidden="true">*</span></label>
+                <select id="rrhh_credencial"
+                        class="dark-input"
+                        formControlName="rrhh_credencial"
+                        [attr.disabled]="!puedeEditarCampo('rrhh_credencial') ? true : null"
+                        aria-required="true"
+                        [attr.aria-invalid]="formularioPazSalvo.get('rrhh_credencial')?.invalid && formularioPazSalvo.get('rrhh_credencial')?.touched">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('rrhh_credencial')?.invalid && formularioPazSalvo.get('rrhh_credencial')?.touched"
+                      role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
               </div>
 
-              <div class="input-group span-2">
-                <label>Nombre del/la Director/a de RRHH <span class="req">*</span></label>
-                <input class="dark-input" formControlName="rrhh_director"
-                  placeholder="Nombre completo"
-                  [readonly]="!puedeEditarCampo('rrhh_director')">
+              <!-- Director RRHH -->
+              <div class="input-group span-2"
+                   [class.has-error]="formularioPazSalvo.get('rrhh_director')?.invalid && formularioPazSalvo.get('rrhh_director')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('rrhh_director')?.valid && formularioPazSalvo.get('rrhh_director')?.touched">
+                <label for="rrhh_director">Nombre del/la Director/a de RRHH <span class="req" aria-hidden="true">*</span></label>
+                <input id="rrhh_director"
+                       class="dark-input"
+                       formControlName="rrhh_director"
+                       placeholder="Nombre completo"
+                       [readonly]="!puedeEditarCampo('rrhh_director')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('rrhh_director')?.invalid && formularioPazSalvo.get('rrhh_director')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('rrhh_director')?.invalid && formularioPazSalvo.get('rrhh_director')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el nombre del/la director/a de RRHH.
+                </span>
               </div>
+
             </div>
           </div>
 
           <!-- Recepción de Documentos -->
           <div class="form-card-dark">
             <div class="form-card-dark__header">
-              <span class="card-icon-badge">📬</span>
+              <span class="card-icon-badge" aria-hidden="true">📬</span>
               <div>
                 <h3>9. Recepción de Documentos — RRHH</h3>
                 <p class="card-desc">Datos de entrega del paz y salvo</p>
               </div>
             </div>
             <div class="form-grid">
-              <div class="input-group">
-                <label>Fecha de Entrega del Paz y Salvo <span class="req">*</span></label>
-                <input type="date" class="dark-input" formControlName="recepcion_fecha"
-                  [readonly]="!puedeEditarCampo('recepcion_fecha')">
+
+              <!-- Fecha entrega -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('recepcion_fecha')?.invalid && formularioPazSalvo.get('recepcion_fecha')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('recepcion_fecha')?.valid && formularioPazSalvo.get('recepcion_fecha')?.touched">
+                <label for="recepcion_fecha">Fecha de Entrega del Paz y Salvo <span class="req" aria-hidden="true">*</span></label>
+                <input id="recepcion_fecha"
+                       type="date"
+                       class="dark-input"
+                       formControlName="recepcion_fecha"
+                       [readonly]="!puedeEditarCampo('recepcion_fecha')"
+                       [max]="hoy"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('recepcion_fecha')?.invalid && formularioPazSalvo.get('recepcion_fecha')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('recepcion_fecha')?.errors?.['required'] && formularioPazSalvo.get('recepcion_fecha')?.touched"
+                      role="alert">
+                  ⚠ Ingrese la fecha de entrega.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('recepcion_fecha')?.errors?.['fechaFutura'] && formularioPazSalvo.get('recepcion_fecha')?.touched"
+                      role="alert">
+                  ⚠ La fecha de entrega no puede ser futura.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>N° de Hojas Recibidas <span class="req">*</span></label>
-                <input type="number" class="dark-input" formControlName="recepcion_hojas"
-                  placeholder="Ej. 2" min="1"
-                  [readonly]="!puedeEditarCampo('recepcion_hojas')">
+              <!-- Hojas recibidas -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('recepcion_hojas')?.invalid && formularioPazSalvo.get('recepcion_hojas')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('recepcion_hojas')?.valid && formularioPazSalvo.get('recepcion_hojas')?.touched">
+                <label for="recepcion_hojas">N° de Hojas Recibidas <span class="req" aria-hidden="true">*</span></label>
+                <input id="recepcion_hojas"
+                       type="number"
+                       class="dark-input"
+                       formControlName="recepcion_hojas"
+                       placeholder="Ej. 2"
+                       min="1"
+                       max="50"
+                       step="1"
+                       [readonly]="!puedeEditarCampo('recepcion_hojas')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('recepcion_hojas')?.invalid && formularioPazSalvo.get('recepcion_hojas')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('recepcion_hojas')?.errors?.['required'] && formularioPazSalvo.get('recepcion_hojas')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el número de hojas.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('recepcion_hojas')?.errors?.['min'] && formularioPazSalvo.get('recepcion_hojas')?.touched"
+                      role="alert">
+                  ⚠ Debe recibirse al menos 1 hoja.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('recepcion_hojas')?.errors?.['max'] && formularioPazSalvo.get('recepcion_hojas')?.touched"
+                      role="alert">
+                  ⚠ El máximo permitido es 50 hojas.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Servidor/a que recibe <span class="req">*</span></label>
-                <input class="dark-input" formControlName="recepcion_servidor"
-                  placeholder="Nombre completo"
-                  [readonly]="!puedeEditarCampo('recepcion_servidor')">
+              <!-- Servidor que recibe -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('recepcion_servidor')?.invalid && formularioPazSalvo.get('recepcion_servidor')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('recepcion_servidor')?.valid && formularioPazSalvo.get('recepcion_servidor')?.touched">
+                <label for="recepcion_servidor">Servidor/a que recibe <span class="req" aria-hidden="true">*</span></label>
+                <input id="recepcion_servidor"
+                       class="dark-input"
+                       formControlName="recepcion_servidor"
+                       placeholder="Nombre completo"
+                       [readonly]="!puedeEditarCampo('recepcion_servidor')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('recepcion_servidor')?.invalid && formularioPazSalvo.get('recepcion_servidor')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('recepcion_servidor')?.invalid && formularioPazSalvo.get('recepcion_servidor')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el nombre del servidor/a que recibe.
+                </span>
               </div>
 
-              <div class="input-group">
-                <label>Cargo del Servidor/a que recibe <span class="req">*</span></label>
-                <input class="dark-input" formControlName="recepcion_cargo"
-                  placeholder="Cargo"
-                  [readonly]="!puedeEditarCampo('recepcion_cargo')">
+              <!-- Cargo del servidor -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('recepcion_cargo')?.invalid && formularioPazSalvo.get('recepcion_cargo')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('recepcion_cargo')?.valid && formularioPazSalvo.get('recepcion_cargo')?.touched">
+                <label for="recepcion_cargo">Cargo del Servidor/a que recibe <span class="req" aria-hidden="true">*</span></label>
+                <input id="recepcion_cargo"
+                       class="dark-input"
+                       formControlName="recepcion_cargo"
+                       placeholder="Cargo"
+                       [readonly]="!puedeEditarCampo('recepcion_cargo')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('recepcion_cargo')?.invalid && formularioPazSalvo.get('recepcion_cargo')?.touched">
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('recepcion_cargo')?.invalid && formularioPazSalvo.get('recepcion_cargo')?.touched"
+                      role="alert">
+                  ⚠ Ingrese el cargo del servidor/a que recibe.
+                </span>
               </div>
+
             </div>
           </div>
 
           <!-- Autorización y Firma -->
           <div class="form-card-dark firma-card">
             <div class="form-card-dark__header">
-              <span class="card-icon-badge">✍️</span>
+              <span class="card-icon-badge" aria-hidden="true">✍️</span>
               <div>
                 <h3>10. Autorización y Firma Digital</h3>
                 <p class="card-desc">Firma obligatoria del servidor saliente</p>
               </div>
             </div>
 
-            <div class="autorizacion-texto">
+            <div class="autorizacion-texto" role="note">
               <p>
                 Conforme lo establecido en el artículo 110 del Reglamento LOSEP, quien suscribe
                 <strong>AUTORIZA</strong> a la <strong>DIRECCIÓN ADMINISTRATIVA FINANCIERA</strong> del INAMHI
@@ -944,78 +1869,221 @@
             </div>
 
             <!-- Tabs de firma -->
-            <div class="firma-tabs">
-              <button type="button" class="firma-tab" [class.active]="firmaMode === 'canvas'"
-                (click)="setFirmaMode('canvas')">✏️ Dibujar</button>
-              <button type="button" class="firma-tab" [class.active]="firmaMode === 'upload'"
-                (click)="setFirmaMode('upload')">📎 Cargar imagen</button>
+            <div class="firma-tabs" role="tablist" aria-label="Método de firma">
+              <button type="button"
+                      class="firma-tab"
+                      [class.active]="firmaMode === 'canvas'"
+                      (click)="setFirmaMode('canvas')"
+                      role="tab"
+                      [attr.aria-selected]="firmaMode === 'canvas'"
+                      id="tab-canvas">
+                ✏️ Dibujar
+              </button>
+              <button type="button"
+                      class="firma-tab"
+                      [class.active]="firmaMode === 'upload'"
+                      (click)="setFirmaMode('upload')"
+                      role="tab"
+                      [attr.aria-selected]="firmaMode === 'upload'"
+                      id="tab-upload">
+                📎 Cargar imagen
+              </button>
             </div>
 
             <!-- Canvas de firma -->
-            <div class="firma-canvas-wrapper" *ngIf="firmaMode === 'canvas'">
-              <canvas #firmaCanvas class="firma-canvas" width="560" height="160"
-                (mousedown)="startDrawing($event)" (mousemove)="draw($event)"
-                (mouseup)="stopDrawing()" (mouseleave)="stopDrawing()"
-                (touchstart)="startDrawingTouch($event)" (touchmove)="drawTouch($event)"
-                (touchend)="stopDrawing()"></canvas>
-              <p class="firma-hint" *ngIf="!hasFirma">Dibuje su firma aquí</p>
-              <button type="button" class="btn-secondary-sm" (click)="clearFirma()">🗑 Limpiar firma</button>
+            <div class="firma-canvas-wrapper"
+                 *ngIf="firmaMode === 'canvas'"
+                 role="tabpanel"
+                 aria-labelledby="tab-canvas">
+              <canvas #firmaCanvas
+                      class="firma-canvas"
+                      [class.firma-canvas--error]="firmaRequired && !hasFirma"
+                      width="560"
+                      height="160"
+                      (mousedown)="startDrawing($event)"
+                      (mousemove)="draw($event)"
+                      (mouseup)="stopDrawing()"
+                      (mouseleave)="stopDrawing()"
+                      (touchstart)="startDrawingTouch($event)"
+                      (touchmove)="drawTouch($event)"
+                      (touchend)="stopDrawing()"
+                      aria-label="Área para dibujar la firma"
+                      role="img"></canvas>
+              <p class="firma-hint" *ngIf="!hasFirma" aria-live="polite">Dibuje su firma aquí</p>
+              <button type="button" class="btn-secondary-sm" (click)="clearFirma()" [disabled]="!hasFirma">
+                🗑 Limpiar firma
+              </button>
             </div>
 
             <!-- Upload de firma -->
-            <div class="firma-upload-wrapper" *ngIf="firmaMode === 'upload'">
-              <label class="firma-upload-area" [class.has-file]="firmaImagePreview">
-                <input type="file" accept="image/*" (change)="onFirmaFileChange($event)" hidden />
+            <div class="firma-upload-wrapper"
+                 *ngIf="firmaMode === 'upload'"
+                 role="tabpanel"
+                 aria-labelledby="tab-upload">
+              <label class="firma-upload-area"
+                     [class.has-file]="firmaImagePreview"
+                     [class.firma-upload-area--error]="firmaRequired && !hasFirma">
+                <input type="file"
+                       accept="image/png,image/jpeg,image/jpg,image/webp"
+                       (change)="onFirmaFileChange($event)"
+                       hidden
+                       aria-label="Seleccionar imagen de firma" />
                 <ng-container *ngIf="!firmaImagePreview">
-                  <span class="upload-icon">📁</span>
+                  <span class="upload-icon" aria-hidden="true">📁</span>
                   <span>Arrastra o haz clic para seleccionar tu firma</span>
-                  <span class="upload-hint">PNG, JPG</span>
+                  <span class="upload-hint">PNG, JPG, WEBP — máx. 2 MB</span>
                 </ng-container>
-                <img *ngIf="firmaImagePreview" [src]="firmaImagePreview" alt="Firma" class="firma-preview-img" />
+                <img *ngIf="firmaImagePreview"
+                     [src]="firmaImagePreview"
+                     alt="Vista previa de la firma"
+                     class="firma-preview-img" />
               </label>
-              <button type="button" class="btn-secondary-sm" *ngIf="firmaImagePreview" (click)="clearFirma()">
+              <button type="button"
+                      class="btn-secondary-sm"
+                      *ngIf="firmaImagePreview"
+                      (click)="clearFirma()">
                 🗑 Eliminar firma
               </button>
             </div>
 
-            <div class="firma-requerida-msg" *ngIf="firmaRequired && !hasFirma">
+            <!-- Aviso firma obligatoria -->
+            <div class="firma-requerida-msg"
+                 *ngIf="firmaRequired && !hasFirma"
+                 role="alert"
+                 aria-live="assertive">
               ⚠️ La firma es OBLIGATORIA para enviar el formulario.
             </div>
 
+            <!-- Indicador firma OK -->
+            <div class="firma-ok-msg" *ngIf="hasFirma" aria-live="polite">
+              ✅ Firma registrada correctamente.
+            </div>
+
             <div class="form-grid" style="margin-top:16px">
-              <div class="input-group">
-                <label>C.C. del Firmante <span class="req">*</span></label>
-                <input class="dark-input" formControlName="cedula_firmante"
-                  placeholder="Número de cédula"
-                  [readonly]="!puedeEditarCampo('cedula_firmante')">
+
+              <!-- Cédula Firmante -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('cedula_firmante')?.invalid && formularioPazSalvo.get('cedula_firmante')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('cedula_firmante')?.valid && formularioPazSalvo.get('cedula_firmante')?.touched">
+                <label for="cedula_firmante">C.C. del Firmante <span class="req" aria-hidden="true">*</span></label>
+                <input id="cedula_firmante"
+                       class="dark-input"
+                       formControlName="cedula_firmante"
+                       placeholder="Número de cédula (10 dígitos)"
+                       maxlength="10"
+                       inputmode="numeric"
+                       [readonly]="!puedeEditarCampo('cedula_firmante')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('cedula_firmante')?.invalid && formularioPazSalvo.get('cedula_firmante')?.touched"
+                       aria-describedby="error-cedula_firmante">
+                <span class="field-error-msg"
+                      id="error-cedula_firmante"
+                      *ngIf="formularioPazSalvo.get('cedula_firmante')?.errors?.['required'] && formularioPazSalvo.get('cedula_firmante')?.touched"
+                      role="alert">
+                  ⚠ Ingrese la cédula del firmante.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('cedula_firmante')?.errors?.['pattern'] && formularioPazSalvo.get('cedula_firmante')?.touched"
+                      role="alert">
+                  ⚠ Solo 10 dígitos numéricos.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('cedula_firmante')?.errors?.['cedulaInvalida'] && formularioPazSalvo.get('cedula_firmante')?.touched"
+                      role="alert">
+                  ⚠ Cédula ecuatoriana inválida.
+                </span>
+                <!-- Advertencia si cédula firmante ≠ cédula del formulario -->
+                <span class="field-warn-msg"
+                      *ngIf="formularioPazSalvo.get('cedula_firmante')?.value &&
+                             formularioPazSalvo.get('cedula')?.value &&
+                             formularioPazSalvo.get('cedula_firmante')?.value !== formularioPazSalvo.get('cedula')?.value"
+                      role="status">
+                  ℹ️ La cédula del firmante difiere de la cédula del servidor registrado.
+                </span>
               </div>
-              <div class="input-group">
-                <label>Fecha de Firma <span class="req">*</span></label>
-                <input type="date" class="dark-input" formControlName="fecha_firma"
-                  [readonly]="!puedeEditarCampo('fecha_firma')">
+
+              <!-- Fecha de Firma -->
+              <div class="input-group"
+                   [class.has-error]="formularioPazSalvo.get('fecha_firma')?.invalid && formularioPazSalvo.get('fecha_firma')?.touched"
+                   [class.has-success]="formularioPazSalvo.get('fecha_firma')?.valid && formularioPazSalvo.get('fecha_firma')?.touched">
+                <label for="fecha_firma">Fecha de Firma <span class="req" aria-hidden="true">*</span></label>
+                <input id="fecha_firma"
+                       type="date"
+                       class="dark-input"
+                       formControlName="fecha_firma"
+                       [max]="hoy"
+                       [readonly]="!puedeEditarCampo('fecha_firma')"
+                       aria-required="true"
+                       [attr.aria-invalid]="formularioPazSalvo.get('fecha_firma')?.invalid && formularioPazSalvo.get('fecha_firma')?.touched"
+                       aria-describedby="error-fecha_firma">
+                <span class="field-error-msg"
+                      id="error-fecha_firma"
+                      *ngIf="formularioPazSalvo.get('fecha_firma')?.errors?.['required'] && formularioPazSalvo.get('fecha_firma')?.touched"
+                      role="alert">
+                  ⚠ Ingrese la fecha de firma.
+                </span>
+                <span class="field-error-msg"
+                      *ngIf="formularioPazSalvo.get('fecha_firma')?.errors?.['fechaFutura'] && formularioPazSalvo.get('fecha_firma')?.touched"
+                      role="alert">
+                  ⚠ La fecha de firma no puede ser futura.
+                </span>
               </div>
+
             </div>
           </div>
 
         </ng-container><!-- /step 2 -->
 
+        <!-- ══════════ RESUMEN DE ERRORES DEL PASO (solo cuando se intenta avanzar) ══════════ -->
+        <div class="errores-paso-container"
+             *ngIf="erroresPaso && erroresPaso.length > 0"
+             role="alert"
+             aria-live="assertive">
+          <div class="errores-paso-titulo">⚠ Complete los campos requeridos antes de continuar:</div>
+          <ul class="errores-paso-lista">
+            <li *ngFor="let e of erroresPaso">{{ e }}</li>
+          </ul>
+        </div>
+
         <!-- ══════════ NAVEGACIÓN ENTRE PASOS ══════════ -->
         <div class="step-navigation">
-          <button type="button" class="btn-secondary" (click)="prevStep()" [disabled]="currentStep === 0">
+          <button type="button"
+                  class="btn-secondary"
+                  (click)="prevStep()"
+                  [disabled]="currentStep === 0"
+                  aria-label="Ir al paso anterior">
             ← Anterior
           </button>
 
           <div class="nav-center">
-            <button type="button" class="btn-ghost" (click)="saveDraft()">💾 Guardar borrador</button>
+            <button type="button"
+                    class="btn-ghost"
+                    (click)="saveDraft()"
+                    [disabled]="cargando"
+                    aria-label="Guardar borrador del formulario">
+              💾 Guardar borrador
+            </button>
           </div>
 
-          <button *ngIf="currentStep < steps.length - 1" type="button" class="btn-primary" (click)="nextStep()">
+          <button *ngIf="currentStep < steps.length - 1"
+                  type="button"
+                  class="btn-primary"
+                  (click)="nextStep()"
+                  aria-label="Ir al siguiente paso">
             Siguiente →
           </button>
 
-          <button *ngIf="currentStep === steps.length - 1" type="button" class="btn-submit-dark"
-            (click)="validarYActualizarEspejo()" [disabled]="cargando">
-            {{ esAdmin() ? (cargando ? 'Validando...' : '✔ Validar Formulario') : (cargando ? 'Guardando...' : '✔ Guardar campos asignados') }}
+          <button *ngIf="currentStep === steps.length - 1"
+                  type="button"
+                  class="btn-submit-dark"
+                  (click)="validarYActualizarEspejo()"
+                  [disabled]="cargando || (!hasFirma && firmaRequired)"
+                  [attr.aria-busy]="cargando"
+                  [title]="!hasFirma && firmaRequired ? 'Debe registrar la firma para enviar' : ''">
+            <span *ngIf="cargando" class="btn-spinner"></span>
+            {{ esAdmin()
+                ? (cargando ? 'Validando...' : '✔ Validar Formulario')
+                : (cargando ? 'Guardando...' : '✔ Guardar campos asignados') }}
           </button>
         </div>
 
@@ -1025,21 +2093,29 @@
     <!-- ── COLUMNA DERECHA: ESPEJO A4 ── -->
     <div class="hoja-espejo-preview">
       <div class="espejo-header-actions no-print">
-        <span class="espejo-live-badge"><span class="pulse-dot"></span> Vista Previa en Tiempo Real</span>
+        <span class="espejo-live-badge">
+          <span class="pulse-dot" aria-hidden="true"></span>
+          Vista Previa en Tiempo Real
+        </span>
         <div class="espejo-actions">
-          <button type="button" class="btn-ghost-sm" (click)="printMirror()">🖨 Imprimir</button>
-          <button type="button" class="btn-ghost-sm" (click)="exportarHojaEspejoPDF()">⬇ PDF</button>
+          <button type="button" class="btn-ghost-sm" (click)="printMirror()" aria-label="Imprimir formulario">
+            🖨 Imprimir
+          </button>
+          <button type="button" class="btn-ghost-sm" (click)="exportarHojaEspejoPDF()" aria-label="Descargar formulario en PDF">
+            ⬇ PDF
+          </button>
         </div>
       </div>
 
-      <div id="hojaEspejo">
+      <div id="hojaEspejo" role="document" aria-label="Vista previa del formulario Paz y Salvo">
+
         <!-- ── PÁGINA 1 ── -->
         <div class="a4-page">
 
-          <table class="tabla-encabezado">
+          <table class="tabla-encabezado" role="presentation">
             <tr>
               <td rowspan="3" class="logo-cell">
-                <img src="/assets/img/logo.png" alt="INAMHI" class="logo">
+                <img src="/assets/img/logo.png" alt="Logo INAMHI" class="logo">
                 <div style="font-size:8px;font-weight:bold;margin-top:4px;color:#1e293b;">TIEMPO CLIMA Y AGUA ECUADOR</div>
               </td>
               <td class="titulo-principal">INSTITUTO NACIONAL DE METEOROLOGÍA E HIDROLOGÍA</td>
@@ -1053,7 +2129,7 @@
           </table>
 
           <!-- Datos Personales -->
-          <table class="tabla-pdf mt-2">
+          <table class="tabla-pdf mt-2" role="presentation">
             <tr><th colspan="4" class="seccion-titulo">DATOS PERSONALES</th></tr>
             <tr>
               <td class="etiqueta" style="width:25%">NOMBRES Y APELLIDOS:</td>
@@ -1063,26 +2139,26 @@
               <td class="etiqueta">MODALIDAD LABORAL:</td>
               <td colspan="3" style="font-size:8.5px">
                 <span style="margin-right:12px">Nombramiento Permanente
-                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'PERMANENTE'" disabled></span>
+                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'PERMANENTE'" disabled aria-hidden="true"></span>
                 <span style="margin-right:12px">Nombramiento Provisional
-                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'PROVISIONAL'" disabled></span>
+                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'PROVISIONAL'" disabled aria-hidden="true"></span>
                 <span style="margin-right:12px">Contrato Ocasional
-                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'OCASIONAL'" disabled></span>
+                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'OCASIONAL'" disabled aria-hidden="true"></span>
                 <span>Contrato de Trabajo
-                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'TRABAJO'" disabled></span>
+                  <input type="radio" [checked]="formularioPazSalvo.get('modalidad')?.value === 'TRABAJO'" disabled aria-hidden="true"></span>
               </td>
             </tr>
             <tr>
               <td class="etiqueta">CÉDULA / PASAPORTE:</td>
               <td class="valor negrita">{{ formularioPazSalvo.get('cedula')?.value }}</td>
               <td class="etiqueta" style="width:20%">FECHA INGRESO:</td>
-              <td class="valor negrita" style="width:25%">{{ formularioPazSalvo.get('fecha_ingreso')?.value }}</td>
+              <td class="valor negrita" style="width:25%">{{ formularioPazSalvo.get('fecha_ingreso')?.value | date:'dd/MM/yyyy' }}</td>
             </tr>
             <tr>
               <td class="etiqueta">DIRECCIÓN DOMICILIARIA:</td>
               <td class="valor">{{ formularioPazSalvo.get('direccion')?.value | uppercase }}</td>
               <td class="etiqueta">FECHA SALIDA:</td>
-              <td class="valor negrita">{{ formularioPazSalvo.get('fecha_salida')?.value }}</td>
+              <td class="valor negrita">{{ formularioPazSalvo.get('fecha_salida')?.value | date:'dd/MM/yyyy' }}</td>
             </tr>
             <tr>
               <td class="etiqueta">Nº DOMICILIO / CELULAR:</td>
@@ -1099,15 +2175,15 @@
           </table>
 
           <!-- Dirección / Unidad -->
-          <table class="tabla-pdf mt-1">
+          <table class="tabla-pdf mt-1" role="presentation">
             <tr><th colspan="4" class="seccion-titulo">DATOS DE LA DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS</th></tr>
             <tr>
               <td class="etiqueta" style="width:25%">LUGAR DE TRABAJO:</td>
               <td colspan="3" style="font-size:8.5px">
                 <span style="margin-right:20px">Planta Central
-                  <input type="radio" [checked]="formularioPazSalvo.get('lugar_trabajo')?.value === 'PLANTA'" disabled></span>
+                  <input type="radio" [checked]="formularioPazSalvo.get('lugar_trabajo')?.value === 'PLANTA'" disabled aria-hidden="true"></span>
                 <span>Procesos Desconcentrados
-                  <input type="radio" [checked]="formularioPazSalvo.get('lugar_trabajo')?.value === 'DESCONCENTRADOS'" disabled></span>
+                  <input type="radio" [checked]="formularioPazSalvo.get('lugar_trabajo')?.value === 'DESCONCENTRADOS'" disabled aria-hidden="true"></span>
               </td>
             </tr>
             <tr>
@@ -1123,7 +2199,7 @@
           </table>
 
           <!-- Trámites y Gestión Administrativa -->
-          <table class="tabla-pdf mt-1" style="text-align:center">
+          <table class="tabla-pdf mt-1" style="text-align:center" role="presentation">
             <tr><th colspan="4" class="seccion-titulo">TRÁMITES Y GESTIÓN ADMINISTRATIVA FINANCIERA</th></tr>
             <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
               <td style="width:50%;text-align:left">DETALLE</td>
@@ -1144,7 +2220,7 @@
             <tr>
               <td style="font-size:8.5px;text-align:left">
                 Entregó bienes muebles y equipos<br>
-                Acta No: {{ formularioPazSalvo.get('admin_acta_bienes')?.value }} — Valor: ${{ formularioPazSalvo.get('admin_valor_bienes')?.value }}
+                Acta No: {{ formularioPazSalvo.get('admin_acta_bienes')?.value }} — Valor: ${{ formularioPazSalvo.get('admin_valor_bienes')?.value | number:'1.2-2' }}
               </td>
               <td>{{ formularioPazSalvo.get('admin_bienes')?.value === 'SI' ? 'X' : '' }}</td>
               <td>{{ formularioPazSalvo.get('admin_bienes')?.value === 'NO' ? 'X' : '' }}</td>
@@ -1154,7 +2230,7 @@
             </tr>
             <tr>
               <td style="font-size:8.5px;text-align:left">
-                Valores pendientes por deducibles — Valor: ${{ formularioPazSalvo.get('admin_deducibles_valor')?.value }}
+                Valores pendientes por deducibles — Valor: ${{ formularioPazSalvo.get('admin_deducibles_valor')?.value | number:'1.2-2' }}
               </td>
               <td>{{ formularioPazSalvo.get('admin_deducibles')?.value === 'SI' ? 'X' : '' }}</td>
               <td>{{ formularioPazSalvo.get('admin_deducibles')?.value === 'NO' ? 'X' : '' }}</td>
@@ -1162,7 +2238,7 @@
           </table>
 
           <!-- TIC -->
-          <table class="tabla-pdf mt-1" style="text-align:center">
+          <table class="tabla-pdf mt-1" style="text-align:center" role="presentation">
             <tr><th colspan="4" class="seccion-titulo">GESTIÓN DE TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIÓN (TIC)</th></tr>
             <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
               <td style="width:50%;text-align:left">DETALLE</td>
@@ -1183,7 +2259,7 @@
           </table>
 
           <!-- Financiero -->
-          <table class="tabla-pdf mt-1" style="text-align:center">
+          <table class="tabla-pdf mt-1" style="text-align:center" role="presentation">
             <tr><th colspan="4" class="seccion-titulo">GESTIÓN FINANCIERA</th></tr>
             <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
               <td style="width:50%;text-align:left">DETALLE</td>
@@ -1208,7 +2284,7 @@
         <div class="a4-page">
 
           <!-- Seguridad -->
-          <table class="tabla-pdf" style="text-align:center">
+          <table class="tabla-pdf" style="text-align:center" role="presentation">
             <tr><th colspan="4" class="seccion-titulo">SEGURIDAD DE LA INFORMACIÓN (AM 166 — EGSI)</th></tr>
             <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
               <td style="width:50%;text-align:left">DETALLE</td>
@@ -1231,7 +2307,7 @@
           </table>
 
           <!-- RRHH -->
-          <table class="tabla-pdf mt-1" style="text-align:center">
+          <table class="tabla-pdf mt-1" style="text-align:center" role="presentation">
             <tr><th colspan="4" class="seccion-titulo">DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</th></tr>
             <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
               <td style="width:50%;text-align:left">DETALLE</td>
@@ -1253,11 +2329,11 @@
           </table>
 
           <!-- Recepción -->
-          <table class="tabla-pdf mt-1">
+          <table class="tabla-pdf mt-1" role="presentation">
             <tr><th colspan="4" class="seccion-titulo">RECEPCIÓN DE DOCUMENTOS — RRHH</th></tr>
             <tr>
               <td class="etiqueta" style="width:25%">FECHA ENTREGA:</td>
-              <td style="width:25%">{{ formularioPazSalvo.get('recepcion_fecha')?.value }}</td>
+              <td style="width:25%">{{ formularioPazSalvo.get('recepcion_fecha')?.value | date:'dd/MM/yyyy' }}</td>
               <td class="etiqueta" style="width:25%">HOJAS RECIBIDAS:</td>
               <td style="width:25%">{{ formularioPazSalvo.get('recepcion_hojas')?.value }}</td>
             </tr>
@@ -1270,7 +2346,7 @@
           </table>
 
           <!-- Texto legal -->
-          <div class="texto-legal mt-2">
+          <div class="texto-legal mt-2" role="note">
             <strong>AUTORIZACIÓN:</strong> Conforme lo establecido en el artículo 110 del Reglamento a la Ley Orgánica
             de Servicio Público (LOSEP), quien suscribe el presente formulario de "paz y salvo" para la liquidación de
             haberes que me corresponde, <strong>AUTORIZO</strong> a la DIRECCIÓN ADMINISTRATIVA FINANCIERA del INAMHI,
@@ -1280,16 +2356,18 @@
           </div>
 
           <!-- Firma del servidor -->
-          <table class="tabla-pdf mt-2" style="border:none;text-align:center;margin-top:50px">
+          <table class="tabla-pdf mt-2" style="border:none;text-align:center;margin-top:50px" role="presentation">
             <tr style="border:none">
               <td class="caja-firma" style="width:50%;border:none">
                 <ng-container *ngIf="firmaImagePreview">
-                  <img [src]="firmaImagePreview" alt="Firma" style="max-height:60px;max-width:180px;display:block;margin:0 auto 4px">
+                  <img [src]="firmaImagePreview"
+                       alt="Firma del servidor saliente"
+                       style="max-height:60px;max-width:180px;display:block;margin:0 auto 4px">
                 </ng-container>
                 __________________________________<br>
                 <strong>FIRMA SERVIDOR SALIENTE</strong><br>
                 C.C.: {{ formularioPazSalvo.get('cedula')?.value }}<br>
-                Fecha: {{ formularioPazSalvo.get('fecha_firma')?.value }}
+                Fecha: {{ formularioPazSalvo.get('fecha_firma')?.value | date:'dd/MM/yyyy' }}
               </td>
               <td class="caja-firma" style="width:50%;border:none">
                 __________________________________<br>
