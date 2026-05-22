@@ -1053,6 +1053,18 @@ export class Formularios implements OnInit, OnDestroy {
     });
   }
 
+  marcarTodasLeidas(): void {
+    this.notificaciones.filter(n => !n.leido).forEach(n => this.marcarNotificacionLeida(n));
+  }
+
+  irAListadoFormularios(): void {
+    document.getElementById('listado-formularios')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  get totalSinLeer(): number {
+    return this.notificaciones.filter(n => !n.leido).length;
+  }
+
   // ─────────────────────────────────────────────────────────────
   //  DESIGNACIÓN DE CAMPOS (panel admin)
   // ─────────────────────────────────────────────────────────────

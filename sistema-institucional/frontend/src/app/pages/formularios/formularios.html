@@ -19,27 +19,63 @@
   <!-- ════════════════════════════════════════════════
        NOTIFICACIONES
   ════════════════════════════════════════════════ -->
-  <section class="card fade-in" *ngIf="notificaciones.length > 0">
-    <div class="card-title">
-      <h2>🔔 Notificaciones</h2>
-      <span class="badge-count">Total: {{ notificaciones.length }}</span>
-    </div>
-    <div class="lista">
-      <div class="item"
-           *ngFor="let n of notificaciones"
-           (click)="marcarNotificacionLeida(n)"
-           [class.item-leido]="n.leido"
-           role="button"
-           tabindex="0"
-           [attr.aria-label]="'Notificación: ' + n.titulo + '. ' + (n.leido ? 'Leída' : 'Nueva')">
-        <h3>{{ n.titulo }}</h3>
-        <p>{{ n.mensaje }}</p>
-        <span class="estado" [class.estado-leido]="n.leido" [class.estado-nuevo]="!n.leido">
-          {{ n.leido ? 'LEÍDO' : 'NUEVO' }}
-        </span>
+  <ng-container *ngIf="notificaciones.length > 0">
+
+    <!-- Banner de alerta cuando hay sin leer -->
+    <div class="notif-banner-alerta fade-in" *ngIf="totalSinLeer > 0" role="alert">
+      <div class="notif-banner-alerta__izq">
+        <span class="notif-banner-alerta__campana">🔔</span>
+        <div>
+          <strong>¡Tienes {{ totalSinLeer }} notificación{{ totalSinLeer > 1 ? 'es' : '' }} pendiente{{ totalSinLeer > 1 ? 's' : '' }}!</strong>
+          <span>Hay campos del formulario asignados que debes completar.</span>
+        </div>
       </div>
+      <button type="button" class="notif-btn-marcar-todo" (click)="marcarTodasLeidas()">
+        ✓ Marcar todas como leídas
+      </button>
     </div>
-  </section>
+
+    <!-- Tarjetas de notificaciones -->
+    <section class="notif-card fade-in" aria-label="Notificaciones">
+      <div class="notif-card__header">
+        <div class="notif-card__titulo">
+          <span class="notif-icono-header" [class.notif-icono-header--activo]="totalSinLeer > 0">🔔</span>
+          <h2>Notificaciones</h2>
+          <span class="notif-badge-sinleer" *ngIf="totalSinLeer > 0">{{ totalSinLeer }} sin leer</span>
+          <span class="notif-badge-todas" *ngIf="totalSinLeer === 0">Todo al día ✓</span>
+        </div>
+        <span class="badge-count">Total: {{ notificaciones.length }}</span>
+      </div>
+
+      <div class="notif-lista">
+        <div class="notif-item"
+             *ngFor="let n of notificaciones"
+             [class.notif-item--nueva]="!n.leido"
+             [class.notif-item--leida]="n.leido"
+             (mouseenter)="marcarNotificacionLeida(n)"
+             (click)="irAListadoFormularios()"
+             role="button"
+             tabindex="0"
+             [attr.aria-label]="'Notificación: ' + n.titulo + (n.leido ? '. Leída' : '. Nueva — clic para ver formulario')">
+          <div class="notif-item__barra"></div>
+          <div class="notif-item__icono">
+            <span *ngIf="!n.leido" class="notif-dot-pulso" aria-hidden="true"></span>
+            <span class="notif-item__emoji">{{ n.leido ? '✅' : '📋' }}</span>
+          </div>
+          <div class="notif-item__cuerpo">
+            <h3>{{ n.titulo }}</h3>
+            <p>{{ n.mensaje }}</p>
+            <span class="notif-item__accion" *ngIf="!n.leido">👆 Clic para ir al formulario asignado</span>
+          </div>
+          <div class="notif-item__estado">
+            <span class="notif-tag notif-tag--nueva" *ngIf="!n.leido">NUEVO</span>
+            <span class="notif-tag notif-tag--leida" *ngIf="n.leido">LEÍDO</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </ng-container>
 
   <!-- ════════════════════════════════════════════════
        CREAR FORMULARIO (solo admin)
@@ -67,7 +103,7 @@
   <!-- ════════════════════════════════════════════════
        LISTADO DE FORMULARIOS
   ════════════════════════════════════════════════ -->
-  <section class="card fade-in">
+  <section class="card fade-in" id="listado-formularios">
     <div class="card-title">
       <h2>Listado de formularios</h2>
       <span class="badge-count">Total: {{ formularios.length }}</span>
@@ -128,20 +164,21 @@
           <h3>1. Datos Personales</h3>
           <span aria-hidden="true">{{ isOpen('personales') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('personales')" role="region">
-          <div class="grid-campos">
-            <label class="campo-card"
-                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Datos Personales')"
-                   [class.campo-designado]="c.bloqueado">
-              <input type="checkbox"
-                     [(ngModel)]="c.seleccionado"
-                     [disabled]="c.bloqueado"
-                     [attr.aria-describedby]="'campo-estado-' + c.nombre">
-              <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" [id]="'campo-estado-' + c.nombre" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" [id]="'campo-estado-' + c.nombre" *ngIf="!c.bloqueado">DISPONIBLE</span>
-            </label>
-          </div>
+        <div class="accordion-body tabla-campos-wrapper" *ngIf="isOpen('personales')" role="region">
+          <table class="tabla-campos">
+            <thead><tr><th class="col-check">✓</th><th>Campo del formulario</th><th class="col-estado">Estado</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Datos Personales')"
+                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <td class="col-check"><input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado"></td>
+                <td class="col-nombre">{{ c.etiqueta }}</td>
+                <td class="col-estado">
+                  <span class="tag-designado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+                  <span class="tag-disponible" *ngIf="!c.bloqueado">DISPONIBLE</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -155,17 +192,21 @@
           <h3>2. Dirección / Unidad</h3>
           <span aria-hidden="true">{{ isOpen('direccion') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('direccion')" role="region">
-          <div class="grid-campos">
-            <label class="campo-card"
-                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Dirección / Unidad')"
-                   [class.campo-designado]="c.bloqueado">
-              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
-              <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
-            </label>
-          </div>
+        <div class="accordion-body tabla-campos-wrapper" *ngIf="isOpen('direccion')" role="region">
+          <table class="tabla-campos">
+            <thead><tr><th class="col-check">✓</th><th>Campo del formulario</th><th class="col-estado">Estado</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Dirección / Unidad')"
+                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <td class="col-check"><input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado"></td>
+                <td class="col-nombre">{{ c.etiqueta }}</td>
+                <td class="col-estado">
+                  <span class="tag-designado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+                  <span class="tag-disponible" *ngIf="!c.bloqueado">DISPONIBLE</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -179,17 +220,21 @@
           <h3>3. Trámites y Unidad</h3>
           <span aria-hidden="true">{{ isOpen('tramites') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('tramites')" role="region">
-          <div class="grid-campos">
-            <label class="campo-card"
-                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Trámites y Unidad')"
-                   [class.campo-designado]="c.bloqueado">
-              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
-              <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
-            </label>
-          </div>
+        <div class="accordion-body tabla-campos-wrapper" *ngIf="isOpen('tramites')" role="region">
+          <table class="tabla-campos">
+            <thead><tr><th class="col-check">✓</th><th>Campo del formulario</th><th class="col-estado">Estado</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Trámites y Unidad')"
+                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <td class="col-check"><input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado"></td>
+                <td class="col-nombre">{{ c.etiqueta }}</td>
+                <td class="col-estado">
+                  <span class="tag-designado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+                  <span class="tag-disponible" *ngIf="!c.bloqueado">DISPONIBLE</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -203,17 +248,21 @@
           <h3>4. Gestión Administrativa</h3>
           <span aria-hidden="true">{{ isOpen('admin') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('admin')" role="region">
-          <div class="grid-campos">
-            <label class="campo-card"
-                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Administrativa')"
-                   [class.campo-designado]="c.bloqueado">
-              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
-              <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
-            </label>
-          </div>
+        <div class="accordion-body tabla-campos-wrapper" *ngIf="isOpen('admin')" role="region">
+          <table class="tabla-campos">
+            <thead><tr><th class="col-check">✓</th><th>Campo del formulario</th><th class="col-estado">Estado</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Administrativa')"
+                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <td class="col-check"><input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado"></td>
+                <td class="col-nombre">{{ c.etiqueta }}</td>
+                <td class="col-estado">
+                  <span class="tag-designado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+                  <span class="tag-disponible" *ngIf="!c.bloqueado">DISPONIBLE</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -227,17 +276,21 @@
           <h3>5. Gestión TIC</h3>
           <span aria-hidden="true">{{ isOpen('tic') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('tic')" role="region">
-          <div class="grid-campos">
-            <label class="campo-card"
-                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión TIC')"
-                   [class.campo-designado]="c.bloqueado">
-              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
-              <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
-            </label>
-          </div>
+        <div class="accordion-body tabla-campos-wrapper" *ngIf="isOpen('tic')" role="region">
+          <table class="tabla-campos">
+            <thead><tr><th class="col-check">✓</th><th>Campo del formulario</th><th class="col-estado">Estado</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión TIC')"
+                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <td class="col-check"><input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado"></td>
+                <td class="col-nombre">{{ c.etiqueta }}</td>
+                <td class="col-estado">
+                  <span class="tag-designado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+                  <span class="tag-disponible" *ngIf="!c.bloqueado">DISPONIBLE</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -251,17 +304,21 @@
           <h3>6. Gestión Financiera</h3>
           <span aria-hidden="true">{{ isOpen('financiero') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('financiero')" role="region">
-          <div class="grid-campos">
-            <label class="campo-card"
-                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Financiera')"
-                   [class.campo-designado]="c.bloqueado">
-              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
-              <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
-            </label>
-          </div>
+        <div class="accordion-body tabla-campos-wrapper" *ngIf="isOpen('financiero')" role="region">
+          <table class="tabla-campos">
+            <thead><tr><th class="col-check">✓</th><th>Campo del formulario</th><th class="col-estado">Estado</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Gestión Financiera')"
+                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <td class="col-check"><input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado"></td>
+                <td class="col-nombre">{{ c.etiqueta }}</td>
+                <td class="col-estado">
+                  <span class="tag-designado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+                  <span class="tag-disponible" *ngIf="!c.bloqueado">DISPONIBLE</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -275,17 +332,21 @@
           <h3>7. Seguridad de la Información</h3>
           <span aria-hidden="true">{{ isOpen('seguridad') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('seguridad')" role="region">
-          <div class="grid-campos">
-            <label class="campo-card"
-                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Seguridad')"
-                   [class.campo-designado]="c.bloqueado">
-              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
-              <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
-            </label>
-          </div>
+        <div class="accordion-body tabla-campos-wrapper" *ngIf="isOpen('seguridad')" role="region">
+          <table class="tabla-campos">
+            <thead><tr><th class="col-check">✓</th><th>Campo del formulario</th><th class="col-estado">Estado</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Seguridad')"
+                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <td class="col-check"><input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado"></td>
+                <td class="col-nombre">{{ c.etiqueta }}</td>
+                <td class="col-estado">
+                  <span class="tag-designado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+                  <span class="tag-disponible" *ngIf="!c.bloqueado">DISPONIBLE</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -299,17 +360,21 @@
           <h3>8. Recursos Humanos</h3>
           <span aria-hidden="true">{{ isOpen('rrhh') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('rrhh')" role="region">
-          <div class="grid-campos">
-            <label class="campo-card"
-                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recursos Humanos')"
-                   [class.campo-designado]="c.bloqueado">
-              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
-              <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
-            </label>
-          </div>
+        <div class="accordion-body tabla-campos-wrapper" *ngIf="isOpen('rrhh')" role="region">
+          <table class="tabla-campos">
+            <thead><tr><th class="col-check">✓</th><th>Campo del formulario</th><th class="col-estado">Estado</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recursos Humanos')"
+                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <td class="col-check"><input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado"></td>
+                <td class="col-nombre">{{ c.etiqueta }}</td>
+                <td class="col-estado">
+                  <span class="tag-designado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+                  <span class="tag-disponible" *ngIf="!c.bloqueado">DISPONIBLE</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -323,17 +388,21 @@
           <h3>9. Recepción de Documentos</h3>
           <span aria-hidden="true">{{ isOpen('recepcion') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('recepcion')" role="region">
-          <div class="grid-campos">
-            <label class="campo-card"
-                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recepción')"
-                   [class.campo-designado]="c.bloqueado">
-              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
-              <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
-            </label>
-          </div>
+        <div class="accordion-body tabla-campos-wrapper" *ngIf="isOpen('recepcion')" role="region">
+          <table class="tabla-campos">
+            <thead><tr><th class="col-check">✓</th><th>Campo del formulario</th><th class="col-estado">Estado</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Recepción')"
+                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <td class="col-check"><input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado"></td>
+                <td class="col-nombre">{{ c.etiqueta }}</td>
+                <td class="col-estado">
+                  <span class="tag-designado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+                  <span class="tag-disponible" *ngIf="!c.bloqueado">DISPONIBLE</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -347,39 +416,65 @@
           <h3>10. Autorización y Firma</h3>
           <span aria-hidden="true">{{ isOpen('firma') ? '−' : '+' }}</span>
         </div>
-        <div class="accordion-body" *ngIf="isOpen('firma')" role="region">
-          <div class="grid-campos">
-            <label class="campo-card"
-                   *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Firma')"
-                   [class.campo-designado]="c.bloqueado">
-              <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
-              <h4>{{ c.etiqueta }}</h4>
-              <span class="estado" *ngIf="c.bloqueado">YA DESIGNADO</span>
-              <span class="estado" *ngIf="!c.bloqueado">DISPONIBLE</span>
-            </label>
-          </div>
+        <div class="accordion-body tabla-campos-wrapper" *ngIf="isOpen('firma')" role="region">
+          <table class="tabla-campos">
+            <thead><tr><th class="col-check">✓</th><th>Campo del formulario</th><th class="col-estado">Estado</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of camposFormulario.filter(x => x.seccion === 'Firma')"
+                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <td class="col-check"><input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado"></td>
+                <td class="col-nombre">{{ c.etiqueta }}</td>
+                <td class="col-estado">
+                  <span class="tag-designado" *ngIf="c.bloqueado">YA DESIGNADO</span>
+                  <span class="tag-disponible" *ngIf="!c.bloqueado">DISPONIBLE</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
     </div><!-- /accordion -->
 
-    <div class="form-grid" style="margin-top: 22px;">
-      <div class="field" [class.field-error]="asignacionSubmitted && !asignacion.usuario_id">
-        <label for="select-usuario">Asignar a usuario <span class="req">*</span></label>
+    <!-- Asignar usuario -->
+    <div class="asignar-usuario-wrapper" style="margin-top: 22px;">
+      <div class="asignar-usuario-label">
+        <span class="asignar-usuario-icono">👤</span>
+        <div>
+          <label for="select-usuario" class="asignar-usuario-titulo">Asignar a usuario <span class="req">*</span></label>
+          <p class="asignar-usuario-desc">Selecciona el servidor al que se le asignarán los campos designados.</p>
+        </div>
+      </div>
+
+      <div class="asignar-usuario-select-wrap" [class.has-error]="asignacionSubmitted && !asignacion.usuario_id">
         <select id="select-usuario"
+                class="asignar-usuario-select"
                 [(ngModel)]="asignacion.usuario_id"
-                [class.input-error]="asignacionSubmitted && !asignacion.usuario_id"
                 aria-required="true"
                 [attr.aria-invalid]="asignacionSubmitted && !asignacion.usuario_id">
-          <option value="">Seleccione usuario</option>
+          <option value="">— Seleccione un usuario —</option>
           <option *ngFor="let u of usuariosDisponibles" [value]="u.id">
             {{ u.nombres }} {{ u.apellidos }} — {{ u.rol }}
           </option>
         </select>
-        <span class="field-error-msg" *ngIf="asignacionSubmitted && !asignacion.usuario_id" role="alert">
-          ⚠ Debe seleccionar un usuario.
-        </span>
+        <span class="asignar-usuario-select-icon" aria-hidden="true">▾</span>
       </div>
+
+      <!-- Tarjeta del usuario seleccionado -->
+      <ng-container *ngFor="let u of usuariosDisponibles">
+        <div class="usuario-preview-card" *ngIf="u.id == asignacion.usuario_id">
+          <div class="usuario-preview-avatar">{{ (u.nombres[0] || '') + (u.apellidos[0] || '') }}</div>
+          <div class="usuario-preview-info">
+            <strong>{{ u.nombres }} {{ u.apellidos }}</strong>
+            <span class="usuario-preview-rol">{{ u.rol }}</span>
+          </div>
+          <span class="usuario-preview-check">✓ Seleccionado</span>
+        </div>
+      </ng-container>
+
+      <span class="field-error-msg" *ngIf="asignacionSubmitted && !asignacion.usuario_id" role="alert">
+        ⚠ Debe seleccionar un usuario.
+      </span>
     </div>
 
     <div class="actions">
@@ -404,7 +499,7 @@
   <section *ngIf="formularioSeleccionado" class="paz-salvo-container fade-in">
 
     <!-- ── COLUMNA IZQUIERDA: FORMULARIO COMPLETO ── -->
-    <div class="formulario-ingreso no-print">
+    <div class="formulario-ingreso no-print" id="paso-formulario">
       <div class="header-titles">
 
         <!-- Progress bar de pasos -->

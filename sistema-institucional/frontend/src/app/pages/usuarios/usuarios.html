@@ -21,38 +21,26 @@
     <div class="form-grid">
 
       <div class="field">
-        <input
-          [(ngModel)]="nuevo.nombres"
-          (input)="onNombreApellidoNuevo($event, 'nombres')"
-          placeholder="Nombres"
+        <input [(ngModel)]="nuevo.nombres" (input)="onNombreApellidoNuevo($event, 'nombres')" placeholder="Nombres"
           autocomplete="off">
-        
+
       </div>
 
       <div class="field">
-        <input
-          [(ngModel)]="nuevo.apellidos"
-          (input)="onNombreApellidoNuevo($event, 'apellidos')"
-          placeholder="Apellidos"
-          autocomplete="off">
-        
+        <input [(ngModel)]="nuevo.apellidos" (input)="onNombreApellidoNuevo($event, 'apellidos')"
+          placeholder="Apellidos" autocomplete="off">
+
       </div>
 
       <div class="field">
-        <input
-          [(ngModel)]="nuevo.usuario"
-          (input)="soloUsuario($event, nuevo)"
-          placeholder="Usuario autogenerado"
+        <input [(ngModel)]="nuevo.usuario" (input)="soloUsuario($event, nuevo)" placeholder="Usuario autogenerado"
           autocomplete="off">
-        
+
       </div>
 
       <div class="field">
-        <input
-          [(ngModel)]="nuevo.password"
-          type="password"
-          placeholder="Contraseña">
-        
+        <input [(ngModel)]="nuevo.password" type="password" placeholder="Contraseña">
+
       </div>
 
       <div class="field">
@@ -62,7 +50,7 @@
             {{ r.nombre }}
           </option>
         </select>
-        
+
       </div>
 
     </div>
@@ -82,10 +70,7 @@
       </div>
 
       <div class="search-box">
-        <input
-          type="text"
-          placeholder="Buscar por nombre, usuario o rol..."
-          [(ngModel)]="filtro">
+        <input type="text" placeholder="Buscar por nombre, usuario o rol..." [(ngModel)]="filtro">
       </div>
     </div>
 
@@ -110,10 +95,7 @@
             <td><span class="role">{{ u.rol }}</span></td>
 
             <td>
-              <span
-                class="status"
-                [class.activo]="u.estado === 'ACTIVO'"
-                [class.inactivo]="u.estado !== 'ACTIVO'">
+              <span class="status" [class.activo]="u.estado === 'ACTIVO'" [class.inactivo]="u.estado !== 'ACTIVO'">
                 {{ u.estado }}
               </span>
             </td>
@@ -156,34 +138,25 @@
     <div class="modal-grid">
 
       <div class="field">
-        <input
-          [(ngModel)]="usuarioEditando.nombres"
-          (input)="onNombreApellidoEditar($event, 'nombres')"
+        <input [(ngModel)]="usuarioEditando.nombres" (input)="onNombreApellidoEditar($event, 'nombres')"
           placeholder="Nombres">
-        
+
       </div>
 
       <div class="field">
-        <input
-          [(ngModel)]="usuarioEditando.apellidos"
-          (input)="onNombreApellidoEditar($event, 'apellidos')"
+        <input [(ngModel)]="usuarioEditando.apellidos" (input)="onNombreApellidoEditar($event, 'apellidos')"
           placeholder="Apellidos">
-        
+
       </div>
 
       <div class="field">
-        <input
-          [(ngModel)]="usuarioEditando.usuario"
-          (input)="soloUsuario($event, usuarioEditando)"
+        <input [(ngModel)]="usuarioEditando.usuario" (input)="soloUsuario($event, usuarioEditando)"
           placeholder="Usuario">
-        
+
       </div>
 
       <div class="field">
-        <input
-          [(ngModel)]="usuarioEditando.password"
-          type="password"
-          placeholder="Nueva contraseña opcional">
+        <input [(ngModel)]="usuarioEditando.password" type="password" placeholder="Nueva contraseña opcional">
 
       </div>
 
@@ -197,10 +170,22 @@
       </div>
 
       <div class="field">
-        <select [(ngModel)]="usuarioEditando.estado">
-          <option value="ACTIVO">ACTIVO</option>
-          <option value="INHABILITADO">INHABILITADO</option>
+
+        <select [(ngModel)]="usuarioEditando.estado" [ngClass]="{
+      'estado-activo': usuarioEditando.estado === 'ACTIVO',
+      'estado-inhabilitado': usuarioEditando.estado === 'INHABILITADO'
+    }">
+
+          <option value="ACTIVO">
+            ACTIVO
+          </option>
+
+          <option value="INHABILITADO">
+            INHABILITADO
+          </option>
+
         </select>
+
       </div>
 
     </div>

@@ -21,13 +21,16 @@ export class Documentos implements OnInit {
   cargando = false;
   error = '';
 
+  errorArchivo = '';
+  errorArchivoEdicion = '';
+
   usuario: any = {};
   archivoSeleccionado: File | null = null;
+  archivoEdicionSeleccionado: File | null = null;
 
   nuevo: any = {
     titulo: '',
-    descripcion: '',
-    estado: 'BORRADOR'
+    descripcion: ''
   };
 
   mostrarModal = false;
@@ -43,11 +46,61 @@ export class Documentos implements OnInit {
     private http: HttpClient,
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
     this.cargarDocumentos();
+  }
+
+  normalizarRol(): string {
+    return String(this.usuario?.rol || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  }
+
+  esAdministrador(): boolean {
+    const rol = this.normalizarRol();
+    return rol === 'administrador' || rol === 'admin';
+  }
+
+  esRecursosHumanos(): boolean {
+    const rol = this.normalizarRol();
+    return (
+      rol === 'recursos humanos' ||
+      rol === 'rrhh' ||
+      rol === 'talento humano' ||
+      rol === 'recursos_humanos'
+    );
+  }
+
+  puedeSubirDocumento(): boolean {
+    return !this.esRecursosHumanos();
+  }
+
+  puedeVerListadoDocumentos(): boolean {
+    return this.esAdministrador() || this.esRecursosHumanos();
+  }
+
+  puedeVerMisDocumentos(): boolean {
+    return !this.esAdministrador() && !this.esRecursosHumanos();
+  }
+
+  puedePrevisualizarDocumentos(): boolean {
+    return this.esAdministrador() || this.esRecursosHumanos();
+  }
+
+  puedeEditarDocumento(d: any): boolean {
+    if (!d) return false;
+    if (this.esAdministrador() || this.esRecursosHumanos()) return false;
+
+    return String(d.creado_por) === String(this.usuario?.id);
+  }
+
+  puedeEliminarDocumento(): boolean {
+    return this.esAdministrador();
   }
 
   alertaRapida(titulo: string, texto: string): void {
@@ -59,7 +112,7 @@ export class Documentos implements OnInit {
       icon: 'error',
       title: titulo,
       text: texto,
-      timer: 1300,
+      timer: 1400,
       showConfirmButton: false
     }).then(() => {
       this.alertaActiva = false;
@@ -67,28 +120,100 @@ export class Documentos implements OnInit {
   }
 
   limpiarTexto(texto: string): string {
-    return (texto || '').trim().replace(/\s+/g, ' ');
+    return String(texto || '').trim().replace(/\s+/g, ' ');
   }
 
   campoTextoValido(texto: string): boolean {
     return /^[a-zA-ZÁÉÍÓÚáéíóúÑñ0-9\s.,;:()\-_/]+$/.test(texto || '');
   }
 
-  estadoValido(estado: string): boolean {
-    return ['BORRADOR', 'PENDIENTE', 'APROBADO', 'RECHAZADO', 'FINALIZADO'].includes(estado);
-  }
+  validarTextoTiempoReal(event: Event, objeto: any, campo: string): void {
+    const input = event.target as HTMLInputElement;
+    let valor = input.value || '';
+    const valorOriginal = valor;
 
-  validarTextoTiempoReal(event: any, objeto: any, campo: string): void {
-    const valor = event.target.value;
+    valor = valor.replace(/[^a-zA-ZÁÉÍÓÚáéíóúÑñ0-9\s.,;:()\-_/]/g, '');
+    valor = valor.replace(/\s{2,}/g, ' ');
 
-    if (/[^a-zA-ZÁÉÍÓÚáéíóúÑñ0-9\s.,;:()\-_/]/.test(valor)) {
+    const limite = campo === 'titulo' ? 80 : 150;
+
+    if (valor.length > limite) {
+      valor = valor.substring(0, limite);
+      this.alertaRapida('Límite alcanzado', `Máximo ${limite} caracteres.`);
+    }
+
+    if (valorOriginal !== valor) {
       this.alertaRapida(
         'Caracter inválido',
-        'Este campo solo permite letras, números y signos básicos.'
+        'Solo se permiten letras, números y signos básicos.'
       );
     }
 
+    input.value = valor;
     objeto[campo] = valor;
+  }
+
+  validarPdf(file: File | undefined | null): string {
+    if (!file) {
+      return 'Debe seleccionar un archivo PDF.';
+    }
+
+    const nombre = file.name.toLowerCase();
+    const esPdf = file.type === 'application/pdf' || nombre.endsWith('.pdf');
+
+    if (!esPdf) {
+      return 'Solo se permiten archivos en formato PDF.';
+    }
+
+    if (file.size <= 0) {
+      return 'El archivo seleccionado está vacío.';
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      return 'El PDF no debe superar los 10 MB.';
+    }
+
+    return '';
+  }
+
+  seleccionarArchivo(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    this.errorArchivo = '';
+    this.archivoSeleccionado = null;
+
+    const error = this.validarPdf(file);
+
+    if (error) {
+      this.errorArchivo = error;
+      Swal.fire('Archivo inválido', error, 'warning');
+      input.value = '';
+      return;
+    }
+
+    this.archivoSeleccionado = file!;
+  }
+
+  seleccionarArchivoEdicion(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    this.errorArchivoEdicion = '';
+    this.archivoEdicionSeleccionado = null;
+
+    if (!file) return;
+
+    const error = this.validarPdf(file);
+
+    if (error) {
+      this.errorArchivoEdicion = error;
+      Swal.fire('Archivo inválido', error, 'warning');
+      input.value = '';
+      return;
+    }
+
+    this.archivoEdicionSeleccionado = file;
   }
 
   cargarDocumentos(): void {
@@ -96,9 +221,9 @@ export class Documentos implements OnInit {
     this.error = '';
 
     this.http.get<any[]>(`${this.api}/documentos`).pipe(
-      timeout(4000),
+      timeout(7000),
       catchError((err: any) => {
-        this.error = err.error?.mensaje || 'No se pudieron cargar documentos';
+        this.error = err.error?.mensaje || err.error?.error || 'No se pudieron cargar documentos';
         Swal.fire('Error', this.error, 'error');
         return of([]);
       }),
@@ -107,21 +232,48 @@ export class Documentos implements OnInit {
         this.cdr.detectChanges();
       })
     ).subscribe((data: any[]) => {
-      this.documentos = data || [];
+      this.documentos = Array.isArray(data) ? data : [];
       this.cdr.detectChanges();
     });
   }
 
   documentosFiltrados(): any[] {
+    let lista = [...this.documentos];
+
+    if (!this.esAdministrador() && this.esRecursosHumanos()) {
+      return lista;
+    }
+
+    if (!this.esAdministrador()) {
+      return this.misDocumentos();
+    }
+
     const texto = this.busqueda.toLowerCase().trim();
 
-    if (!texto) return this.documentos;
+    if (!texto) return lista;
 
+    return lista.filter(d => {
+      const titulo = String(d.titulo || '').toLowerCase();
+      const descripcion = String(d.descripcion || '').toLowerCase();
+      const usuario = String(
+        d.creado_por_nombre ||
+        d.usuario_nombre ||
+        d.nombres ||
+        d.usuario ||
+        ''
+      ).toLowerCase();
+
+      return (
+        titulo.includes(texto) ||
+        descripcion.includes(texto) ||
+        usuario.includes(texto)
+      );
+    });
+  }
+
+  misDocumentos(): any[] {
     return this.documentos.filter(d =>
-      d.titulo?.toLowerCase().includes(texto) ||
-      d.descripcion?.toLowerCase().includes(texto) ||
-      d.estado?.toLowerCase().includes(texto) ||
-      d.creado_por_nombre?.toLowerCase().includes(texto)
+      String(d.creado_por) === String(this.usuario?.id)
     );
   }
 
@@ -129,8 +281,18 @@ export class Documentos implements OnInit {
     this.nuevo.titulo = this.limpiarTexto(this.nuevo.titulo);
     this.nuevo.descripcion = this.limpiarTexto(this.nuevo.descripcion);
 
-    if (!this.nuevo.titulo || !this.nuevo.descripcion || !this.nuevo.estado) {
-      Swal.fire('Campos incompletos', 'Ingrese título, descripción y estado.', 'warning');
+    if (!this.puedeSubirDocumento()) {
+      Swal.fire('Sin permisos', 'Su rol no puede subir documentos.', 'warning');
+      return false;
+    }
+
+    if (!this.usuario?.id) {
+      Swal.fire('Sesión inválida', 'No se encontró el usuario autenticado.', 'error');
+      return false;
+    }
+
+    if (!this.nuevo.titulo || !this.nuevo.descripcion) {
+      Swal.fire('Campos incompletos', 'Ingrese título y descripción.', 'warning');
       return false;
     }
 
@@ -154,13 +316,21 @@ export class Documentos implements OnInit {
       return false;
     }
 
-    if (this.nuevo.titulo.length > 120) {
-      Swal.fire('Validación', 'El título no debe superar 120 caracteres.', 'warning');
+    if (this.nuevo.titulo.length > 80) {
+      Swal.fire('Validación', 'El título no debe superar 80 caracteres.', 'warning');
       return false;
     }
 
-    if (this.nuevo.descripcion.length > 500) {
-      Swal.fire('Validación', 'La descripción no debe superar 500 caracteres.', 'warning');
+    if (this.nuevo.descripcion.length > 150) {
+      Swal.fire('Validación', 'La descripción no debe superar 150 caracteres.', 'warning');
+      return false;
+    }
+
+    const errorPdf = this.validarPdf(this.archivoSeleccionado);
+
+    if (errorPdf) {
+      this.errorArchivo = errorPdf;
+      Swal.fire('Archivo requerido', errorPdf, 'warning');
       return false;
     }
 
@@ -168,11 +338,21 @@ export class Documentos implements OnInit {
   }
 
   validarFormularioEdicion(): boolean {
+    if (!this.editando) {
+      Swal.fire('Error', 'No hay documento seleccionado para editar.', 'error');
+      return false;
+    }
+
+    if (!this.puedeEditarDocumento(this.editando)) {
+      Swal.fire('Sin permisos', 'Solo puede editar documentos subidos por usted.', 'warning');
+      return false;
+    }
+
     this.editando.titulo = this.limpiarTexto(this.editando.titulo);
     this.editando.descripcion = this.limpiarTexto(this.editando.descripcion);
 
-    if (!this.editando.titulo || !this.editando.descripcion || !this.editando.estado) {
-      Swal.fire('Campos incompletos', 'Complete título, descripción y estado.', 'warning');
+    if (!this.editando.titulo || !this.editando.descripcion) {
+      Swal.fire('Campos incompletos', 'Complete título y descripción.', 'warning');
       return false;
     }
 
@@ -196,32 +376,22 @@ export class Documentos implements OnInit {
       return false;
     }
 
+    if (this.editando.titulo.length > 80) {
+      Swal.fire('Validación', 'El título no debe superar 80 caracteres.', 'warning');
+      return false;
+    }
+
+    if (this.editando.descripcion.length > 150) {
+      Swal.fire('Validación', 'La descripción no debe superar 150 caracteres.', 'warning');
+      return false;
+    }
+
+    if (this.errorArchivoEdicion) {
+      Swal.fire('Archivo inválido', this.errorArchivoEdicion, 'warning');
+      return false;
+    }
+
     return true;
-  }
-
-  seleccionarArchivo(event: any): void {
-    const file = event.target.files[0];
-
-    if (!file) {
-      this.archivoSeleccionado = null;
-      return;
-    }
-
-    if (file.type !== 'application/pdf') {
-      Swal.fire('Archivo inválido', 'Solo se permiten archivos PDF.', 'warning');
-      event.target.value = '';
-      this.archivoSeleccionado = null;
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      Swal.fire('Archivo muy pesado', 'El PDF no debe superar los 10 MB.', 'warning');
-      event.target.value = '';
-      this.archivoSeleccionado = null;
-      return;
-    }
-
-    this.archivoSeleccionado = file;
   }
 
   guardar(): void {
@@ -231,21 +401,17 @@ export class Documentos implements OnInit {
     const formData = new FormData();
     formData.append('titulo', this.nuevo.titulo);
     formData.append('descripcion', this.nuevo.descripcion);
-    formData.append('estado', this.nuevo.estado);
-    formData.append('creado_por', String(this.usuario?.id || ''));
-
-    if (this.archivoSeleccionado) {
-      formData.append('archivo', this.archivoSeleccionado);
-    }
+    formData.append('creado_por', String(this.usuario.id));
+    formData.append('archivo', this.archivoSeleccionado as File);
 
     this.cargando = true;
 
     this.http.post(`${this.api}/documentos`, formData).pipe(
-      timeout(5000),
+      timeout(10000),
       catchError((err: any) => {
         Swal.fire(
           'Error',
-          err.error?.mensaje || err.error?.error || 'Error al crear documento',
+          err.error?.mensaje || err.error?.error || 'Error al subir documento',
           'error'
         );
         return of(null);
@@ -257,70 +423,61 @@ export class Documentos implements OnInit {
     ).subscribe((res: any) => {
       if (!res) return;
 
-      Swal.fire('Creado', 'Documento creado correctamente.', 'success');
+      Swal.fire('Subido', 'Documento subido correctamente.', 'success');
 
       this.nuevo = {
         titulo: '',
-        descripcion: '',
-        estado: 'BORRADOR'
+        descripcion: ''
       };
 
       this.archivoSeleccionado = null;
-      this.cerrarPreview();
+      this.errorArchivo = '';
       this.cargarDocumentos();
     });
   }
 
-  limpiarNombre(nombre: string): string {
-    return nombre
-      .replace('uploads/', '')
-      .replace('uploads\\', '')
-      .split('/').pop()!
-      .split('\\').pop()!;
-  }
-
-  verArchivo(nombre: string): void {
-    const limpio = encodeURIComponent(this.limpiarNombre(nombre));
-    const url = `${this.api}/documentos/ver/${limpio}`;
-
-    this.archivoPreviewUrl = url;
-    this.archivoPreview = this.sanitizer.bypassSecurityTrustResourceUrl(url);
-  }
-
-  descargarArchivo(nombre: string): void {
-    const limpio = encodeURIComponent(this.limpiarNombre(nombre));
-    window.open(`${this.api}/documentos/descargar/${limpio}`, '_blank');
-  }
-
-  cerrarPreview(): void {
-    this.archivoPreview = null;
-    this.archivoPreviewUrl = '';
-  }
-
-  esPDF(): boolean {
-    return this.archivoPreviewUrl.toLowerCase().includes('.pdf');
-  }
-
   abrirEditar(d: any): void {
+    if (!this.puedeEditarDocumento(d)) {
+      Swal.fire('Sin permisos', 'Solo puede editar documentos subidos por usted.', 'warning');
+      return;
+    }
+
     this.editando = { ...d };
+    this.archivoEdicionSeleccionado = null;
+    this.errorArchivoEdicion = '';
     this.mostrarModal = true;
   }
 
   cerrarModal(): void {
     this.mostrarModal = false;
     this.editando = null;
+    this.archivoEdicionSeleccionado = null;
+    this.errorArchivoEdicion = '';
   }
 
   guardarEdicion(): void {
     if (this.cargando) return;
     if (!this.validarFormularioEdicion()) return;
 
+    const formData = new FormData();
+    formData.append('titulo', this.editando.titulo);
+    formData.append('descripcion', this.editando.descripcion);
+    formData.append('creado_por', String(this.usuario.id));
+
+    if (this.archivoEdicionSeleccionado) {
+      formData.append('archivo', this.archivoEdicionSeleccionado);
+    }
+
     this.cargando = true;
 
-    this.http.put(`${this.api}/documentos/${this.editando.id}`, this.editando).pipe(
-      timeout(4000),
+    this.http.put(`${this.api}/documentos/${this.editando.id}`, formData).pipe(
+      timeout(10000),
       catchError((err: any) => {
-        Swal.fire('Error', err.error?.mensaje || 'Error al actualizar', 'error');
+        Swal.fire(
+          'Error',
+          err.error?.mensaje || err.error?.error || 'Error al actualizar documento',
+          'error'
+        );
         return of(null);
       }),
       finalize(() => {
@@ -337,6 +494,16 @@ export class Documentos implements OnInit {
   }
 
   eliminar(id: number): void {
+    if (!this.esAdministrador()) {
+      Swal.fire('Sin permisos', 'Solo el administrador puede eliminar documentos.', 'warning');
+      return;
+    }
+
+    if (!id) {
+      Swal.fire('Error', 'ID de documento inválido.', 'error');
+      return;
+    }
+
     Swal.fire({
       title: '¿Eliminar documento?',
       text: 'Esta acción no se puede deshacer.',
@@ -351,9 +518,13 @@ export class Documentos implements OnInit {
       this.cargando = true;
 
       this.http.delete(`${this.api}/documentos/${id}`).pipe(
-        timeout(4000),
+        timeout(7000),
         catchError((err: any) => {
-          Swal.fire('Error', err.error?.mensaje || 'Error al eliminar', 'error');
+          Swal.fire(
+            'Error',
+            err.error?.mensaje || err.error?.error || 'Error al eliminar documento',
+            'error'
+          );
           return of(null);
         }),
         finalize(() => {
@@ -370,8 +541,68 @@ export class Documentos implements OnInit {
     });
   }
 
-  puedeEditarEliminar(d: any): boolean {
-    if (this.usuario?.rol === 'Administrador') return true;
-    return d.creado_por == this.usuario?.id;
+  limpiarNombre(nombre: string): string {
+    return String(nombre || '')
+      .replace('uploads/', '')
+      .replace('uploads\\', '')
+      .split('/').pop()!
+      .split('\\').pop()!;
+  }
+
+  verArchivo(nombre: string): void {
+
+    if (!this.puedePrevisualizarDocumentos()) {
+      Swal.fire(
+        'Sin permisos',
+        'Solo administrador y Recursos Humanos pueden visualizar documentos.',
+        'warning'
+      );
+      return;
+    }
+
+    const limpio = encodeURIComponent(this.limpiarNombre(nombre));
+
+    const token =
+      localStorage.getItem('token') ||
+      localStorage.getItem('auth_token') ||
+      '';
+
+    const url = token
+      ? `${this.api}/documentos/ver/${limpio}?token=${token}`
+      : `${this.api}/documentos/ver/${limpio}`;
+
+    this.archivoPreviewUrl = url;
+
+    this.archivoPreview =
+      this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  }
+
+  descargarArchivo(nombre: string): void {
+    if (!nombre) {
+      Swal.fire('Archivo no disponible', 'Este documento no tiene archivo asociado.', 'warning');
+      return;
+    }
+
+    const limpio = encodeURIComponent(this.limpiarNombre(nombre));
+
+    const token =
+      localStorage.getItem('token') ||
+      localStorage.getItem('auth_token') ||
+      '';
+
+    const url = token
+      ? `${this.api}/documentos/descargar/${limpio}?token=${token}`
+      : `${this.api}/documentos/descargar/${limpio}`;
+
+    window.open(url, '_blank');
+  }
+
+  cerrarPreview(): void {
+    this.archivoPreview = null;
+    this.archivoPreviewUrl = '';
+  }
+
+  esPDF(): boolean {
+    return this.archivoPreviewUrl.toLowerCase().includes('.pdf');
   }
 }

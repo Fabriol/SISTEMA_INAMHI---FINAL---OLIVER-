@@ -103,12 +103,16 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def obtener_usuario_token():
-    token = request.headers.get("Authorization")
+    token = request.headers.get("Authorization", "")
+
+    if token:
+        token = token.replace("Bearer ", "").strip()
+
+    if not token:
+        token = request.args.get("token", "").strip()
 
     if not token:
         return None
-
-    token = token.replace("Bearer ", "")
 
     try:
         data = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
@@ -117,7 +121,8 @@ def obtener_usuario_token():
             "usuario": data["usuario"],
             "rol": data["rol"]
         }
-    except Exception:
+    except Exception as e:
+        print("ERROR TOKEN:", e)
         return None
 
 def validar_login():
@@ -473,11 +478,40 @@ def eliminar_usuario(id):
 
 @app.route("/api/documentos/ver/<path:nombre>", methods=["GET"])
 def ver_archivo(nombre):
-    user_token, error = validar_login()
-    if error:
-        return error
 
-    return send_from_directory(UPLOAD_FOLDER, nombre)
+    token = request.args.get("token", "").strip()
+
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        token = auth_header.replace("Bearer ", "").strip()
+
+    if not token:
+        return jsonify({"mensaje": "No autorizado"}), 401
+
+    try:
+        data = jwt.decode(
+            token,
+            app.config["SECRET_KEY"],
+            algorithms=["HS256"]
+        )
+
+    except jwt.ExpiredSignatureError:
+        return jsonify({"mensaje": "Token expirado. Inicie sesión nuevamente."}), 401
+
+    except Exception as e:
+        print("ERROR TOKEN VER PDF:", str(e))
+        return jsonify({"mensaje": "Token inválido", "error": str(e)}), 401
+
+    ruta = os.path.join(UPLOAD_FOLDER, nombre)
+
+    if not os.path.exists(ruta):
+        return jsonify({"mensaje": "Archivo no encontrado"}), 404
+
+    return send_from_directory(
+        UPLOAD_FOLDER,
+        nombre,
+        mimetype="application/pdf"
+    )
 
 @app.route("/api/documentos/descargar/<path:nombre>", methods=["GET"])
 def descargar_archivo(nombre):
@@ -485,7 +519,11 @@ def descargar_archivo(nombre):
     if error:
         return error
 
-    return send_from_directory(UPLOAD_FOLDER, nombre, as_attachment=True)
+    return send_from_directory(
+        UPLOAD_FOLDER,
+        nombre,
+        as_attachment=True
+    )
 
 @app.route("/api/documentos", methods=["GET"])
 def listar_documentos():
