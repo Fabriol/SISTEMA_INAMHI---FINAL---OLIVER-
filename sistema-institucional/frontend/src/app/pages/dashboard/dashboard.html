@@ -2,8 +2,12 @@
 
   <aside class="sidebar">
     <div class="brand">
-      <h2>INAMHI</h2>
-      <span>Sistema Institucional</span>
+      <div class="logo-circle">🌦️</div>
+
+      <div>
+        <h2>INAMHI</h2>
+        <span>Sistema Institucional Inteligente</span>
+      </div>
     </div>
 
     <nav>
@@ -12,7 +16,9 @@
         (click)="navegar(item)"
         [class.active]="item.ruta === '/dashboard'"
         [class.bloqueado]="item.bloqueado">
+
         <span>{{ item.nombre }}</span>
+
         <small *ngIf="item.bloqueado">🔒</small>
       </a>
     </nav>
@@ -20,75 +26,176 @@
 
   <main class="main">
 
-    <header class="topbar">
-      <div>
-        <span class="badge">Panel Institucional</span>
-        <h1>Bienvenido, {{ usuario?.nombres }} {{ usuario?.apellidos }}</h1>
-        <p>Rol actual: {{ usuario?.rol }}</p>
+    <!-- HERO PRINCIPAL -->
+    <section class="hero">
+
+      <div class="hero-overlay"></div>
+
+      <div class="hero-content">
+
+        <span class="badge">
+          Plataforma Oficial INAMHI
+        </span>
+
+        <h1>
+          Centro de Gestión Institucional
+        </h1>
+
+        <p>
+          Sistema moderno para la administración de documentos,
+          formularios, reportes y procesos institucionales del
+          Instituto Nacional de Meteorología e Hidrología.
+        </p>
+
+        <div class="hero-info">
+
+          <div class="hero-item">
+            <strong>{{ resumen.usuarios }}</strong>
+            <span>Usuarios activos</span>
+          </div>
+
+          <div class="hero-item">
+            <strong>{{ resumen.documentos }}</strong>
+            <span>Documentos registrados</span>
+          </div>
+
+          <div class="hero-item">
+            <strong>{{ usuario?.rol }}</strong>
+            <span>Rol institucional</span>
+          </div>
+
+        </div>
+
       </div>
 
-      <button class="logout" (click)="logout()">
-        Cerrar sesión
-      </button>
-    </header>
+      <div class="hero-right">
 
-    <section class="cards">
+        <div class="weather-card">
+          <div class="weather-icon">
+            ⛅
+          </div>
 
-      <div
-        class="card primary"
-        (click)="esAdmin() ? navegar({ ruta: '/usuarios', bloqueado: false }) : navegar({ ruta: '/usuarios', bloqueado: true })">
-        <div class="icon">👥</div>
+          <h2>INAMHI</h2>
+
+          <p>
+            Tecnología, monitoreo y gestión institucional
+            al servicio del Ecuador.
+          </p>
+
+          <div class="pulse-ring"></div>
+        </div>
+
+        <button class="logout" (click)="logout()">
+          Cerrar sesión
+        </button>
+
+      </div>
+
+    </section>
+
+    <!-- TARJETAS -->
+    <section class="dashboard-grid">
+
+      <div class="info-card blue">
+        <div class="card-icon">📄</div>
+
         <div>
-          <h3>{{ resumen.usuarios }}</h3>
-          <p>Usuarios registrados</p>
+          <h3>Gestión documental</h3>
+
+          <p>
+            Control y almacenamiento seguro de archivos institucionales.
+          </p>
         </div>
       </div>
 
-      <div class="card success" (click)="navegar({ ruta: '/documentos', bloqueado: false })">
-        <div class="icon">📄</div>
+      <div class="info-card green">
+        <div class="card-icon">📊</div>
+
         <div>
-          <h3>{{ resumen.documentos }}</h3>
-          <p>Documentos registrados</p>
+          <h3>Reportes dinámicos</h3>
+
+          <p>
+            Visualización estadística y análisis institucional.
+          </p>
         </div>
       </div>
 
-      <div class="card form" (click)="navegar({ ruta: '/formularios', bloqueado: false })">
-        <div class="icon">🧩</div>
+      <div class="info-card purple">
+        <div class="card-icon">🧾</div>
+
         <div>
-          <h3>Formularios</h3>
-          <p>Gestión dinámica</p>
+          <h3>Formularios inteligentes</h3>
+
+          <p>
+            Procesos automatizados para solicitudes y registros.
+          </p>
         </div>
       </div>
 
-      <div
-        class="card warning"
-        (click)="esAdmin() ? navegar({ ruta: '/reportes', bloqueado: false }) : navegar({ ruta: '/reportes', bloqueado: true })">
-        <div class="icon">📊</div>
+      <div class="info-card orange">
+        <div class="card-icon">🛡️</div>
+
         <div>
-          <h3>Reportes</h3>
-          <p>Ver estadísticas</p>
+          <h3>Seguridad institucional</h3>
+
+          <p>
+            Acceso controlado mediante roles y permisos del sistema.
+          </p>
         </div>
       </div>
 
-      <div class="card info">
-        <div class="icon">🛡️</div>
-        <div>
-          <h3>{{ usuario?.rol }}</h3>
-          <p>Rol actual</p>
+    </section>
+
+    <!-- PANEL INFORMATIVO -->
+    <section class="institution-panel">
+
+      <div class="panel-left">
+
+        <span class="panel-badge">
+          INAMHI ECUADOR
+        </span>
+
+        <h2>
+          Innovación tecnológica para la gestión institucional
+        </h2>
+
+        <p>
+          Esta plataforma fortalece la organización administrativa,
+          optimiza procesos internos y mejora la trazabilidad
+          documental dentro del entorno institucional del INAMHI.
+        </p>
+
+        <div class="panel-features">
+
+          <div class="feature">
+            <span>✔</span>
+            <p>Control centralizado de información</p>
+          </div>
+
+          <div class="feature">
+            <span>✔</span>
+            <p>Procesos digitales más eficientes</p>
+          </div>
+
+          <div class="feature">
+            <span>✔</span>
+            <p>Administración segura y moderna</p>
+          </div>
+
         </div>
+
       </div>
 
-      <div class="card active">
-        <div class="icon">✅</div>
-        <div>
-          <h3>Activo</h3>
-          <p>Estado del sistema</p>
-        </div>
-      </div>
+      <div class="panel-right">
 
-      <div class="card chart-card">
-        <h2>Resumen gráfico</h2>
-        <canvas id="grafico"></canvas>
+        <div class="circle circle-1"></div>
+        <div class="circle circle-2"></div>
+        <div class="circle circle-3"></div>
+
+        <div class="center-icon">
+          🌎
+        </div>
+
       </div>
 
     </section>
