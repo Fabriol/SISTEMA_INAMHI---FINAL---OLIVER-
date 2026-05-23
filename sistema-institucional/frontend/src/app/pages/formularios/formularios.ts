@@ -149,6 +149,9 @@ export class Formularios implements OnInit, OnDestroy {
   currentStep = 0;
   asignacionSubmitted = false;
   erroresPaso: string[] = [];
+  shakeErrors = false;
+  /** Controla si el contenido principal está desplegado (oculto hasta que el usuario haga clic en la alerta). */
+  contenidoVisible = false;
 
   // ── Firma ───────────────────────────────────────────────────
   firmaMode: 'canvas' | 'upload' = 'canvas';
@@ -326,6 +329,7 @@ export class Formularios implements OnInit, OnDestroy {
     this.cargarNotificaciones();
 
     if (this.esAdmin()) {
+      this.contenidoVisible = true;
       this.cargarUsuariosDisponibles();
     }
   }
@@ -556,10 +560,25 @@ export class Formularios implements OnInit, OnDestroy {
     if (errores.length > 0) {
       this.erroresPaso = errores;
       this.marcarCamposPasoTouched(this.currentStep);
+      // Retrigger shake: reset then apply in next render frame
+      this.shakeErrors = false;
+      this.cdr.detectChanges();
+      this.shakeErrors = true;
       this.cdr.markForCheck();
+      // Scroll to error summary
+      setTimeout(() => {
+        document.querySelector('.errores-paso-container')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 0);
+      // Reset shake class after animation so it can retrigger next click
+      setTimeout(() => {
+        this.shakeErrors = false;
+        this.cdr.markForCheck();
+      }, 500);
       return;
     }
     this.erroresPaso = [];
+    this.shakeErrors = false;
     if (this.currentStep < this.steps.length - 1) {
       this.currentStep++;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -593,7 +612,6 @@ export class Formularios implements OnInit, OnDestroy {
       const ctrl = this.formularioPazSalvo.get(campo);
       if (!ctrl) return;
 
-      // Skip campos no asignados al usuario (para no-admin)
       if (!this.esAdmin() && !this.camposAsignadosUsuario.includes(campo)) return;
 
       ctrl.markAsTouched();
@@ -601,17 +619,29 @@ export class Formularios implements OnInit, OnDestroy {
 
       if (ctrl.invalid) {
         const def = this.camposFormulario.find(c => c.id === campo);
-        errores.push(def?.etiqueta ?? campo);
+        const label = def?.etiqueta ?? campo;
+        const err = ctrl.errors ?? {};
+
+        if (err['required'])          errores.push(`${label}: campo obligatorio`);
+        else if (err['email'])        errores.push(`${label}: formato de email inválido`);
+        else if (err['cedulaInvalida']) errores.push(`${label}: cédula con dígito verificador incorrecto`);
+        else if (err['pattern'])      errores.push(`${label}: formato inválido`);
+        else if (err['minlength'])    errores.push(`${label}: muy corto (mín. ${err['minlength'].requiredLength} caracteres)`);
+        else if (err['maxlength'])    errores.push(`${label}: muy largo (máx. ${err['maxlength'].requiredLength} caracteres)`);
+        else if (err['min'])          errores.push(`${label}: valor mínimo no alcanzado`);
+        else if (err['max'])          errores.push(`${label}: valor máximo superado`);
+        else if (err['fechaFutura'])  errores.push(`${label}: la fecha no puede ser futura`);
+        else                          errores.push(`${label}: revise este campo`);
       }
     });
 
     // Validadores cross-field del grupo
     if (step === 0) {
       if (this.formularioPazSalvo.errors?.['fechasInvalidas']) {
-        errores.push('La fecha de salida debe ser posterior a la fecha de ingreso.');
+        errores.push('Fechas: la fecha de salida debe ser posterior a la de ingreso');
       }
       if (this.formularioPazSalvo.errors?.['emailsIguales']) {
-        errores.push('El email secundario no puede ser igual al principal.');
+        errores.push('Email Secundario: no puede ser igual al email principal');
       }
     }
     return [...new Set(errores)];
@@ -838,7 +868,13 @@ export class Formularios implements OnInit, OnDestroy {
     const camposAGuardar = this.camposAsignadosUsuario.filter(campo => {
       if (this.camposBloqueados.includes(campo)) return false;
       const ctrl = this.formularioPazSalvo.get(campo);
-      return ctrl && this.limpiarTexto(ctrl.value) !== '';
+      if (!ctrl) return false;
+      const val = ctrl.value;
+      // Excluir null, undefined, string vacío o solo espacios, y arrays/objetos vacíos
+      if (val === null || val === undefined) return false;
+      if (typeof val === 'string' && val.trim() === '') return false;
+      if (typeof val === 'number' && isNaN(val)) return false;
+      return true;
     });
 
     if (camposAGuardar.length === 0) {
@@ -1038,6 +1074,10 @@ export class Formularios implements OnInit, OnDestroy {
       catchError(() => of([]))
     ).subscribe((data: any[]) => {
       this.notificaciones = data ?? [];
+      // Si no hay notificaciones sin leer, el contenido se muestra de inmediato
+      if (!this.esAdmin() && this.notificaciones.every(n => n.leido)) {
+        this.contenidoVisible = true;
+      }
       this.cdr.markForCheck();
     });
   }
@@ -1059,6 +1099,17 @@ export class Formularios implements OnInit, OnDestroy {
 
   irAListadoFormularios(): void {
     document.getElementById('listado-formularios')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  toggleContenido(): void {
+    this.contenidoVisible = !this.contenidoVisible;
+    this.cdr.markForCheck();
+    if (this.contenidoVisible) {
+      setTimeout(() => {
+        document.getElementById('listado-formularios')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
+    }
   }
 
   get totalSinLeer(): number {
