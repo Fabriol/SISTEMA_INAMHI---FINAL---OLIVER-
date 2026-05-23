@@ -557,38 +557,36 @@
   ════════════════════════════════════════════════ -->
   <section *ngIf="formularioSeleccionado && contenidoVisible" class="paz-salvo-container fade-in contenido-reveal">
 
-    <!-- ── COLUMNA IZQUIERDA: FORMULARIO COMPLETO ── -->
-    <div class="formulario-ingreso no-print" id="paso-formulario">
-      <div class="header-titles">
+    <!-- ── COLUMNA IZQUIERDA: FORMULARIO DOCUMENTO PAZ Y SALVO ── -->
+    <div class="formulario-ingreso" id="paso-formulario">
 
-        <!-- Progress bar de pasos -->
-        <div class="pys-progress" role="navigation" aria-label="Pasos del formulario">
-          <div class="pys-progress__bar" role="progressbar" [attr.aria-valuenow]="progressPercent" aria-valuemin="0"
-            aria-valuemax="100" [attr.aria-label]="'Progreso: ' + progressPercent + '%'">
-            <div class="pys-progress__fill" [style.width.%]="progressPercent"></div>
-          </div>
-          <div class="pys-progress__steps">
-            <div *ngFor="let step of steps; let i = index" class="step-dot" [class.active]="currentStep === i"
-              [class.completed]="currentStep > i" (click)="goToStep(i)" role="button" tabindex="0"
-              [attr.aria-current]="currentStep === i ? 'step' : null"
-              [attr.aria-label]="step.title + (currentStep > i ? ' — completado' : (currentStep === i ? ' — paso actual' : ''))">
-              <div class="step-dot__circle">
-                <ng-container *ngIf="currentStep > i">✓</ng-container>
-                <ng-container *ngIf="currentStep <= i">{{ i + 1 }}</ng-container>
-              </div>
-              <span class="step-dot__label">{{ step.title }}</span>
-            </div>
-          </div>
+      <!-- Encabezado institucional -->
+      <div class="doc-header-inamhi">
+        <div class="doc-logo-cell">
+          <span class="doc-logo-arrow">➤</span>
+          <span class="doc-logo-name">INAMHI</span>
+          <span class="doc-logo-sub">TIEMPO, CLIMA Y AGUA ECUADOR</span>
         </div>
-
-        <h2>{{ formularioSeleccionado?.titulo }}</h2>
-        <p>{{ formularioSeleccionado?.descripcion || 'Llene los campos asignados.' }}</p>
+        <div class="doc-title-cell">
+          <strong>INSTITUTO NACIONAL DE METEOROLOGÍA E HIDROLOGÍA</strong><br>
+          DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS<br>
+          FORMULARIO PAZ Y SALVO PARA EL PAGO DE LIQUIDACIÓN DE HABERES
+        </div>
       </div>
 
-      <form [formGroup]="formularioPazSalvo" class="form-grid-layout" novalidate>
+      <!-- Barra de acciones rápidas -->
+      <div class="doc-quick-actions no-print">
+        <span class="doc-form-name">{{ formularioSeleccionado?.titulo }}</span>
+        <div class="doc-btns">
+          <button type="button" class="btn-ghost-sm" (click)="saveDraft()" [disabled]="cargando">💾 Borrador</button>
+          <button type="button" class="btn-ghost-sm" (click)="printMirror()">🖨 Imprimir</button>
+        </div>
+      </div>
 
-        <!-- ══════════ STEP 0 — DATOS PERSONALES + MODALIDAD + LUGAR ══════════ -->
-        <ng-container *ngIf="currentStep === 0">
+      <form [formGroup]="formularioPazSalvo" novalidate>
+
+        <!-- ══════════ DATOS PERSONALES ══════════ -->
+        <ng-container>
 
           <!-- Datos Personales -->
           <div class="form-card-dark">
@@ -986,10 +984,10 @@
             </div>
           </div>
 
-        </ng-container><!-- /step 0 -->
+        </ng-container><!-- /datos personales + unidad -->
 
-        <!-- ══════════ STEP 1 — GESTIONES ══════════ -->
-        <ng-container *ngIf="currentStep === 1">
+        <!-- ══════════ GESTIONES ══════════ -->
+        <ng-container>
 
           <!-- Trámites y Gestión Documental -->
           <div class="form-card-dark">
@@ -997,141 +995,302 @@
               <span class="card-icon-badge" aria-hidden="true">📋</span>
               <div>
                 <h3>3. Trámites y Unidad</h3>
-                <p class="card-desc">Entrega de informes y documentos</p>
+                <p class="card-desc">Entrega de informes, documentos y archivos (LOSEP)</p>
               </div>
             </div>
             <div class="form-grid">
 
-              <!-- Entrega informe -->
+              <!-- ── LADO IZQUIERDO DEL FORMULARIO (papel) ── -->
+
+              <!-- 1. Entrega informe de fin de gestión -->
               <div class="input-group span-2"
                 [class.has-error]="formularioPazSalvo.get('tramites_informe')?.invalid && formularioPazSalvo.get('tramites_informe')?.touched"
                 [class.has-success]="formularioPazSalvo.get('tramites_informe')?.valid && formularioPazSalvo.get('tramites_informe')?.value && formularioPazSalvo.get('tramites_informe')?.touched">
-                <label for="tramites_informe">Entrega informe de fin de gestión y entrega física/digital <span
-                    class="req" aria-hidden="true">*</span></label>
+                <label for="tramites_informe">Entrega informe de fin de gestión con detalle de actividades ejecutadas y
+                  pendientes (no requiere aprobación) <span class="req" aria-hidden="true">*</span></label>
                 <select id="tramites_informe" class="dark-input" formControlName="tramites_informe"
-                  [attr.disabled]="!puedeEditarCampo('tramites_informe') ? true : null" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('tramites_informe')?.invalid && formularioPazSalvo.get('tramites_informe')?.touched">
+                  [attr.disabled]="!puedeEditarCampo('tramites_informe') ? true : null" aria-required="true">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
                 <span class="field-error-msg"
                   *ngIf="formularioPazSalvo.get('tramites_informe')?.invalid && formularioPazSalvo.get('tramites_informe')?.touched"
-                  role="alert">
-                  ⚠ Seleccione una opción.
-                </span>
+                  role="alert">⚠ Seleccione una opción.</span>
               </div>
 
-              <!-- Administrador de Contrato -->
-              <div class="input-group span-2"
+              <!-- 2. Fe de Presentación -->
+              <div class="input-group"
+                [class.has-error]="formularioPazSalvo.get('tramites_fe_presentacion')?.invalid && formularioPazSalvo.get('tramites_fe_presentacion')?.touched"
+                [class.has-success]="formularioPazSalvo.get('tramites_fe_presentacion')?.valid && formularioPazSalvo.get('tramites_fe_presentacion')?.value && formularioPazSalvo.get('tramites_fe_presentacion')?.touched">
+                <label for="tramites_fe_presentacion">Fe de presentación de la entrega en recepción del informe de fin
+                  de gestión <span class="req" aria-hidden="true">*</span></label>
+                <select id="tramites_fe_presentacion" class="dark-input" formControlName="tramites_fe_presentacion"
+                  [attr.disabled]="!puedeEditarCampo('tramites_fe_presentacion') ? true : null" aria-required="true">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('tramites_fe_presentacion')?.invalid && formularioPazSalvo.get('tramites_fe_presentacion')?.touched"
+                  role="alert">⚠ Seleccione una opción.</span>
+              </div>
+
+              <!-- 3. Entrega archivo LOSEP -->
+              <div class="input-group"
+                [class.has-error]="formularioPazSalvo.get('tramites_losep')?.invalid && formularioPazSalvo.get('tramites_losep')?.touched"
+                [class.has-success]="formularioPazSalvo.get('tramites_losep')?.valid && formularioPazSalvo.get('tramites_losep')?.value && formularioPazSalvo.get('tramites_losep')?.touched">
+                <label for="tramites_losep">Realiza la entrega de archivo de la documentación física y digital (LOSEP)
+                  <span class="req" aria-hidden="true">*</span></label>
+                <select id="tramites_losep" class="dark-input" formControlName="tramites_losep"
+                  [attr.disabled]="!puedeEditarCampo('tramites_losep') ? true : null" aria-required="true">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('tramites_losep')?.invalid && formularioPazSalvo.get('tramites_losep')?.touched"
+                  role="alert">⚠ Seleccione una opción.</span>
+              </div>
+
+              <!-- 4. Administrador de Contrato -->
+              <div class="input-group"
                 [class.has-error]="formularioPazSalvo.get('tramites_admin_contrato')?.invalid && formularioPazSalvo.get('tramites_admin_contrato')?.touched"
                 [class.has-success]="formularioPazSalvo.get('tramites_admin_contrato')?.valid && formularioPazSalvo.get('tramites_admin_contrato')?.value && formularioPazSalvo.get('tramites_admin_contrato')?.touched">
-                <label for="tramites_admin_contrato">¿Es Administrador de Contrato? <span class="req"
+                <label for="tramites_admin_contrato">¿Es Administrador/a de Contrato? <span class="req"
                     aria-hidden="true">*</span></label>
                 <select id="tramites_admin_contrato" class="dark-input" formControlName="tramites_admin_contrato"
-                  [attr.disabled]="!puedeEditarCampo('tramites_admin_contrato') ? true : null" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('tramites_admin_contrato')?.invalid && formularioPazSalvo.get('tramites_admin_contrato')?.touched">
+                  [attr.disabled]="!puedeEditarCampo('tramites_admin_contrato') ? true : null" aria-required="true">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
                 <span class="field-error-msg"
                   *ngIf="formularioPazSalvo.get('tramites_admin_contrato')?.invalid && formularioPazSalvo.get('tramites_admin_contrato')?.touched"
-                  role="alert">
-                  ⚠ Seleccione una opción.
-                </span>
+                  role="alert">⚠ Seleccione una opción.</span>
               </div>
 
               <!-- Campos condicionales: admin contrato = SI -->
               <ng-container *ngIf="formularioPazSalvo.get('tramites_admin_contrato')?.value === 'SI'">
-
                 <div class="input-group"
-                  [class.has-error]="formularioPazSalvo.get('tramites_desc_contrato')?.invalid && formularioPazSalvo.get('tramites_desc_contrato')?.touched"
-                  [class.has-success]="formularioPazSalvo.get('tramites_desc_contrato')?.valid && formularioPazSalvo.get('tramites_desc_contrato')?.touched">
-                  <label for="tramites_desc_contrato">Descripción del contrato <span class="req"
+                  [class.has-error]="formularioPazSalvo.get('tramites_desc_contrato')?.invalid && formularioPazSalvo.get('tramites_desc_contrato')?.touched">
+                  <label for="tramites_desc_contrato">Descripción del Contrato <span class="req"
                       aria-hidden="true">*</span></label>
                   <input id="tramites_desc_contrato" class="dark-input" formControlName="tramites_desc_contrato"
                     placeholder="Descripción del contrato" [readonly]="!puedeEditarCampo('tramites_desc_contrato')"
-                    aria-required="true"
-                    [attr.aria-invalid]="formularioPazSalvo.get('tramites_desc_contrato')?.invalid && formularioPazSalvo.get('tramites_desc_contrato')?.touched">
+                    aria-required="true">
                   <span class="field-error-msg"
                     *ngIf="formularioPazSalvo.get('tramites_desc_contrato')?.invalid && formularioPazSalvo.get('tramites_desc_contrato')?.touched"
-                    role="alert">
-                    ⚠ Ingrese la descripción del contrato.
-                  </span>
+                    role="alert">⚠ Ingrese la descripción del contrato.</span>
                 </div>
-
                 <div class="input-group"
-                  [class.has-error]="formularioPazSalvo.get('tramites_memo')?.invalid && formularioPazSalvo.get('tramites_memo')?.touched"
-                  [class.has-success]="formularioPazSalvo.get('tramites_memo')?.valid && formularioPazSalvo.get('tramites_memo')?.touched">
-                  <label for="tramites_memo">Número Memorando <span class="req" aria-hidden="true">*</span></label>
+                  [class.has-error]="formularioPazSalvo.get('tramites_memo')?.invalid && formularioPazSalvo.get('tramites_memo')?.touched">
+                  <label for="tramites_memo">N° de Memorando Designación Nuevo Administrador <span class="req"
+                      aria-hidden="true">*</span></label>
                   <input id="tramites_memo" class="dark-input" formControlName="tramites_memo"
-                    placeholder="Nº Memorando (ej. MEMO-2024-001)" [readonly]="!puedeEditarCampo('tramites_memo')"
-                    aria-required="true"
-                    [attr.aria-invalid]="formularioPazSalvo.get('tramites_memo')?.invalid && formularioPazSalvo.get('tramites_memo')?.touched">
+                    placeholder="Ej. MEMO-2024-001" [readonly]="!puedeEditarCampo('tramites_memo')"
+                    aria-required="true">
                   <span class="field-error-msg"
                     *ngIf="formularioPazSalvo.get('tramites_memo')?.invalid && formularioPazSalvo.get('tramites_memo')?.touched"
-                    role="alert">
-                    ⚠ Ingrese el número de memorando.
-                  </span>
+                    role="alert">⚠ Ingrese el número de memorando.</span>
                 </div>
-
               </ng-container>
 
-              <!-- Jefe Inmediato -->
+              <!-- 5. Nombre y Cargo del Jefe Inmediato -->
               <div class="input-group span-2"
                 [class.has-error]="formularioPazSalvo.get('tramites_jefe_inmediato')?.invalid && formularioPazSalvo.get('tramites_jefe_inmediato')?.touched"
                 [class.has-success]="formularioPazSalvo.get('tramites_jefe_inmediato')?.valid && formularioPazSalvo.get('tramites_jefe_inmediato')?.touched">
-                <label for="tramites_jefe_inmediato">Nombre del Jefe Inmediato <span class="req"
+                <label for="tramites_jefe_inmediato">Nombre y Cargo del Jefe Inmediato <span class="req"
                     aria-hidden="true">*</span></label>
                 <input id="tramites_jefe_inmediato" class="dark-input" formControlName="tramites_jefe_inmediato"
-                  placeholder="Nombre completo y cargo" [readonly]="!puedeEditarCampo('tramites_jefe_inmediato')"
-                  aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('tramites_jefe_inmediato')?.invalid && formularioPazSalvo.get('tramites_jefe_inmediato')?.touched">
+                  placeholder="Nombre completo y cargo del jefe inmediato"
+                  [readonly]="!puedeEditarCampo('tramites_jefe_inmediato')" aria-required="true">
                 <span class="field-error-msg"
                   *ngIf="formularioPazSalvo.get('tramites_jefe_inmediato')?.invalid && formularioPazSalvo.get('tramites_jefe_inmediato')?.touched"
-                  role="alert">
-                  ⚠ Ingrese el nombre del jefe inmediato (mín. 5 caracteres).
-                </span>
+                  role="alert">⚠ Ingrese el nombre y cargo del jefe inmediato (mín. 5 caracteres).</span>
               </div>
 
-              <!-- Quipux -->
+              <!-- ── LADO DERECHO DEL FORMULARIO (papel) ── -->
+
+              <!-- 6. Entrega QUIPUX Bandeja en Cero -->
               <div class="input-group span-2"
                 [class.has-error]="formularioPazSalvo.get('tramites_quipux_cero')?.invalid && formularioPazSalvo.get('tramites_quipux_cero')?.touched"
                 [class.has-success]="formularioPazSalvo.get('tramites_quipux_cero')?.valid && formularioPazSalvo.get('tramites_quipux_cero')?.value && formularioPazSalvo.get('tramites_quipux_cero')?.touched">
-                <label for="tramites_quipux_cero">Trámites en QUIPUX (Bandeja Cero) / Claves de Acceso <span class="req"
-                    aria-hidden="true">*</span></label>
+                <label for="tramites_quipux_cero">Entrega los trámites asignados en el sistema de gestión documental
+                  QUIPUX (Bandeja en Cero) <span class="req" aria-hidden="true">*</span></label>
                 <select id="tramites_quipux_cero" class="dark-input" formControlName="tramites_quipux_cero"
-                  [attr.disabled]="!puedeEditarCampo('tramites_quipux_cero') ? true : null" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('tramites_quipux_cero')?.invalid && formularioPazSalvo.get('tramites_quipux_cero')?.touched">
+                  [attr.disabled]="!puedeEditarCampo('tramites_quipux_cero') ? true : null" aria-required="true">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
                 </select>
                 <span class="field-error-msg"
                   *ngIf="formularioPazSalvo.get('tramites_quipux_cero')?.invalid && formularioPazSalvo.get('tramites_quipux_cero')?.touched"
-                  role="alert">
-                  ⚠ Seleccione una opción.
-                </span>
+                  role="alert">⚠ Seleccione una opción.</span>
               </div>
 
-              <!-- Servidor que recibe -->
+              <!-- 7. Claves de Acceso Asignadas -->
+              <div class="input-group"
+                [class.has-error]="formularioPazSalvo.get('tramites_claves_asignadas')?.invalid && formularioPazSalvo.get('tramites_claves_asignadas')?.touched"
+                [class.has-success]="formularioPazSalvo.get('tramites_claves_asignadas')?.valid && formularioPazSalvo.get('tramites_claves_asignadas')?.value && formularioPazSalvo.get('tramites_claves_asignadas')?.touched">
+                <label for="tramites_claves_asignadas">Tiene asignado claves de acceso en su unidad <span class="req"
+                    aria-hidden="true">*</span></label>
+                <select id="tramites_claves_asignadas" class="dark-input" formControlName="tramites_claves_asignadas"
+                  [attr.disabled]="!puedeEditarCampo('tramites_claves_asignadas') ? true : null" aria-required="true">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('tramites_claves_asignadas')?.invalid && formularioPazSalvo.get('tramites_claves_asignadas')?.touched"
+                  role="alert">⚠ Seleccione una opción.</span>
+              </div>
+
+              <!-- 8. Acta Entrega de Claves -->
+              <div class="input-group"
+                [class.has-error]="formularioPazSalvo.get('tramites_acta_claves')?.invalid && formularioPazSalvo.get('tramites_acta_claves')?.touched"
+                [class.has-success]="formularioPazSalvo.get('tramites_acta_claves')?.valid && formularioPazSalvo.get('tramites_acta_claves')?.value && formularioPazSalvo.get('tramites_acta_claves')?.touched">
+                <label for="tramites_acta_claves">Realizó acta entrega de claves de su unidad <span class="req"
+                    aria-hidden="true">*</span></label>
+                <select id="tramites_acta_claves" class="dark-input" formControlName="tramites_acta_claves"
+                  [attr.disabled]="!puedeEditarCampo('tramites_acta_claves') ? true : null" aria-required="true">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('tramites_acta_claves')?.invalid && formularioPazSalvo.get('tramites_acta_claves')?.touched"
+                  role="alert">⚠ Seleccione una opción.</span>
+              </div>
+
+              <!-- 9. Nombre y Cargo del Servidor que Recibe los Trámites Pendientes -->
               <div class="input-group span-2"
                 [class.has-error]="formularioPazSalvo.get('tramites_servidor_recibe')?.invalid && formularioPazSalvo.get('tramites_servidor_recibe')?.touched"
                 [class.has-success]="formularioPazSalvo.get('tramites_servidor_recibe')?.valid && formularioPazSalvo.get('tramites_servidor_recibe')?.touched">
-                <label for="tramites_servidor_recibe">Nombre servidor que recibe trámites <span class="req"
-                    aria-hidden="true">*</span></label>
+                <label for="tramites_servidor_recibe">Nombre y Cargo del Servidor/a que recibe los trámites pendientes
+                  <span class="req" aria-hidden="true">*</span></label>
                 <input id="tramites_servidor_recibe" class="dark-input" formControlName="tramites_servidor_recibe"
-                  placeholder="Nombre completo" [readonly]="!puedeEditarCampo('tramites_servidor_recibe')"
-                  aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('tramites_servidor_recibe')?.invalid && formularioPazSalvo.get('tramites_servidor_recibe')?.touched">
+                  placeholder="Nombre completo y cargo" [readonly]="!puedeEditarCampo('tramites_servidor_recibe')"
+                  aria-required="true">
                 <span class="field-error-msg"
                   *ngIf="formularioPazSalvo.get('tramites_servidor_recibe')?.invalid && formularioPazSalvo.get('tramites_servidor_recibe')?.touched"
-                  role="alert">
-                  ⚠ Ingrese el nombre del servidor que recibe (mín. 5 caracteres).
-                </span>
+                  role="alert">⚠ Ingrese el nombre y cargo (mín. 5 caracteres).</span>
               </div>
 
+              <!-- 10. Observación -->
+              <div class="input-group span-2">
+                <label for="tramites_obs">Observación <span class="hint-label">(opcional)</span></label>
+                <input id="tramites_obs" class="dark-input" formControlName="tramites_obs"
+                  placeholder="Observaciones adicionales" [readonly]="!puedeEditarCampo('tramites_obs')">
+              </div>
+
+              <!-- 11. Nombre Responsable General (sección) -->
+              <div class="input-group span-2"
+                [class.has-error]="formularioPazSalvo.get('tramites_nombre_responsable')?.invalid && formularioPazSalvo.get('tramites_nombre_responsable')?.touched"
+                [class.has-success]="formularioPazSalvo.get('tramites_nombre_responsable')?.valid && formularioPazSalvo.get('tramites_nombre_responsable')?.touched">
+                <label for="tramites_nombre_responsable">Nombre del Responsable de la Sección <span class="req"
+                    aria-hidden="true">*</span></label>
+                <input id="tramites_nombre_responsable" class="dark-input" formControlName="tramites_nombre_responsable"
+                  placeholder="Nombre completo del responsable"
+                  [readonly]="!puedeEditarCampo('tramites_nombre_responsable')" aria-required="true">
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('tramites_nombre_responsable')?.invalid && formularioPazSalvo.get('tramites_nombre_responsable')?.touched"
+                  role="alert">⚠ Ingrese el nombre del responsable (mín. 5 caracteres).</span>
+              </div>
+
+            </div>
+
+            <!-- NOMBRE RESPONSABLE + FIRMA por fila — Trámites -->
+            <div class="doc-resp-table-wrapper">
+              <table class="doc-resp-table">
+                <thead>
+                  <tr>
+                    <th>ÍTEM</th>
+                    <th>NOMBRE RESPONSABLE *</th>
+                    <th>FIRMA RESPONSABLE (FirmaEC) *</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="doc-resp-item">Informe fin de gestión / QUIPUX bandeja en cero</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="tramites_nombre_resp1"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('tramites_nombre_resp1')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('tramites_nombre_resp1')?.invalid && formularioPazSalvo.get('tramites_nombre_resp1')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['tramites_r1']" class="btn-firma-mini" for="fec-tramites-r1">✍
+                        FirmaEC<input type="file" id="fec-tramites-r1" accept="image/*"
+                          (change)="onFirmaECChange('tramites_r1',$event)" style="display:none"></label>
+                      <div *ngIf="firmasEC['tramites_r1']" class="firma-mini-ok"><img [src]="firmasEC['tramites_r1']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('tramites_r1')">✕</button></div>
+                      <span *ngIf="firmasECRequired['tramites_r1'] && !firmasEC['tramites_r1']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Fe de presentación / Claves de acceso asignadas</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="tramites_nombre_resp2"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('tramites_nombre_resp2')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('tramites_nombre_resp2')?.invalid && formularioPazSalvo.get('tramites_nombre_resp2')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['tramites_r2']" class="btn-firma-mini" for="fec-tramites-r2">✍
+                        FirmaEC<input type="file" id="fec-tramites-r2" accept="image/*"
+                          (change)="onFirmaECChange('tramites_r2',$event)" style="display:none"></label>
+                      <div *ngIf="firmasEC['tramites_r2']" class="firma-mini-ok"><img [src]="firmasEC['tramites_r2']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('tramites_r2')">✕</button></div>
+                      <span *ngIf="firmasECRequired['tramites_r2'] && !firmasEC['tramites_r2']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Entrega archivo físico y digital (LOSEP) / Acta entrega claves</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="tramites_nombre_resp3"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('tramites_nombre_resp3')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('tramites_nombre_resp3')?.invalid && formularioPazSalvo.get('tramites_nombre_resp3')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['tramites_r3']" class="btn-firma-mini" for="fec-tramites-r3">✍
+                        FirmaEC<input type="file" id="fec-tramites-r3" accept="image/*"
+                          (change)="onFirmaECChange('tramites_r3',$event)" style="display:none"></label>
+                      <div *ngIf="firmasEC['tramites_r3']" class="firma-mini-ok"><img [src]="firmasEC['tramites_r3']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('tramites_r3')">✕</button></div>
+                      <span *ngIf="firmasECRequired['tramites_r3'] && !firmasEC['tramites_r3']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Firma del Jefe Inmediato</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('tramites_jefe_inmediato')?.value ||
+                      '—' }}</td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['tramites_jefe']" class="btn-firma-mini" for="fec-tramites-jefe">✍
+                        FirmaEC<input type="file" id="fec-tramites-jefe" accept="image/*"
+                          (change)="onFirmaECChange('tramites_jefe',$event)" style="display:none"></label>
+                      <div *ngIf="firmasEC['tramites_jefe']" class="firma-mini-ok"><img
+                          [src]="firmasEC['tramites_jefe']" class="firma-mini-img" alt="F"><button type="button"
+                          class="firma-mini-clear" (click)="clearFirmaEC('tramites_jefe')">✕</button></div>
+                      <span *ngIf="firmasECRequired['tramites_jefe'] && !firmasEC['tramites_jefe']"
+                        class="firma-mini-req">* requerida</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1278,21 +1437,135 @@
               </div>
 
               <!-- Responsable Administrativo -->
-              <div class="input-group"
+              <div class="input-group span-2"
                 [class.has-error]="formularioPazSalvo.get('admin_responsable')?.invalid && formularioPazSalvo.get('admin_responsable')?.touched"
                 [class.has-success]="formularioPazSalvo.get('admin_responsable')?.valid && formularioPazSalvo.get('admin_responsable')?.touched">
-                <label for="admin_responsable">Nombre Responsable Administrativo <span class="req"
+                <label for="admin_responsable">Nombre Director/a Administrativo/a Financiero/a <span class="req"
                     aria-hidden="true">*</span></label>
                 <input id="admin_responsable" class="dark-input" formControlName="admin_responsable"
-                  placeholder="Nombre completo" [readonly]="!puedeEditarCampo('admin_responsable')" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('admin_responsable')?.invalid && formularioPazSalvo.get('admin_responsable')?.touched">
+                  placeholder="Nombre completo" [readonly]="!puedeEditarCampo('admin_responsable')"
+                  aria-required="true">
                 <span class="field-error-msg"
                   *ngIf="formularioPazSalvo.get('admin_responsable')?.invalid && formularioPazSalvo.get('admin_responsable')?.touched"
                   role="alert">
-                  ⚠ Ingrese el nombre del responsable administrativo.
+                  ⚠ Ingrese el nombre del director/a.
                 </span>
               </div>
 
+            </div>
+
+            <!-- NOMBRE RESPONSABLE + FIRMA por fila — Administrativo -->
+            <div class="doc-resp-table-wrapper">
+              <table class="doc-resp-table">
+                <thead>
+                  <tr>
+                    <th>ÍTEM</th>
+                    <th>NOMBRE RESPONSABLE *</th>
+                    <th>FIRMA RESPONSABLE (FirmaEC) *</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="doc-resp-item">Entrega de Informe de Actividades</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="admin_nombre_resp1"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('admin_nombre_resp1')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('admin_nombre_resp1')?.invalid && formularioPazSalvo.get('admin_nombre_resp1')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['admin_r1']" class="btn-firma-mini" for="fec-admin-r1">✍ FirmaEC<input
+                          type="file" id="fec-admin-r1" accept="image/*" (change)="onFirmaECChange('admin_r1',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['admin_r1']" class="firma-mini-ok"><img [src]="firmasEC['admin_r1']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('admin_r1')">✕</button></div>
+                      <span *ngIf="firmasECRequired['admin_r1'] && !firmasEC['admin_r1']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Entrega Bienes Institucionales / Acta de Entrega-Recepción</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="admin_nombre_resp2"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('admin_nombre_resp2')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('admin_nombre_resp2')?.invalid && formularioPazSalvo.get('admin_nombre_resp2')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['admin_r2']" class="btn-firma-mini" for="fec-admin-r2">✍ FirmaEC<input
+                          type="file" id="fec-admin-r2" accept="image/*" (change)="onFirmaECChange('admin_r2',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['admin_r2']" class="firma-mini-ok"><img [src]="firmasEC['admin_r2']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('admin_r2')">✕</button></div>
+                      <span *ngIf="firmasECRequired['admin_r2'] && !firmasEC['admin_r2']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Deducibles / Pasajes aéreos por justificar</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="admin_nombre_resp3"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('admin_nombre_resp3')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('admin_nombre_resp3')?.invalid && formularioPazSalvo.get('admin_nombre_resp3')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['admin_r3']" class="btn-firma-mini" for="fec-admin-r3">✍ FirmaEC<input
+                          type="file" id="fec-admin-r3" accept="image/*" (change)="onFirmaECChange('admin_r3',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['admin_r3']" class="firma-mini-ok"><img [src]="firmasEC['admin_r3']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('admin_r3')">✕</button></div>
+                      <span *ngIf="firmasECRequired['admin_r3'] && !firmasEC['admin_r3']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Verificación Valor Bienes / Responsable Administrativo</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="admin_nombre_resp4"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('admin_nombre_resp4')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('admin_nombre_resp4')?.invalid && formularioPazSalvo.get('admin_nombre_resp4')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['admin_r4']" class="btn-firma-mini" for="fec-admin-r4">✍ FirmaEC<input
+                          type="file" id="fec-admin-r4" accept="image/*" (change)="onFirmaECChange('admin_r4',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['admin_r4']" class="firma-mini-ok"><img [src]="firmasEC['admin_r4']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('admin_r4')">✕</button></div>
+                      <span *ngIf="firmasECRequired['admin_r4'] && !firmasEC['admin_r4']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Director/a Administrativo/a Financiero/a</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('admin_responsable')?.value || '—'
+                      }}</td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['admin_dir']" class="btn-firma-mini" for="fec-admin-dir">✍ FirmaEC<input
+                          type="file" id="fec-admin-dir" accept="image/*" (change)="onFirmaECChange('admin_dir',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['admin_dir']" class="firma-mini-ok"><img [src]="firmasEC['admin_dir']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('admin_dir')">✕</button></div>
+                      <span *ngIf="firmasECRequired['admin_dir'] && !firmasEC['admin_dir']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1389,15 +1662,141 @@
                 </span>
               </div>
 
-              <!-- Responsable TIC -->
+              <!-- IP Fija -->
               <div class="input-group"
+                [class.has-error]="formularioPazSalvo.get('tic_ip_fija')?.invalid && formularioPazSalvo.get('tic_ip_fija')?.touched"
+                [class.has-success]="formularioPazSalvo.get('tic_ip_fija')?.valid && formularioPazSalvo.get('tic_ip_fija')?.value && formularioPazSalvo.get('tic_ip_fija')?.touched">
+                <label for="tic_ip_fija">¿Tiene acceso a IP fija Wi-Fi y/o Móvil? <span class="req"
+                    aria-hidden="true">*</span></label>
+                <select id="tic_ip_fija" class="dark-input" formControlName="tic_ip_fija"
+                  [attr.disabled]="!puedeEditarCampo('tic_ip_fija') ? true : null" aria-required="true">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('tic_ip_fija')?.invalid && formularioPazSalvo.get('tic_ip_fija')?.touched"
+                  role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
+              </div>
+
+              <!-- Liberación IP (condicional) -->
+              <div class="input-group" *ngIf="formularioPazSalvo.get('tic_ip_fija')?.value === 'SI'"
+                [class.has-error]="formularioPazSalvo.get('tic_liberacion')?.invalid && formularioPazSalvo.get('tic_liberacion')?.touched"
+                [class.has-success]="formularioPazSalvo.get('tic_liberacion')?.valid && formularioPazSalvo.get('tic_liberacion')?.value && formularioPazSalvo.get('tic_liberacion')?.touched">
+                <label for="tic_liberacion">¿Se realizó la liberación de IP? <span class="req"
+                    aria-hidden="true">*</span></label>
+                <select id="tic_liberacion" class="dark-input" formControlName="tic_liberacion"
+                  [attr.disabled]="!puedeEditarCampo('tic_liberacion') ? true : null" aria-required="true">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('tic_liberacion')?.invalid && formularioPazSalvo.get('tic_liberacion')?.touched"
+                  role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
+              </div>
+
+              <!-- Retiro control acceso -->
+              <div class="input-group"
+                [class.has-error]="formularioPazSalvo.get('tic_retiro_acceso')?.invalid && formularioPazSalvo.get('tic_retiro_acceso')?.touched"
+                [class.has-success]="formularioPazSalvo.get('tic_retiro_acceso')?.valid && formularioPazSalvo.get('tic_retiro_acceso')?.value && formularioPazSalvo.get('tic_retiro_acceso')?.touched">
+                <label for="tic_retiro_acceso">Retiro control de acceso (contraseñas de sistemas) <span class="req"
+                    aria-hidden="true">*</span></label>
+                <select id="tic_retiro_acceso" class="dark-input" formControlName="tic_retiro_acceso"
+                  [attr.disabled]="!puedeEditarCampo('tic_retiro_acceso') ? true : null" aria-required="true">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('tic_retiro_acceso')?.invalid && formularioPazSalvo.get('tic_retiro_acceso')?.touched"
+                  role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
+              </div>
+
+              <!-- Cierre de Cuentas -->
+              <div class="input-group span-2">
+                <label>Cierre de Cuentas Institucionales <span class="req" aria-hidden="true">*</span></label>
+                <div class="detalle-grid">
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('tic_cierre_correo')?.invalid && formularioPazSalvo.get('tic_cierre_correo')?.touched">
+                    <span class="detalle-row-label">Correo Institucional</span>
+                    <select class="si-no-select dark-input" formControlName="tic_cierre_correo"
+                      [attr.disabled]="!puedeEditarCampo('tic_cierre_correo') ? true : null">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('tic_esigef')?.invalid && formularioPazSalvo.get('tic_esigef')?.touched">
+                    <span class="detalle-row-label">eSIGEF</span>
+                    <select class="si-no-select dark-input" formControlName="tic_esigef"
+                      [attr.disabled]="!puedeEditarCampo('tic_esigef') ? true : null">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('tic_spryn')?.invalid && formularioPazSalvo.get('tic_spryn')?.touched">
+                    <span class="detalle-row-label">SPRYN</span>
+                    <select class="si-no-select dark-input" formControlName="tic_spryn"
+                      [attr.disabled]="!puedeEditarCampo('tic_spryn') ? true : null">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('tic_esbye')?.invalid && formularioPazSalvo.get('tic_esbye')?.touched">
+                    <span class="detalle-row-label">eSByE</span>
+                    <select class="si-no-select dark-input" formControlName="tic_esbye"
+                      [attr.disabled]="!puedeEditarCampo('tic_esbye') ? true : null">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('tic_quipux')?.invalid && formularioPazSalvo.get('tic_quipux')?.touched">
+                    <span class="detalle-row-label">QUIPUX</span>
+                    <select class="si-no-select dark-input" formControlName="tic_quipux"
+                      [attr.disabled]="!puedeEditarCampo('tic_quipux') ? true : null">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- Observación TIC -->
+              <div class="input-group span-2">
+                <label for="tic_obs">Observación TIC <span class="hint-label">(opcional)</span></label>
+                <input id="tic_obs" class="dark-input" formControlName="tic_obs"
+                  placeholder="Observaciones sobre el equipo o sistemas" [readonly]="!puedeEditarCampo('tic_obs')">
+              </div>
+
+              <!-- Responsable TIC -->
+              <div class="input-group span-2"
                 [class.has-error]="formularioPazSalvo.get('tic_responsable')?.invalid && formularioPazSalvo.get('tic_responsable')?.touched"
                 [class.has-success]="formularioPazSalvo.get('tic_responsable')?.valid && formularioPazSalvo.get('tic_responsable')?.touched">
                 <label for="tic_responsable">Nombre Responsable TIC <span class="req"
                     aria-hidden="true">*</span></label>
                 <input id="tic_responsable" class="dark-input" formControlName="tic_responsable"
-                  placeholder="Nombre completo" [readonly]="!puedeEditarCampo('tic_responsable')" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('tic_responsable')?.invalid && formularioPazSalvo.get('tic_responsable')?.touched">
+                  placeholder="Nombre completo" [readonly]="!puedeEditarCampo('tic_responsable')" aria-required="true">
                 <span class="field-error-msg"
                   *ngIf="formularioPazSalvo.get('tic_responsable')?.invalid && formularioPazSalvo.get('tic_responsable')?.touched"
                   role="alert">
@@ -1405,6 +1804,120 @@
                 </span>
               </div>
 
+            </div>
+
+            <!-- NOMBRE RESPONSABLE + FIRMA por fila — TIC -->
+            <div class="doc-resp-table-wrapper">
+              <table class="doc-resp-table">
+                <thead>
+                  <tr>
+                    <th>ÍTEM</th>
+                    <th>NOMBRE RESPONSABLE *</th>
+                    <th>FIRMA RESPONSABLE (FirmaEC) *</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="doc-resp-item">Verificación Equipo / IP Fija / Liberación de accesos</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="tic_nombre_resp1"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('tic_nombre_resp1')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('tic_nombre_resp1')?.invalid && formularioPazSalvo.get('tic_nombre_resp1')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['tic_r1']" class="btn-firma-mini" for="fec-tic-r1">✍ FirmaEC<input
+                          type="file" id="fec-tic-r1" accept="image/*" (change)="onFirmaECChange('tic_r1',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['tic_r1']" class="firma-mini-ok"><img [src]="firmasEC['tic_r1']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('tic_r1')">✕</button></div>
+                      <span *ngIf="firmasECRequired['tic_r1'] && !firmasEC['tic_r1']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Backup de información / Ruta de backup</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="tic_nombre_resp2"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('tic_nombre_resp2')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('tic_nombre_resp2')?.invalid && formularioPazSalvo.get('tic_nombre_resp2')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['tic_r2']" class="btn-firma-mini" for="fec-tic-r2">✍ FirmaEC<input
+                          type="file" id="fec-tic-r2" accept="image/*" (change)="onFirmaECChange('tic_r2',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['tic_r2']" class="firma-mini-ok"><img [src]="firmasEC['tic_r2']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('tic_r2')">✕</button></div>
+                      <span *ngIf="firmasECRequired['tic_r2'] && !firmasEC['tic_r2']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Cierre correo institucional / eSigef / SPRYN / eSByE</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="tic_nombre_resp3"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('tic_nombre_resp3')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('tic_nombre_resp3')?.invalid && formularioPazSalvo.get('tic_nombre_resp3')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['tic_r3']" class="btn-firma-mini" for="fec-tic-r3">✍ FirmaEC<input
+                          type="file" id="fec-tic-r3" accept="image/*" (change)="onFirmaECChange('tic_r3',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['tic_r3']" class="firma-mini-ok"><img [src]="firmasEC['tic_r3']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('tic_r3')">✕</button></div>
+                      <span *ngIf="firmasECRequired['tic_r3'] && !firmasEC['tic_r3']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">QUIPUX / Tarjeta de Cuentas</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="tic_nombre_resp4"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('tic_nombre_resp4')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('tic_nombre_resp4')?.invalid && formularioPazSalvo.get('tic_nombre_resp4')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['tic_r4']" class="btn-firma-mini" for="fec-tic-r4">✍ FirmaEC<input
+                          type="file" id="fec-tic-r4" accept="image/*" (change)="onFirmaECChange('tic_r4',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['tic_r4']" class="firma-mini-ok"><img [src]="firmasEC['tic_r4']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('tic_r4')">✕</button></div>
+                      <span *ngIf="firmasECRequired['tic_r4'] && !firmasEC['tic_r4']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Responsable TIC</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('tic_responsable')?.value || '—' }}
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['tic_r5']" class="btn-firma-mini" for="fec-tic-r5">✍ FirmaEC<input
+                          type="file" id="fec-tic-r5" accept="image/*" (change)="onFirmaECChange('tic_r5',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['tic_r5']" class="firma-mini-ok"><img [src]="firmasEC['tic_r5']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('tic_r5')">✕</button></div>
+                      <span *ngIf="firmasECRequired['tic_r5'] && !firmasEC['tic_r5']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1414,20 +1927,19 @@
               <span class="card-icon-badge" aria-hidden="true">💰</span>
               <div>
                 <h3>6. Gestión Financiera</h3>
-                <p class="card-desc">Valores pendientes de pago</p>
+                <p class="card-desc">Valores pendientes de pago — Dirección Administrativa Financiera</p>
               </div>
             </div>
             <div class="form-grid">
 
-              <!-- Saldos contables -->
-              <div class="input-group span-2"
+              <!-- 1. Saldos contables -->
+              <div class="input-group"
                 [class.has-error]="formularioPazSalvo.get('fin_saldos')?.invalid && formularioPazSalvo.get('fin_saldos')?.touched"
                 [class.has-success]="formularioPazSalvo.get('fin_saldos')?.valid && formularioPazSalvo.get('fin_saldos')?.value && formularioPazSalvo.get('fin_saldos')?.touched">
-                <label for="fin_saldos">¿Valores pendientes (Saldos contables, Anticipos)? <span class="req"
-                    aria-hidden="true">*</span></label>
+                <label for="fin_saldos">¿Valores pendientes de saldos contables? (viáticos, caja chica, pasajes) <span
+                    class="req" aria-hidden="true">*</span></label>
                 <select id="fin_saldos" class="dark-input" formControlName="fin_saldos"
-                  [attr.disabled]="!puedeEditarCampo('fin_saldos') ? true : null" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('fin_saldos')?.invalid && formularioPazSalvo.get('fin_saldos')?.touched">
+                  [attr.disabled]="!puedeEditarCampo('fin_saldos') ? true : null" aria-required="true">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
@@ -1439,15 +1951,73 @@
                 </span>
               </div>
 
-              <!-- Recuperación -->
-              <div class="input-group span-2"
+              <div class="input-group" *ngIf="formularioPazSalvo.get('fin_saldos')?.value === 'SI'"
+                [class.has-error]="formularioPazSalvo.get('fin_saldos_valor')?.invalid && formularioPazSalvo.get('fin_saldos_valor')?.touched">
+                <label for="fin_saldos_valor">Valor a Descontar (Saldos) <span class="req" aria-hidden="true">*</span>
+                  <span class="hint-label">$ USD</span></label>
+                <input id="fin_saldos_valor" type="number" class="dark-input" formControlName="fin_saldos_valor"
+                  placeholder="0.01" min="0.01" step="0.01" [readonly]="!puedeEditarCampo('fin_saldos_valor')"
+                  aria-required="true">
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('fin_saldos_valor')?.errors?.['required'] && formularioPazSalvo.get('fin_saldos_valor')?.touched"
+                  role="alert">
+                  ⚠ Ingrese el valor a descontar.
+                </span>
+              </div>
+
+              <div class="input-group span-2" *ngIf="formularioPazSalvo.get('fin_saldos')?.value === 'SI'">
+                <label for="fin_saldos_obs">Observación Saldos</label>
+                <input id="fin_saldos_obs" class="dark-input" formControlName="fin_saldos_obs" placeholder="Observación"
+                  [readonly]="!puedeEditarCampo('fin_saldos_obs')">
+              </div>
+
+              <!-- 2. Anticipo de sueldos -->
+              <div class="input-group"
+                [class.has-error]="formularioPazSalvo.get('fin_anticipo')?.invalid && formularioPazSalvo.get('fin_anticipo')?.touched"
+                [class.has-success]="formularioPazSalvo.get('fin_anticipo')?.valid && formularioPazSalvo.get('fin_anticipo')?.value && formularioPazSalvo.get('fin_anticipo')?.touched">
+                <label for="fin_anticipo">¿Valores pendientes por anticipo de sueldos? <span class="req"
+                    aria-hidden="true">*</span></label>
+                <select id="fin_anticipo" class="dark-input" formControlName="fin_anticipo"
+                  [attr.disabled]="!puedeEditarCampo('fin_anticipo') ? true : null" aria-required="true">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('fin_anticipo')?.invalid && formularioPazSalvo.get('fin_anticipo')?.touched"
+                  role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
+              </div>
+
+              <div class="input-group" *ngIf="formularioPazSalvo.get('fin_anticipo')?.value === 'SI'"
+                [class.has-error]="formularioPazSalvo.get('fin_anticipo_valor')?.invalid && formularioPazSalvo.get('fin_anticipo_valor')?.touched">
+                <label for="fin_anticipo_valor">Valor a Descontar (Anticipo) <span class="req"
+                    aria-hidden="true">*</span> <span class="hint-label">$ USD</span></label>
+                <input id="fin_anticipo_valor" type="number" class="dark-input" formControlName="fin_anticipo_valor"
+                  placeholder="0.01" min="0.01" step="0.01" [readonly]="!puedeEditarCampo('fin_anticipo_valor')"
+                  aria-required="true">
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('fin_anticipo_valor')?.errors?.['required'] && formularioPazSalvo.get('fin_anticipo_valor')?.touched"
+                  role="alert">
+                  ⚠ Ingrese el valor.
+                </span>
+              </div>
+
+              <div class="input-group span-2" *ngIf="formularioPazSalvo.get('fin_anticipo')?.value === 'SI'">
+                <label for="fin_anticipo_obs">Observación Anticipo</label>
+                <input id="fin_anticipo_obs" class="dark-input" formControlName="fin_anticipo_obs"
+                  placeholder="Observación" [readonly]="!puedeEditarCampo('fin_anticipo_obs')">
+              </div>
+
+              <!-- 3. Recuperación de valores -->
+              <div class="input-group"
                 [class.has-error]="formularioPazSalvo.get('fin_recuperacion')?.invalid && formularioPazSalvo.get('fin_recuperacion')?.touched"
                 [class.has-success]="formularioPazSalvo.get('fin_recuperacion')?.valid && formularioPazSalvo.get('fin_recuperacion')?.value && formularioPazSalvo.get('fin_recuperacion')?.touched">
-                <label for="fin_recuperacion">¿Valores pendientes (Recuperación, Devolución muebles)? <span class="req"
+                <label for="fin_recuperacion">¿Valores pendientes por recuperación? <span class="req"
                     aria-hidden="true">*</span></label>
                 <select id="fin_recuperacion" class="dark-input" formControlName="fin_recuperacion"
-                  [attr.disabled]="!puedeEditarCampo('fin_recuperacion') ? true : null" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('fin_recuperacion')?.invalid && formularioPazSalvo.get('fin_recuperacion')?.touched">
+                  [attr.disabled]="!puedeEditarCampo('fin_recuperacion') ? true : null" aria-required="true">
                   <option value="">Seleccione...</option>
                   <option value="SI">SÍ</option>
                   <option value="NO">NO</option>
@@ -1459,29 +2029,201 @@
                 </span>
               </div>
 
+              <div class="input-group" *ngIf="formularioPazSalvo.get('fin_recuperacion')?.value === 'SI'"
+                [class.has-error]="formularioPazSalvo.get('fin_recuperacion_valor')?.invalid && formularioPazSalvo.get('fin_recuperacion_valor')?.touched">
+                <label for="fin_recuperacion_valor">Valor a Descontar (Recuperación) <span class="req"
+                    aria-hidden="true">*</span> <span class="hint-label">$ USD</span></label>
+                <input id="fin_recuperacion_valor" type="number" class="dark-input"
+                  formControlName="fin_recuperacion_valor" placeholder="0.01" min="0.01" step="0.01"
+                  [readonly]="!puedeEditarCampo('fin_recuperacion_valor')" aria-required="true">
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('fin_recuperacion_valor')?.errors?.['required'] && formularioPazSalvo.get('fin_recuperacion_valor')?.touched"
+                  role="alert">
+                  ⚠ Ingrese el valor.
+                </span>
+              </div>
+
+              <div class="input-group span-2" *ngIf="formularioPazSalvo.get('fin_recuperacion')?.value === 'SI'">
+                <label for="fin_recuperacion_obs">Observación Recuperación</label>
+                <input id="fin_recuperacion_obs" class="dark-input" formControlName="fin_recuperacion_obs"
+                  placeholder="Observación" [readonly]="!puedeEditarCampo('fin_recuperacion_obs')">
+              </div>
+
+              <!-- 4. Devolución muebles y equipos -->
+              <div class="input-group"
+                [class.has-error]="formularioPazSalvo.get('fin_devolucion')?.invalid && formularioPazSalvo.get('fin_devolucion')?.touched"
+                [class.has-success]="formularioPazSalvo.get('fin_devolucion')?.valid && formularioPazSalvo.get('fin_devolucion')?.value && formularioPazSalvo.get('fin_devolucion')?.touched">
+                <label for="fin_devolucion">¿Valores pendientes por devolución de muebles y equipos? <span class="req"
+                    aria-hidden="true">*</span></label>
+                <select id="fin_devolucion" class="dark-input" formControlName="fin_devolucion"
+                  [attr.disabled]="!puedeEditarCampo('fin_devolucion') ? true : null" aria-required="true">
+                  <option value="">Seleccione...</option>
+                  <option value="SI">SÍ</option>
+                  <option value="NO">NO</option>
+                </select>
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('fin_devolucion')?.invalid && formularioPazSalvo.get('fin_devolucion')?.touched"
+                  role="alert">
+                  ⚠ Seleccione una opción.
+                </span>
+              </div>
+
+              <div class="input-group" *ngIf="formularioPazSalvo.get('fin_devolucion')?.value === 'SI'"
+                [class.has-error]="formularioPazSalvo.get('fin_devolucion_valor')?.invalid && formularioPazSalvo.get('fin_devolucion_valor')?.touched">
+                <label for="fin_devolucion_valor">Valor a Descontar (Devolución) <span class="req"
+                    aria-hidden="true">*</span> <span class="hint-label">$ USD</span></label>
+                <input id="fin_devolucion_valor" type="number" class="dark-input" formControlName="fin_devolucion_valor"
+                  placeholder="0.01" min="0.01" step="0.01" [readonly]="!puedeEditarCampo('fin_devolucion_valor')"
+                  aria-required="true">
+                <span class="field-error-msg"
+                  *ngIf="formularioPazSalvo.get('fin_devolucion_valor')?.errors?.['required'] && formularioPazSalvo.get('fin_devolucion_valor')?.touched"
+                  role="alert">
+                  ⚠ Ingrese el valor.
+                </span>
+              </div>
+
+              <div class="input-group span-2" *ngIf="formularioPazSalvo.get('fin_devolucion')?.value === 'SI'">
+                <label for="fin_devolucion_obs">Observación Devolución</label>
+                <input id="fin_devolucion_obs" class="dark-input" formControlName="fin_devolucion_obs"
+                  placeholder="Observación" [readonly]="!puedeEditarCampo('fin_devolucion_obs')">
+              </div>
+
               <!-- Director Financiero -->
               <div class="input-group span-2"
                 [class.has-error]="formularioPazSalvo.get('fin_director')?.invalid && formularioPazSalvo.get('fin_director')?.touched"
                 [class.has-success]="formularioPazSalvo.get('fin_director')?.valid && formularioPazSalvo.get('fin_director')?.touched">
-                <label for="fin_director">Nombre Director/a Administrativo/a Financiero/a <span class="req"
+                <label for="fin_director">Nombre del/la Director/a Administrativo/a Financiero/a <span class="req"
                     aria-hidden="true">*</span></label>
                 <input id="fin_director" class="dark-input" formControlName="fin_director" placeholder="Nombre completo"
-                  [readonly]="!puedeEditarCampo('fin_director')" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('fin_director')?.invalid && formularioPazSalvo.get('fin_director')?.touched">
+                  [readonly]="!puedeEditarCampo('fin_director')" aria-required="true">
                 <span class="field-error-msg"
                   *ngIf="formularioPazSalvo.get('fin_director')?.invalid && formularioPazSalvo.get('fin_director')?.touched"
                   role="alert">
-                  ⚠ Ingrese el nombre del director/a financiero/a.
+                  ⚠ Ingrese el nombre del/la director/a financiero/a.
                 </span>
               </div>
 
             </div>
+
+            <!-- NOMBRE RESPONSABLE + FIRMA por fila — Financiero -->
+            <div class="doc-resp-table-wrapper">
+              <table class="doc-resp-table">
+                <thead>
+                  <tr>
+                    <th>ÍTEM</th>
+                    <th>NOMBRE RESPONSABLE *</th>
+                    <th>FIRMA RESPONSABLE (FirmaEC) *</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="doc-resp-item">Saldos contables (viáticos, caja chica, pasajes)</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="fin_nombre_resp1"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('fin_nombre_resp1')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('fin_nombre_resp1')?.invalid && formularioPazSalvo.get('fin_nombre_resp1')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['fin_r1']" class="btn-firma-mini" for="fec-fin-r1">✍ FirmaEC<input
+                          type="file" id="fec-fin-r1" accept="image/*" (change)="onFirmaECChange('fin_r1',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['fin_r1']" class="firma-mini-ok"><img [src]="firmasEC['fin_r1']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('fin_r1')">✕</button></div>
+                      <span *ngIf="firmasECRequired['fin_r1'] && !firmasEC['fin_r1']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Anticipo de remuneraciones / Fondos a rendir</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="fin_nombre_resp2"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('fin_nombre_resp2')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('fin_nombre_resp2')?.invalid && formularioPazSalvo.get('fin_nombre_resp2')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['fin_r2']" class="btn-firma-mini" for="fec-fin-r2">✍ FirmaEC<input
+                          type="file" id="fec-fin-r2" accept="image/*" (change)="onFirmaECChange('fin_r2',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['fin_r2']" class="firma-mini-ok"><img [src]="firmasEC['fin_r2']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('fin_r2')">✕</button></div>
+                      <span *ngIf="firmasECRequired['fin_r2'] && !firmasEC['fin_r2']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Recuperación / Devolución de valores</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="fin_nombre_resp3"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('fin_nombre_resp3')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('fin_nombre_resp3')?.invalid && formularioPazSalvo.get('fin_nombre_resp3')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['fin_r3']" class="btn-firma-mini" for="fec-fin-r3">✍ FirmaEC<input
+                          type="file" id="fec-fin-r3" accept="image/*" (change)="onFirmaECChange('fin_r3',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['fin_r3']" class="firma-mini-ok"><img [src]="firmasEC['fin_r3']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('fin_r3')">✕</button></div>
+                      <span *ngIf="firmasECRequired['fin_r3'] && !firmasEC['fin_r3']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Verificación contable / Responsable Financiero</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="fin_nombre_resp4"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('fin_nombre_resp4')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('fin_nombre_resp4')?.invalid && formularioPazSalvo.get('fin_nombre_resp4')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['fin_r4']" class="btn-firma-mini" for="fec-fin-r4">✍ FirmaEC<input
+                          type="file" id="fec-fin-r4" accept="image/*" (change)="onFirmaECChange('fin_r4',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['fin_r4']" class="firma-mini-ok"><img [src]="firmasEC['fin_r4']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('fin_r4')">✕</button></div>
+                      <span *ngIf="firmasECRequired['fin_r4'] && !firmasEC['fin_r4']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Director/a Administrativo/a Financiero/a</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('fin_director')?.value || '—' }}
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['fin_dir']" class="btn-firma-mini" for="fec-fin-dir">✍ FirmaEC<input
+                          type="file" id="fec-fin-dir" accept="image/*" (change)="onFirmaECChange('fin_dir',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['fin_dir']" class="firma-mini-ok"><img [src]="firmasEC['fin_dir']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('fin_dir')">✕</button></div>
+                      <span *ngIf="firmasECRequired['fin_dir'] && !firmasEC['fin_dir']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
-        </ng-container><!-- /step 1 -->
+        </ng-container><!-- /gestiones -->
 
-        <!-- ══════════ STEP 2 — RRHH, SEGURIDAD Y FIRMA ══════════ -->
-        <ng-container *ngIf="currentStep === 2">
+        <!-- ══════════ RRHH, SEGURIDAD Y FIRMA ══════════ -->
+        <ng-container>
 
           <!-- Seguridad de la Información -->
           <div class="form-card-dark">
@@ -1494,24 +2236,67 @@
             </div>
             <div class="form-grid">
 
-              <!-- Archivos digitales -->
-              <div class="input-group span-2"
-                [class.has-error]="formularioPazSalvo.get('seg_archivos')?.invalid && formularioPazSalvo.get('seg_archivos')?.touched"
-                [class.has-success]="formularioPazSalvo.get('seg_archivos')?.valid && formularioPazSalvo.get('seg_archivos')?.value && formularioPazSalvo.get('seg_archivos')?.touched">
-                <label for="seg_archivos">Archivos Digitales / Físicos / Verificación de información <span class="req"
-                    aria-hidden="true">*</span></label>
-                <select id="seg_archivos" class="dark-input" formControlName="seg_archivos"
-                  [attr.disabled]="!puedeEditarCampo('seg_archivos') ? true : null" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('seg_archivos')?.invalid && formularioPazSalvo.get('seg_archivos')?.touched">
-                  <option value="">Seleccione...</option>
-                  <option value="SI">SÍ</option>
-                  <option value="NO">NO</option>
-                </select>
-                <span class="field-error-msg"
-                  *ngIf="formularioPazSalvo.get('seg_archivos')?.invalid && formularioPazSalvo.get('seg_archivos')?.touched"
-                  role="alert">
-                  ⚠ Seleccione una opción.
-                </span>
+              <!-- Verificaciones EGSI — detalle-grid -->
+              <div class="input-group span-3">
+                <p
+                  style="margin:0 0 8px;font-size:12px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em">
+                  Certificaciones de Seguridad (AM 166 — EGSI)
+                </p>
+                <div class="detalle-grid">
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('seg_archivos')?.invalid && formularioPazSalvo.get('seg_archivos')?.touched">
+                    <span class="detalle-row-label">Archivos Digitales — transferidos al servidor (EGSI) <span
+                        class="req" aria-hidden="true">*</span></span>
+                    <select class="dark-input" formControlName="seg_archivos"
+                      [attr.disabled]="!puedeEditarCampo('seg_archivos') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('seg_archivos')?.invalid && formularioPazSalvo.get('seg_archivos')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('seg_archivos_fisicos')?.invalid && formularioPazSalvo.get('seg_archivos_fisicos')?.touched">
+                    <span class="detalle-row-label">Archivos Físicos — transferidos al Archivo Central <span class="req"
+                        aria-hidden="true">*</span></span>
+                    <select class="dark-input" formControlName="seg_archivos_fisicos"
+                      [attr.disabled]="!puedeEditarCampo('seg_archivos_fisicos') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('seg_archivos_fisicos')?.invalid && formularioPazSalvo.get('seg_archivos_fisicos')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('seg_entrega_copia')?.invalid && formularioPazSalvo.get('seg_entrega_copia')?.touched">
+                    <span class="detalle-row-label">Entrega Copia de Informe de Actividades <span class="req"
+                        aria-hidden="true">*</span></span>
+                    <select class="dark-input" formControlName="seg_entrega_copia"
+                      [attr.disabled]="!puedeEditarCampo('seg_entrega_copia') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('seg_entrega_copia')?.invalid && formularioPazSalvo.get('seg_entrega_copia')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('seg_verificacion_info')?.invalid && formularioPazSalvo.get('seg_verificacion_info')?.touched">
+                    <span class="detalle-row-label">Verificación de la Información Institucional <span class="req"
+                        aria-hidden="true">*</span></span>
+                    <select class="dark-input" formControlName="seg_verificacion_info"
+                      [attr.disabled]="!puedeEditarCampo('seg_verificacion_info') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('seg_verificacion_info')?.invalid && formularioPazSalvo.get('seg_verificacion_info')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                </div>
               </div>
 
               <!-- Oficial de Seguridad -->
@@ -1546,6 +2331,77 @@
               </div>
 
             </div>
+
+            <!-- NOMBRE RESPONSABLE + FIRMA por fila — Seguridad -->
+            <div class="doc-resp-table-wrapper">
+              <table class="doc-resp-table">
+                <thead>
+                  <tr>
+                    <th>ÍTEM</th>
+                    <th>NOMBRE RESPONSABLE *</th>
+                    <th>FIRMA RESPONSABLE (FirmaEC) *</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="doc-resp-item">Archivos digitales / Verificación información digital (AM 166 EGSI)</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="seg_nombre_resp1"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('seg_nombre_resp1')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('seg_nombre_resp1')?.invalid && formularioPazSalvo.get('seg_nombre_resp1')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['seg_r1']" class="btn-firma-mini" for="fec-seg-r1">✍ FirmaEC<input
+                          type="file" id="fec-seg-r1" accept="image/*" (change)="onFirmaECChange('seg_r1',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['seg_r1']" class="firma-mini-ok"><img [src]="firmasEC['seg_r1']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('seg_r1')">✕</button></div>
+                      <span *ngIf="firmasECRequired['seg_r1'] && !firmasEC['seg_r1']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Archivos físicos / Entrega copia de seguridad</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="seg_nombre_resp2"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('seg_nombre_resp2')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('seg_nombre_resp2')?.invalid && formularioPazSalvo.get('seg_nombre_resp2')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['seg_r2']" class="btn-firma-mini" for="fec-seg-r2">✍ FirmaEC<input
+                          type="file" id="fec-seg-r2" accept="image/*" (change)="onFirmaECChange('seg_r2',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['seg_r2']" class="firma-mini-ok"><img [src]="firmasEC['seg_r2']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('seg_r2')">✕</button></div>
+                      <span *ngIf="firmasECRequired['seg_r2'] && !firmasEC['seg_r2']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Oficial de Seguridad Institucional</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('seg_oficial')?.value || '—' }}</td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['seg_oficial']" class="btn-firma-mini" for="fec-seg-oficial">✍
+                        FirmaEC<input type="file" id="fec-seg-oficial" accept="image/*"
+                          (change)="onFirmaECChange('seg_oficial',$event)" style="display:none"></label>
+                      <div *ngIf="firmasEC['seg_oficial']" class="firma-mini-ok"><img [src]="firmasEC['seg_oficial']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('seg_oficial')">✕</button></div>
+                      <span *ngIf="firmasECRequired['seg_oficial'] && !firmasEC['seg_oficial']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <!-- Gestión RRHH -->
@@ -1559,24 +2415,87 @@
             </div>
             <div class="form-grid">
 
-              <!-- Cursos / Evaluación -->
-              <div class="input-group span-2"
-                [class.has-error]="formularioPazSalvo.get('rrhh_cursos_eval')?.invalid && formularioPazSalvo.get('rrhh_cursos_eval')?.touched"
-                [class.has-success]="formularioPazSalvo.get('rrhh_cursos_eval')?.valid && formularioPazSalvo.get('rrhh_cursos_eval')?.value && formularioPazSalvo.get('rrhh_cursos_eval')?.touched">
-                <label for="rrhh_cursos_eval">¿Devengó cursos / Aplicó evaluación / Desvinculado puesto? <span
-                    class="req" aria-hidden="true">*</span></label>
-                <select id="rrhh_cursos_eval" class="dark-input" formControlName="rrhh_cursos_eval"
-                  [attr.disabled]="!puedeEditarCampo('rrhh_cursos_eval') ? true : null" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('rrhh_cursos_eval')?.invalid && formularioPazSalvo.get('rrhh_cursos_eval')?.touched">
-                  <option value="">Seleccione...</option>
-                  <option value="SI">SÍ</option>
-                  <option value="NO">NO</option>
-                </select>
-                <span class="field-error-msg"
-                  *ngIf="formularioPazSalvo.get('rrhh_cursos_eval')?.invalid && formularioPazSalvo.get('rrhh_cursos_eval')?.touched"
-                  role="alert">
-                  ⚠ Seleccione una opción.
-                </span>
+              <!-- Certificaciones RRHH — detalle-grid -->
+              <div class="input-group span-3">
+                <p
+                  style="margin:0 0 8px;font-size:12px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em">
+                  Certificaciones de Gestión de RRHH
+                </p>
+                <div class="detalle-grid">
+
+                  <!-- Capacitación -->
+                  <div class="detalle-row detalle-row--resp"
+                    [class.has-error]="(formularioPazSalvo.get('rrhh_capacitacion')?.invalid || formularioPazSalvo.get('rrhh_resp_capacitacion')?.invalid) && (formularioPazSalvo.get('rrhh_capacitacion')?.touched || formularioPazSalvo.get('rrhh_resp_capacitacion')?.touched)">
+                    <span class="detalle-row-label">Responsable Capacitación certifica: devengó cursos recibidos <span
+                        class="req" aria-hidden="true">*</span></span>
+                    <select class="dark-input si-no-select" formControlName="rrhh_capacitacion"
+                      [attr.disabled]="!puedeEditarCampo('rrhh_capacitacion') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_capacitacion')?.invalid && formularioPazSalvo.get('rrhh_capacitacion')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                    <input class="detalle-nombre-resp dark-input" formControlName="rrhh_resp_capacitacion"
+                      placeholder="Nombre Responsable *" maxlength="80"
+                      [readonly]="!puedeEditarCampo('rrhh_resp_capacitacion')" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_resp_capacitacion')?.invalid && formularioPazSalvo.get('rrhh_resp_capacitacion')?.touched">
+                  </div>
+
+                  <!-- Evaluación del Desempeño -->
+                  <div class="detalle-row detalle-row--resp"
+                    [class.has-error]="(formularioPazSalvo.get('rrhh_evaluacion')?.invalid || formularioPazSalvo.get('rrhh_resp_evaluacion')?.invalid) && (formularioPazSalvo.get('rrhh_evaluacion')?.touched || formularioPazSalvo.get('rrhh_resp_evaluacion')?.touched)">
+                    <span class="detalle-row-label">Responsable Evaluación certifica: evaluación del desempeño aplicada
+                      <span class="req" aria-hidden="true">*</span></span>
+                    <select class="dark-input si-no-select" formControlName="rrhh_evaluacion"
+                      [attr.disabled]="!puedeEditarCampo('rrhh_evaluacion') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_evaluacion')?.invalid && formularioPazSalvo.get('rrhh_evaluacion')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                    <input class="detalle-nombre-resp dark-input" formControlName="rrhh_resp_evaluacion"
+                      placeholder="Nombre Responsable *" maxlength="80"
+                      [readonly]="!puedeEditarCampo('rrhh_resp_evaluacion')" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_resp_evaluacion')?.invalid && formularioPazSalvo.get('rrhh_resp_evaluacion')?.touched">
+                  </div>
+
+                  <!-- Viajes al Exterior -->
+                  <div class="detalle-row detalle-row--resp"
+                    [class.has-error]="(formularioPazSalvo.get('rrhh_viajes')?.invalid || formularioPazSalvo.get('rrhh_resp_viajes')?.invalid) && (formularioPazSalvo.get('rrhh_viajes')?.touched || formularioPazSalvo.get('rrhh_resp_viajes')?.touched)">
+                    <span class="detalle-row-label">Responsable Viajes certifica: devengación viajes al exterior <span
+                        class="req" aria-hidden="true">*</span></span>
+                    <select class="dark-input si-no-select" formControlName="rrhh_viajes"
+                      [attr.disabled]="!puedeEditarCampo('rrhh_viajes') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_viajes')?.invalid && formularioPazSalvo.get('rrhh_viajes')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                    <input class="detalle-nombre-resp dark-input" formControlName="rrhh_resp_viajes"
+                      placeholder="Nombre Responsable *" maxlength="80"
+                      [readonly]="!puedeEditarCampo('rrhh_resp_viajes')" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_resp_viajes')?.invalid && formularioPazSalvo.get('rrhh_resp_viajes')?.touched">
+                  </div>
+
+                  <!-- SIITH -->
+                  <div class="detalle-row detalle-row--resp"
+                    [class.has-error]="(formularioPazSalvo.get('rrhh_siith')?.invalid || formularioPazSalvo.get('rrhh_resp_siith')?.invalid) && (formularioPazSalvo.get('rrhh_siith')?.touched || formularioPazSalvo.get('rrhh_resp_siith')?.touched)">
+                    <span class="detalle-row-label">Responsable SIITH certifica: desvinculación en el sistema <span
+                        class="req" aria-hidden="true">*</span></span>
+                    <select class="dark-input si-no-select" formControlName="rrhh_siith"
+                      [attr.disabled]="!puedeEditarCampo('rrhh_siith') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_siith')?.invalid && formularioPazSalvo.get('rrhh_siith')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                    <input class="detalle-nombre-resp dark-input" formControlName="rrhh_resp_siith"
+                      placeholder="Nombre Responsable *" maxlength="80"
+                      [readonly]="!puedeEditarCampo('rrhh_resp_siith')" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_resp_siith')?.invalid && formularioPazSalvo.get('rrhh_resp_siith')?.touched">
+                  </div>
+
+                </div>
               </div>
 
               <!-- Vacaciones -->
@@ -1649,24 +2568,67 @@
                 </span>
               </div>
 
-              <!-- Credencial -->
-              <div class="input-group span-2"
-                [class.has-error]="formularioPazSalvo.get('rrhh_credencial')?.invalid && formularioPazSalvo.get('rrhh_credencial')?.touched"
-                [class.has-success]="formularioPazSalvo.get('rrhh_credencial')?.valid && formularioPazSalvo.get('rrhh_credencial')?.value && formularioPazSalvo.get('rrhh_credencial')?.touched">
-                <label for="rrhh_credencial">¿Entrega Credencial / Copia Actividades / Acta Bienes Custodio? <span
-                    class="req" aria-hidden="true">*</span></label>
-                <select id="rrhh_credencial" class="dark-input" formControlName="rrhh_credencial"
-                  [attr.disabled]="!puedeEditarCampo('rrhh_credencial') ? true : null" aria-required="true"
-                  [attr.aria-invalid]="formularioPazSalvo.get('rrhh_credencial')?.invalid && formularioPazSalvo.get('rrhh_credencial')?.touched">
-                  <option value="">Seleccione...</option>
-                  <option value="SI">SÍ</option>
-                  <option value="NO">NO</option>
-                </select>
-                <span class="field-error-msg"
-                  *ngIf="formularioPazSalvo.get('rrhh_credencial')?.invalid && formularioPazSalvo.get('rrhh_credencial')?.touched"
-                  role="alert">
-                  ⚠ Seleccione una opción.
-                </span>
+              <!-- Entregas RRHH — detalle-grid -->
+              <div class="input-group span-3">
+                <p
+                  style="margin:0 0 8px;font-size:12px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em">
+                  Entregas y Devoluciones
+                </p>
+                <div class="detalle-grid">
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('rrhh_entrega_informe_cd')?.invalid && formularioPazSalvo.get('rrhh_entrega_informe_cd')?.touched">
+                    <span class="detalle-row-label">Entrega Copia de Actividades y Respaldos (CD) <span class="req"
+                        aria-hidden="true">*</span></span>
+                    <select class="dark-input" formControlName="rrhh_entrega_informe_cd"
+                      [attr.disabled]="!puedeEditarCampo('rrhh_entrega_informe_cd') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_entrega_informe_cd')?.invalid && formularioPazSalvo.get('rrhh_entrega_informe_cd')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('rrhh_ropa_trabajo')?.invalid && formularioPazSalvo.get('rrhh_ropa_trabajo')?.touched">
+                    <span class="detalle-row-label">Entrega Ropa de Trabajo / Equipo de Protección <span class="req"
+                        aria-hidden="true">*</span></span>
+                    <select class="dark-input" formControlName="rrhh_ropa_trabajo"
+                      [attr.disabled]="!puedeEditarCampo('rrhh_ropa_trabajo') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_ropa_trabajo')?.invalid && formularioPazSalvo.get('rrhh_ropa_trabajo')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('rrhh_acta_bienes')?.invalid && formularioPazSalvo.get('rrhh_acta_bienes')?.touched">
+                    <span class="detalle-row-label">Acta de Bienes del Custodio <span class="req"
+                        aria-hidden="true">*</span></span>
+                    <select class="dark-input" formControlName="rrhh_acta_bienes"
+                      [attr.disabled]="!puedeEditarCampo('rrhh_acta_bienes') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_acta_bienes')?.invalid && formularioPazSalvo.get('rrhh_acta_bienes')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                  <div class="detalle-row"
+                    [class.has-error]="formularioPazSalvo.get('rrhh_credencial')?.invalid && formularioPazSalvo.get('rrhh_credencial')?.touched">
+                    <span class="detalle-row-label">Entrega Credencial Institucional, Porta Credencial y Colgante <span
+                        class="req" aria-hidden="true">*</span></span>
+                    <select class="dark-input" formControlName="rrhh_credencial"
+                      [attr.disabled]="!puedeEditarCampo('rrhh_credencial') ? true : null" aria-required="true"
+                      [attr.aria-invalid]="formularioPazSalvo.get('rrhh_credencial')?.invalid && formularioPazSalvo.get('rrhh_credencial')?.touched">
+                      <option value="">—</option>
+                      <option value="SI">SÍ</option>
+                      <option value="NO">NO</option>
+                    </select>
+                  </div>
+
+                </div>
               </div>
 
               <!-- Director RRHH -->
@@ -1685,6 +2647,180 @@
                 </span>
               </div>
 
+            </div>
+
+            <!-- NOMBRE RESPONSABLE + FIRMA por fila — RRHH -->
+            <div class="doc-resp-table-wrapper">
+              <table class="doc-resp-table">
+                <thead>
+                  <tr>
+                    <th>ÍTEM</th>
+                    <th>NOMBRE RESPONSABLE *</th>
+                    <th>FIRMA RESPONSABLE (FirmaEC) *</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="doc-resp-item">Capacitación — devengó cursos recibidos</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_resp_capacitacion')?.value ||
+                      '—' }}</td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['rrhh_r1']" class="btn-firma-mini" for="fec-rrhh-r1">✍ FirmaEC<input
+                          type="file" id="fec-rrhh-r1" accept="image/*" (change)="onFirmaECChange('rrhh_r1',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['rrhh_r1']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r1']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('rrhh_r1')">✕</button></div>
+                      <span *ngIf="firmasECRequired['rrhh_r1'] && !firmasEC['rrhh_r1']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Evaluación del Desempeño aplicada</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_resp_evaluacion')?.value ||
+                      '—' }}</td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['rrhh_r2']" class="btn-firma-mini" for="fec-rrhh-r2">✍ FirmaEC<input
+                          type="file" id="fec-rrhh-r2" accept="image/*" (change)="onFirmaECChange('rrhh_r2',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['rrhh_r2']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r2']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('rrhh_r2')">✕</button></div>
+                      <span *ngIf="firmasECRequired['rrhh_r2'] && !firmasEC['rrhh_r2']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Viajes al exterior / Informe de cumplimiento</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_resp_viajes')?.value || '—' }}
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['rrhh_r3']" class="btn-firma-mini" for="fec-rrhh-r3">✍ FirmaEC<input
+                          type="file" id="fec-rrhh-r3" accept="image/*" (change)="onFirmaECChange('rrhh_r3',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['rrhh_r3']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r3']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('rrhh_r3')">✕</button></div>
+                      <span *ngIf="firmasECRequired['rrhh_r3'] && !firmasEC['rrhh_r3']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">SIITH — actualización de datos</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_resp_siith')?.value || '—' }}
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['rrhh_r4']" class="btn-firma-mini" for="fec-rrhh-r4">✍ FirmaEC<input
+                          type="file" id="fec-rrhh-r4" accept="image/*" (change)="onFirmaECChange('rrhh_r4',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['rrhh_r4']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r4']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('rrhh_r4')">✕</button></div>
+                      <span *ngIf="firmasECRequired['rrhh_r4'] && !firmasEC['rrhh_r4']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Vacaciones no gozadas — certificado</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="rrhh_resp_vacaciones"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('rrhh_resp_vacaciones')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('rrhh_resp_vacaciones')?.invalid && formularioPazSalvo.get('rrhh_resp_vacaciones')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['rrhh_r5']" class="btn-firma-mini" for="fec-rrhh-r5">✍ FirmaEC<input
+                          type="file" id="fec-rrhh-r5" accept="image/*" (change)="onFirmaECChange('rrhh_r5',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['rrhh_r5']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r5']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('rrhh_r5')">✕</button></div>
+                      <span *ngIf="firmasECRequired['rrhh_r5'] && !firmasEC['rrhh_r5']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Declaración juramentada de bienes</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="rrhh_resp_juramentada"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('rrhh_resp_juramentada')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('rrhh_resp_juramentada')?.invalid && formularioPazSalvo.get('rrhh_resp_juramentada')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['rrhh_r6']" class="btn-firma-mini" for="fec-rrhh-r6">✍ FirmaEC<input
+                          type="file" id="fec-rrhh-r6" accept="image/*" (change)="onFirmaECChange('rrhh_r6',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['rrhh_r6']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r6']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('rrhh_r6')">✕</button></div>
+                      <span *ngIf="firmasECRequired['rrhh_r6'] && !firmasEC['rrhh_r6']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Credencial institucional / Porta credencial / Colgante</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="rrhh_resp_credencial2"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('rrhh_resp_credencial2')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('rrhh_resp_credencial2')?.invalid && formularioPazSalvo.get('rrhh_resp_credencial2')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['rrhh_r7']" class="btn-firma-mini" for="fec-rrhh-r7">✍ FirmaEC<input
+                          type="file" id="fec-rrhh-r7" accept="image/*" (change)="onFirmaECChange('rrhh_r7',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['rrhh_r7']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r7']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('rrhh_r7')">✕</button></div>
+                      <span *ngIf="firmasECRequired['rrhh_r7'] && !firmasEC['rrhh_r7']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Acta entrega-recepción bienes / Informe CD / Ropa de trabajo</td>
+                    <td class="doc-resp-nombre">
+                      <input class="doc-input dark-input" formControlName="rrhh_resp_acta"
+                        placeholder="Nombre Responsable *" maxlength="80"
+                        [readonly]="!puedeEditarCampo('rrhh_resp_acta')">
+                      <span class="doc-error"
+                        *ngIf="formularioPazSalvo.get('rrhh_resp_acta')?.invalid && formularioPazSalvo.get('rrhh_resp_acta')?.touched">⚠
+                        Requerido</span>
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['rrhh_r8']" class="btn-firma-mini" for="fec-rrhh-r8">✍ FirmaEC<input
+                          type="file" id="fec-rrhh-r8" accept="image/*" (change)="onFirmaECChange('rrhh_r8',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['rrhh_r8']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r8']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('rrhh_r8')">✕</button></div>
+                      <span *ngIf="firmasECRequired['rrhh_r8'] && !firmasEC['rrhh_r8']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="doc-resp-item">Director/a de Administración de RRHH</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_director')?.value || '—' }}
+                    </td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['rrhh_dir']" class="btn-firma-mini" for="fec-rrhh-dir">✍ FirmaEC<input
+                          type="file" id="fec-rrhh-dir" accept="image/*" (change)="onFirmaECChange('rrhh_dir',$event)"
+                          style="display:none"></label>
+                      <div *ngIf="firmasEC['rrhh_dir']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_dir']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('rrhh_dir')">✕</button></div>
+                      <span *ngIf="firmasECRequired['rrhh_dir'] && !firmasEC['rrhh_dir']" class="firma-mini-req">*
+                        requerida</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1779,6 +2915,36 @@
                 </span>
               </div>
 
+            </div>
+
+            <!-- NOMBRE RESPONSABLE + FIRMA por fila — Recepción -->
+            <div class="doc-resp-table-wrapper">
+              <table class="doc-resp-table">
+                <thead>
+                  <tr>
+                    <th>ÍTEM</th>
+                    <th>NOMBRE RESPONSABLE *</th>
+                    <th>FIRMA RESPONSABLE (FirmaEC) *</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="doc-resp-item">Servidor/a que recibe el Paz y Salvo — RRHH</td>
+                    <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('recepcion_servidor')?.value || '—'
+                      }}</td>
+                    <td class="doc-resp-firma">
+                      <label *ngIf="!firmasEC['recepcion_r1']" class="btn-firma-mini" for="fec-recepcion-r1">✍
+                        FirmaEC<input type="file" id="fec-recepcion-r1" accept="image/*"
+                          (change)="onFirmaECChange('recepcion_r1',$event)" style="display:none"></label>
+                      <div *ngIf="firmasEC['recepcion_r1']" class="firma-mini-ok"><img [src]="firmasEC['recepcion_r1']"
+                          class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
+                          (click)="clearFirmaEC('recepcion_r1')">✕</button></div>
+                      <span *ngIf="firmasECRequired['recepcion_r1'] && !firmasEC['recepcion_r1']"
+                        class="firma-mini-req">* requerida</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1920,7 +3086,7 @@
             </div>
           </div>
 
-        </ng-container><!-- /step 2 -->
+        </ng-container><!-- /rrhh seguridad firma -->
 
         <!-- ══════════ RESUMEN DE ERRORES DEL PASO (solo cuando se intenta avanzar) ══════════ -->
         <div class="errores-paso-container" *ngIf="erroresPaso && erroresPaso.length > 0" [class.shake]="shakeErrors"
@@ -2114,94 +3280,165 @@
             </tr>
           </table>
 
-          <!-- Trámites y Gestión Administrativa -->
-          <table class="tabla-pdf mt-1" style="text-align:center" role="presentation">
+          <!-- Trámites -->
+          <table class="tabla-pdf mt-1" role="presentation">
             <tr>
-              <th colspan="4" class="seccion-titulo">TRÁMITES Y GESTIÓN ADMINISTRATIVA FINANCIERA</th>
+              <th colspan="3" class="seccion-titulo">TRÁMITES Y UNIDAD</th>
             </tr>
-            <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
-              <td style="width:50%;text-align:left">DETALLE</td>
-              <td style="width:10%">SÍ</td>
-              <td style="width:10%">NO</td>
-              <td style="width:30%;text-align:left">OBSERVACIONES / FIRMA</td>
-            </tr>
-            <tr>
-              <td style="font-size:8.5px;text-align:left">
-                Entrega informe / Archivos (Físico y Digital)<br>
-                Administrador de contrato: {{ formularioPazSalvo.get('tramites_desc_contrato')?.value }}<br>
-                Trámites en QUIPUX Cero / Claves Unidad
-              </td>
-              <td>{{ formularioPazSalvo.get('tramites_informe')?.value === 'SI' ? 'X' : '' }}</td>
-              <td>{{ formularioPazSalvo.get('tramites_informe')?.value === 'NO' ? 'X' : '' }}</td>
-              <td style="font-size:8.5px;text-align:left">Jefe Inmediato:<br>{{
-                formularioPazSalvo.get('tramites_jefe_inmediato')?.value | uppercase }}</td>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8px">
+              <td style="width:44%;text-align:left">ÍTEM</td>
+              <td style="width:28%;text-align:left">NOMBRE RESPONSABLE</td>
+              <td style="width:28%;text-align:center">FIRMA</td>
             </tr>
             <tr>
-              <td style="font-size:8.5px;text-align:left">
-                Entregó bienes muebles y equipos<br>
-                Acta No: {{ formularioPazSalvo.get('admin_acta_bienes')?.value }} — Valor: ${{
-                formularioPazSalvo.get('admin_valor_bienes')?.value | number:'1.2-2' }}
-              </td>
-              <td>{{ formularioPazSalvo.get('admin_bienes')?.value === 'SI' ? 'X' : '' }}</td>
-              <td>{{ formularioPazSalvo.get('admin_bienes')?.value === 'NO' ? 'X' : '' }}</td>
-              <td rowspan="2" style="font-size:8.5px;text-align:left;vertical-align:top">
-                Responsable Adm.:<br>{{ formularioPazSalvo.get('admin_responsable')?.value | uppercase }}
-              </td>
+              <td style="font-size:8px">Informe fin de gestión / QUIPUX bandeja en cero</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('tramites_nombre_resp1')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['tramites_r1']"><img
+                    [src]="firmasEC['tramites_r1']" style="max-height:20px;max-width:60px"></ng-container></td>
             </tr>
             <tr>
-              <td style="font-size:8.5px;text-align:left">
-                Valores pendientes por deducibles — Valor: ${{ formularioPazSalvo.get('admin_deducibles_valor')?.value |
-                number:'1.2-2' }}
-              </td>
-              <td>{{ formularioPazSalvo.get('admin_deducibles')?.value === 'SI' ? 'X' : '' }}</td>
-              <td>{{ formularioPazSalvo.get('admin_deducibles')?.value === 'NO' ? 'X' : '' }}</td>
+              <td style="font-size:8px">Fe de presentación / Claves de acceso asignadas</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('tramites_nombre_resp2')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['tramites_r2']"><img
+                    [src]="firmasEC['tramites_r2']" style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Entrega archivo físico/digital (LOSEP) / Acta claves</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('tramites_nombre_resp3')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['tramites_r3']"><img
+                    [src]="firmasEC['tramites_r3']" style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Firma del Jefe Inmediato</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('tramites_jefe_inmediato')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['tramites_jefe']"><img
+                    [src]="firmasEC['tramites_jefe']" style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+          </table>
+
+          <!-- Gestión Administrativa -->
+          <table class="tabla-pdf mt-1" role="presentation">
+            <tr>
+              <th colspan="3" class="seccion-titulo">GESTIÓN ADMINISTRATIVA</th>
+            </tr>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8px">
+              <td style="width:44%;text-align:left">ÍTEM</td>
+              <td style="width:28%;text-align:left">NOMBRE RESPONSABLE</td>
+              <td style="width:28%;text-align:center">FIRMA</td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Entrega de Informe de Actividades</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('admin_nombre_resp1')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['admin_r1']"><img [src]="firmasEC['admin_r1']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Bienes / Acta Entrega-Recepción</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('admin_nombre_resp2')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['admin_r2']"><img [src]="firmasEC['admin_r2']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Deducibles / Pasajes aéreos</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('admin_nombre_resp3')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['admin_r3']"><img [src]="firmasEC['admin_r3']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Verificación valor bienes / Responsable Adm.</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('admin_nombre_resp4')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['admin_r4']"><img [src]="firmasEC['admin_r4']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Director/a Administrativo/a Financiero/a</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('admin_responsable')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['admin_dir']"><img
+                    [src]="firmasEC['admin_dir']" style="max-height:20px;max-width:60px"></ng-container></td>
             </tr>
           </table>
 
           <!-- TIC -->
-          <table class="tabla-pdf mt-1" style="text-align:center" role="presentation">
+          <table class="tabla-pdf mt-1" role="presentation">
             <tr>
-              <th colspan="4" class="seccion-titulo">GESTIÓN DE TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIÓN (TIC)</th>
+              <th colspan="3" class="seccion-titulo">GESTIÓN TIC</th>
             </tr>
-            <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
-              <td style="width:50%;text-align:left">DETALLE</td>
-              <td style="width:10%">SÍ</td>
-              <td style="width:10%">NO</td>
-              <td style="width:30%;text-align:left">OBSERVACIONES / FIRMA</td>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8px">
+              <td style="width:44%;text-align:left">ÍTEM</td>
+              <td style="width:28%;text-align:left">NOMBRE RESPONSABLE</td>
+              <td style="width:28%;text-align:center">FIRMA</td>
             </tr>
             <tr>
-              <td style="font-size:8.5px;text-align:left">
-                Verificación de equipo / Retiro accesos IP / Contraseñas<br>
-                Entrega Backup: {{ formularioPazSalvo.get('tic_ruta_backup')?.value }}<br>
-                Entrega tarjeta / Cierre cuentas institucionales
-              </td>
-              <td>{{ formularioPazSalvo.get('tic_verificacion')?.value === 'SI' ? 'X' : '' }}</td>
-              <td>{{ formularioPazSalvo.get('tic_verificacion')?.value === 'NO' ? 'X' : '' }}</td>
-              <td style="font-size:8.5px;text-align:left">Responsable TIC:<br>{{
-                formularioPazSalvo.get('tic_responsable')?.value | uppercase }}</td>
+              <td style="font-size:8px">Verificación Equipo / IP Fija / Liberación accesos</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('tic_nombre_resp1')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['tic_r1']"><img [src]="firmasEC['tic_r1']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Backup / Ruta de backup</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('tic_nombre_resp2')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['tic_r2']"><img [src]="firmasEC['tic_r2']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Correo / eSigef / SPRYN / eSByE</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('tic_nombre_resp3')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['tic_r3']"><img [src]="firmasEC['tic_r3']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">QUIPUX / Tarjeta de cuentas</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('tic_nombre_resp4')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['tic_r4']"><img [src]="firmasEC['tic_r4']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Responsable TIC</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('tic_responsable')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['tic_r5']"><img [src]="firmasEC['tic_r5']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
             </tr>
           </table>
 
           <!-- Financiero -->
-          <table class="tabla-pdf mt-1" style="text-align:center" role="presentation">
+          <table class="tabla-pdf mt-1" role="presentation">
             <tr>
-              <th colspan="4" class="seccion-titulo">GESTIÓN FINANCIERA</th>
+              <th colspan="3" class="seccion-titulo">GESTIÓN FINANCIERA</th>
             </tr>
-            <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
-              <td style="width:50%;text-align:left">DETALLE</td>
-              <td style="width:10%">SÍ</td>
-              <td style="width:10%">NO</td>
-              <td style="width:30%;text-align:left">FIRMA DIRECTOR/A</td>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8px">
+              <td style="width:44%;text-align:left">ÍTEM</td>
+              <td style="width:28%;text-align:left">NOMBRE RESPONSABLE</td>
+              <td style="width:28%;text-align:center">FIRMA</td>
             </tr>
             <tr>
-              <td style="font-size:8.5px;text-align:left">
-                Valores pendientes de pago por saldos contables o anticipos<br>
-                Valores pendientes recuperación o devolución de muebles
-              </td>
-              <td>{{ formularioPazSalvo.get('fin_saldos')?.value === 'SI' ? 'X' : '' }}</td>
-              <td>{{ formularioPazSalvo.get('fin_saldos')?.value === 'NO' ? 'X' : '' }}</td>
-              <td style="font-size:8.5px;text-align:left">Director/a Financiero:<br>{{
-                formularioPazSalvo.get('fin_director')?.value | uppercase }}</td>
+              <td style="font-size:8px">Saldos contables (viáticos, caja chica, pasajes)</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('fin_nombre_resp1')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['fin_r1']"><img [src]="firmasEC['fin_r1']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Anticipo de remuneraciones / Fondos a rendir</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('fin_nombre_resp2')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['fin_r2']"><img [src]="firmasEC['fin_r2']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Recuperación / Devolución de valores</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('fin_nombre_resp3')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['fin_r3']"><img [src]="firmasEC['fin_r3']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Verificación contable / Responsable Financiero</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('fin_nombre_resp4')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['fin_r4']"><img [src]="firmasEC['fin_r4']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Director/a Administrativo/a Financiero/a</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('fin_director')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['fin_dir']"><img [src]="firmasEC['fin_dir']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
             </tr>
           </table>
 
@@ -2211,53 +3448,99 @@
         <div class="a4-page">
 
           <!-- Seguridad -->
-          <table class="tabla-pdf" style="text-align:center" role="presentation">
+          <table class="tabla-pdf" role="presentation">
             <tr>
-              <th colspan="4" class="seccion-titulo">SEGURIDAD DE LA INFORMACIÓN (AM 166 — EGSI)</th>
+              <th colspan="3" class="seccion-titulo">SEGURIDAD DE LA INFORMACIÓN (AM 166 — EGSI)</th>
             </tr>
-            <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
-              <td style="width:50%;text-align:left">DETALLE</td>
-              <td style="width:10%">SÍ</td>
-              <td style="width:10%">NO</td>
-              <td style="width:30%;text-align:left">FIRMA OFICIAL / RESPONSABLE</td>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8px">
+              <td style="width:44%;text-align:left">ÍTEM</td>
+              <td style="width:28%;text-align:left">NOMBRE RESPONSABLE</td>
+              <td style="width:28%;text-align:center">FIRMA</td>
             </tr>
             <tr>
-              <td style="font-size:8.5px;text-align:left">
-                Archivos Digitales y Físicos / Copia Informe Actividades<br>
-                Verificación de la Información Institucional
-              </td>
-              <td>{{ formularioPazSalvo.get('seg_archivos')?.value === 'SI' ? 'X' : '' }}</td>
-              <td>{{ formularioPazSalvo.get('seg_archivos')?.value === 'NO' ? 'X' : '' }}</td>
-              <td style="font-size:8.5px;text-align:left">
-                Oficial: {{ formularioPazSalvo.get('seg_oficial')?.value | uppercase }}<br>
-                Resp.: {{ formularioPazSalvo.get('seg_responsable')?.value | uppercase }}
-              </td>
+              <td style="font-size:8px">Archivos digitales / Verificación info. digital</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('seg_nombre_resp1')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['seg_r1']"><img [src]="firmasEC['seg_r1']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Archivos físicos / Copia de seguridad</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('seg_nombre_resp2')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['seg_r2']"><img [src]="firmasEC['seg_r2']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Oficial de Seguridad Institucional</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('seg_oficial')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['seg_oficial']"><img
+                    [src]="firmasEC['seg_oficial']" style="max-height:20px;max-width:60px"></ng-container></td>
             </tr>
           </table>
 
           <!-- RRHH -->
-          <table class="tabla-pdf mt-1" style="text-align:center" role="presentation">
+          <table class="tabla-pdf mt-1" role="presentation">
             <tr>
-              <th colspan="4" class="seccion-titulo">DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</th>
+              <th colspan="3" class="seccion-titulo">DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</th>
             </tr>
-            <tr style="background:#f1f5f9;font-weight:bold;font-size:8.5px">
-              <td style="width:50%;text-align:left">DETALLE</td>
-              <td style="width:10%">SÍ</td>
-              <td style="width:10%">NO</td>
-              <td style="width:30%;text-align:left">FIRMA DIRECTOR/A</td>
+            <tr style="background:#f1f5f9;font-weight:bold;font-size:8px">
+              <td style="width:44%;text-align:left">ÍTEM</td>
+              <td style="width:28%;text-align:left">NOMBRE RESPONSABLE</td>
+              <td style="width:28%;text-align:center">FIRMA</td>
             </tr>
             <tr>
-              <td style="font-size:8.5px;text-align:left">
-                Devengó cursos / Aplicó evaluación / Desvinculado del puesto<br>
-                Días vacaciones acumuladas: {{ formularioPazSalvo.get('rrhh_vacaciones')?.value }}<br>
-                Entrega declaración juramentada (Certificado: {{ formularioPazSalvo.get('rrhh_num_certificado')?.value
-                }})<br>
-                Entrega credencial / Acta de bienes custodio
-              </td>
-              <td>{{ formularioPazSalvo.get('rrhh_cursos_eval')?.value === 'SI' ? 'X' : '' }}</td>
-              <td>{{ formularioPazSalvo.get('rrhh_cursos_eval')?.value === 'NO' ? 'X' : '' }}</td>
-              <td style="font-size:8.5px;text-align:left">Director/a RRHH:<br>{{
-                formularioPazSalvo.get('rrhh_director')?.value | uppercase }}</td>
+              <td style="font-size:8px">Capacitación — devengó cursos</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('rrhh_resp_capacitacion')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['rrhh_r1']"><img [src]="firmasEC['rrhh_r1']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Evaluación del Desempeño</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('rrhh_resp_evaluacion')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['rrhh_r2']"><img [src]="firmasEC['rrhh_r2']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Viajes al exterior</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('rrhh_resp_viajes')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['rrhh_r3']"><img [src]="firmasEC['rrhh_r3']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">SIITH — actualización datos</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('rrhh_resp_siith')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['rrhh_r4']"><img [src]="firmasEC['rrhh_r4']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Vacaciones no gozadas (Certificado: {{
+                formularioPazSalvo.get('rrhh_num_certificado')?.value }})</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('rrhh_resp_vacaciones')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['rrhh_r5']"><img [src]="firmasEC['rrhh_r5']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Declaración juramentada de bienes</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('rrhh_resp_juramentada')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['rrhh_r6']"><img [src]="firmasEC['rrhh_r6']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Credencial / Porta credencial / Colgante</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('rrhh_resp_credencial2')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['rrhh_r7']"><img [src]="firmasEC['rrhh_r7']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Acta bienes / Informe CD / Ropa trabajo</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('rrhh_resp_acta')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['rrhh_r8']"><img [src]="firmasEC['rrhh_r8']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
+            </tr>
+            <tr>
+              <td style="font-size:8px">Director/a de Administración de RRHH</td>
+              <td style="font-size:8px">{{ formularioPazSalvo.get('rrhh_director')?.value | uppercase }}</td>
+              <td style="text-align:center"><ng-container *ngIf="firmasEC['rrhh_dir']"><img [src]="firmasEC['rrhh_dir']"
+                    style="max-height:20px;max-width:60px"></ng-container></td>
             </tr>
           </table>
 
@@ -2277,6 +3560,15 @@
               <td>{{ formularioPazSalvo.get('recepcion_servidor')?.value | uppercase }}</td>
               <td class="etiqueta">CARGO:</td>
               <td>{{ formularioPazSalvo.get('recepcion_cargo')?.value | uppercase }}</td>
+            </tr>
+            <tr>
+              <td class="etiqueta">FIRMA RECEPCIÓN:</td>
+              <td colspan="3">
+                <ng-container *ngIf="firmasEC['recepcion_r1']">
+                  <img [src]="firmasEC['recepcion_r1']" style="max-height:24px;max-width:80px">
+                </ng-container>
+                <span *ngIf="!firmasEC['recepcion_r1']" style="font-size:8px;color:#94a3b8">— pendiente —</span>
+              </td>
             </tr>
           </table>
 

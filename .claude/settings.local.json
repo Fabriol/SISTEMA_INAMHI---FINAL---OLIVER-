@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($file = \"c:\\\\Users\\\\hp\\\\OneDrive\\\\Escritorio\\\\SISTEMA_INAMHI---FINAL---OLIVER-\\\\sistema-institucional\\\\frontend\\\\src\\\\app\\\\pages\\\\formularios\\\\formularios.html\"; \\(Get-Content $file\\).Count)"
+    ]
+  }
+}

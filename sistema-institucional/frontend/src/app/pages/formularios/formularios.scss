@@ -1102,6 +1102,223 @@ button {
   }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// FIRMAEC — FIRMA ELECTRÓNICA POR SECCIÓN
+// ══════════════════════════════════════════════════════════════════════════════
+.firma-ec-section {
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, #f0f4ff, #e8f4fd);
+  border: 1.5px solid var(--blue-200);
+  border-left: 4px solid var(--blue-600);
+}
+
+.firma-ec-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--blue-200);
+}
+
+.firma-ec-icon {
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+.firma-ec-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--blue-800);
+  letter-spacing: .01em;
+}
+
+.firma-ec-subtitle {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blue-600);
+  margin-top: 2px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.firma-ec-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+  background: var(--blue-600);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+.firma-ec-upload-area {
+  margin-top: 12px;
+  min-height: 100px;
+  border: 2px dashed var(--blue-300);
+  border-radius: var(--r-md);
+  background: rgba(255,255,255,.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color .25s, background .25s;
+
+  &:hover { border-color: var(--blue-500); background: rgba(255,255,255,.9); }
+
+  &.firma-ec-ok {
+    border-style: solid;
+    border-color: var(--green-500);
+    background: var(--green-50);
+  }
+
+  &.firma-ec-required {
+    border-color: var(--red-400);
+    background: var(--red-50);
+    animation: shake .45s cubic-bezier(.36,.07,.19,.97) both;
+  }
+}
+
+.firma-ec-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  text-align: center;
+
+  .firma-ec-placeholder-icon { font-size: 28px; }
+  p { font-size: 12px; color: var(--slate-500); font-weight: 600; margin: 0; }
+}
+
+.btn-firma-ec {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: var(--r-sm);
+  background: var(--grad-blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+
+  &:hover { transform: translateY(-2px); box-shadow: var(--shadow-blue-sm); }
+}
+
+.firma-ec-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  width: 100%;
+}
+
+.firma-ec-img {
+  max-height: 80px;
+  max-width: 240px;
+  object-fit: contain;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--green-500);
+  box-shadow: 0 4px 12px rgba(22,163,74,.15);
+}
+
+.firma-ec-verified {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--green-600);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-firma-ec-clear {
+  padding: 5px 12px;
+  border-radius: var(--r-sm);
+  background: var(--grad-slate);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  border: none;
+  transition: transform .2s;
+  &:hover { transform: translateY(-1px); }
+}
+
+// Tabla de detalle compacta para campos SI/NO dentro de una sección
+.detalle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+
+  @media (max-width: 700px) { grid-template-columns: 1fr; }
+}
+
+.detalle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,.6);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--slate-700);
+
+  select.si-no-select {
+    width: auto;
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  &.has-error select { border-color: var(--red-400) !important; }
+}
+
+.detalle-row-label {
+  flex: 1;
+  line-height: 1.3;
+}
+
+// Variante con campo de nombre responsable por fila
+.detalle-row--resp {
+  flex-wrap: wrap;
+  gap: 8px;
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.detalle-nombre-resp {
+  width: 180px;
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  flex-shrink: 0;
+
+  @media (max-width: 600px) {
+    width: 100%;
+  }
+}
+
 // ── FIRMA ────────────────────────────────────────────────────────────────────
 .firma-card { border: 1.5px solid var(--blue-100); }
 
@@ -2449,4 +2666,251 @@ button {
     overflow: visible;
     font-size: 8px;
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DOCUMENT STYLE — INAMHI PAZ Y SALVO LAYOUT
+// ══════════════════════════════════════════════════════════════════════════════
+
+.doc-header-inamhi {
+  display: flex;
+  align-items: stretch;
+  border: 2px solid #1e40af;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 16px;
+
+  .doc-logo-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #1e40af;
+    color: #fff;
+    padding: 12px 18px;
+    min-width: 110px;
+    text-align: center;
+    gap: 2px;
+
+    .doc-logo-arrow { font-size: 24px; line-height: 1; }
+    .doc-logo-name  { font-size: 15px; font-weight: 800; letter-spacing: .06em; }
+    .doc-logo-sub   { font-size: 8px; font-weight: 500; opacity: .85; letter-spacing: .03em; }
+  }
+
+  .doc-title-cell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px 16px;
+    font-size: 11px;
+    color: #1e293b;
+    line-height: 1.5;
+    text-align: center;
+    background: #eff6ff;
+
+    strong { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #1e40af; display: block; margin-bottom: 2px; }
+  }
+}
+
+.doc-quick-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(37, 99, 235, .05);
+  border: 1px solid rgba(37, 99, 235, .15);
+  border-radius: 6px;
+  margin-bottom: 16px;
+
+  .doc-form-name { font-size: 12px; font-weight: 600; color: #334155; }
+  .doc-btns { display: flex; gap: 8px; }
+}
+
+.btn-ghost-sm {
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: all .15s;
+
+  &:hover { background: #f1f5f9; border-color: #94a3b8; }
+  &:disabled { opacity: .45; cursor: not-allowed; }
+}
+
+.doc-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #1e40af;
+  border-bottom: 2px solid #1e40af;
+  padding-bottom: 4px;
+  margin: 16px 0 10px;
+}
+
+// ── Per-row NOMBRE RESPONSABLE + FirmaEC table ──────────────────────────────
+
+.doc-resp-table-wrapper {
+  margin: 12px 0 4px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1.5px solid #cbd5e1;
+}
+
+.doc-resp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  thead tr {
+    background: #1e40af;
+    color: #fff;
+
+    th {
+      padding: 7px 10px;
+      font-weight: 700;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      text-align: left;
+      white-space: nowrap;
+
+      &:first-child { width: 42%; }
+      &:nth-child(2) { width: 30%; }
+      &:nth-child(3) { width: 28%; }
+    }
+  }
+
+  tbody tr {
+    border-bottom: 1px solid #e2e8f0;
+
+    &:last-child { border-bottom: none; }
+    &:nth-child(even) { background: #f8fafc; }
+    &:hover { background: #eff6ff; }
+  }
+
+  td {
+    padding: 6px 10px;
+    vertical-align: middle;
+  }
+}
+
+.doc-resp-item {
+  font-size: 11px;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.doc-resp-nombre {
+  .doc-input {
+    width: 100%;
+    font-size: 11px;
+    padding: 4px 8px;
+    height: 30px;
+    border-radius: 4px;
+  }
+}
+
+.doc-resp-firma {
+  text-align: center;
+}
+
+.doc-muted {
+  font-size: 11px;
+  color: #64748b;
+  font-style: italic;
+}
+
+.doc-input {
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.doc-error {
+  display: block;
+  font-size: 10px;
+  color: #ef4444;
+  margin-top: 2px;
+}
+
+// ── FirmaEC mini widget (inside table cells) ────────────────────────────────
+
+.btn-firma-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity .15s;
+
+  &:hover { opacity: .85; }
+}
+
+.firma-mini-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  background: #f0fdf4;
+  border: 1.5px solid #22c55e;
+  border-radius: 5px;
+
+  .firma-mini-img {
+    width: 36px;
+    height: 22px;
+    object-fit: contain;
+    border-radius: 2px;
+    border: 1px solid #bbf7d0;
+  }
+
+  .firma-mini-clear {
+    font-size: 10px;
+    color: #dc2626;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 2px;
+    font-weight: 700;
+    line-height: 1;
+
+    &:hover { color: #991b1b; }
+  }
+}
+
+.firma-mini-req {
+  display: block;
+  font-size: 9px;
+  color: #ef4444;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+  .doc-header-inamhi {
+    flex-direction: column;
+
+    .doc-logo-cell { flex-direction: row; padding: 10px 14px; gap: 8px; min-width: unset; }
+  }
+
+  .doc-resp-table {
+    font-size: 10px;
+
+    thead tr th { padding: 5px 6px; font-size: 9px; }
+    td { padding: 5px 6px; }
+    &:first-child { width: 35%; }
+  }
+
+  .btn-firma-mini { font-size: 9px; padding: 3px 6px; }
 }
