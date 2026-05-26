@@ -1,4 +1,4 @@
-import {
+﻿import {
   Component,
   OnInit,
   OnDestroy,
@@ -419,6 +419,9 @@ export class Formularios implements OnInit, OnDestroy {
   // ── FormGroup PLANO (1:1 con el HTML) ───────────────────────
   formularioPazSalvo!: FormGroup;
 
+  // ── FormGroup anidado para el ESPEJO A4 (columna derecha) ───
+  form!: FormGroup;
+
   constructor(
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef,
@@ -440,6 +443,8 @@ export class Formularios implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.usuario = this.parseUsuario();
     this.buildForm();
+    this.form = this.formularioPazSalvo;
+    this.syncEspejo();
     this.listenForConditionalValidators();
     this.loadDraft();
     this.cargarFormularios();
@@ -1603,5 +1608,167 @@ export class Formularios implements OnInit, OnDestroy {
       timer: 2500,
       showConfirmButton: false,
     }).then(() => (this.alertaActiva = false));
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  ESPEJO A4 — FormGroup anidado
+  // ─────────────────────────────────────────────────────────────
+
+  private buildEspejoForm(): void {
+    this.form = this.fb.group({
+      datosPersonales: this.fb.group({
+        nombresApellidos:       [''],
+        cedula:                 [''],
+        numeroDomicilio:        [''],
+        nominamientoPermanente: [false],
+        nominamientoProvisional:[false],
+        contratoOcasional:      [false],
+        contratoTrabajo:        [false],
+        fechaIngreso:           [''],
+        fechaSalida:            [''],
+        numeroCelular:          [''],
+        numeroEmergencia:       [''],
+        email1:                 [''],
+        email2:                 [''],
+        direccionDomiciliaria:  [''],
+        provincia:              [''],
+        canton:                 [''],
+      }),
+      datosUnidad: this.fb.group({
+        plantaCentral:           [false],
+        procesosDesconcentrados: [false],
+        direccionUnidad:         [''],
+        cargoDesempenado:        [''],
+        grupoOcupacional:        [''],
+      }),
+      entregaGestion: this.fb.group({
+        informeGestion:       [''],
+        tramitesQuipux:       [''],
+        nombreResp_eg1:       [''],
+        fePresentacion:       [''],
+        clavesAcceso:         [''],
+        nombreResp_eg2:       [''],
+        entregaArchivo:       [''],
+        actaClaves:           [''],
+        nombreResp_eg3:       [''],
+        esAdminContrato:      [''],
+        observacionEG:        [''],
+        nombreResp_eg4:       [''],
+        descripcionContrato:  [''],
+        memorandoNuevoAdmin:  [''],
+        servidorRecibeTramites:[''],
+        jefeInmediato:        [''],
+      }),
+      gestionAdministrativa: this.fb.group({
+        esAdminContratoAdm: [''],
+        entregaInforme:     [''],
+        nombreResp_ga1:     [''],
+        bienesMuebles:      [''],
+        numeroActa:         [''],
+        nombreResp_ga2:     [''],
+        valoresDeducibles:  [''],
+        valorDeducibles:    [''],
+        nombreResp_ga3:     [''],
+        pasajesAereos:      [''],
+        valorPasajes:       [''],
+        nombreResp_ga4:     [''],
+      }),
+      gestionTIC: this.fb.group({
+        verificacionEquipo:    [''],
+        obsVerificacionEquipo: [''],
+        nombreResp_tic1:       [''],
+        accesoIpFija:          [''],
+        liberacionIp:          [''],
+        nombreResp_tic2:       [''],
+        retiroControlAcceso:   [''],
+        backupInformacion:     [''],
+        nombreResp_tic3:       [''],
+        correoInstitucional:   [''],
+        esigef:                [''],
+        quipux:                [''],
+        spryn:                 [''],
+        esbye:                 [''],
+        nombreResp_tic4:       [''],
+        tarjetaAcceso:         [''],
+        obsTarjeta:            [''],
+        nombreResp_tic5:       [''],
+      }),
+      gestionFinanciera: this.fb.group({
+        saldosContables:        [''],
+        valorSaldosContables:   [''],
+        obsSaldosContables:     [''],
+        nombreResp_fin1:        [''],
+        anticipoSueldos:        [''],
+        valorAnticipoSueldos:   [''],
+        obsAnticipoSueldos:     [''],
+        nombreResp_fin2:        [''],
+        recuperacionValores:    [''],
+        valorRecuperacion:      [''],
+        obsRecuperacion:        [''],
+        nombreResp_fin3:        [''],
+        devolucionMuebles:      [''],
+        valorDevolucion:        [''],
+        obsDevolucion:          [''],
+        nombreResp_fin4:        [''],
+        nombreDirectorFinanciero:[''],
+      }),
+      seguridadInformacion: this.fb.group({
+        archivosDigitales:            [''],
+        entregaCopiaInforme:          [''],
+        nombreResp_seg1:              [''],
+        archivosFisicos:              [''],
+        verificacionInfoInstitucional:[''],
+        nombreResp_seg2:              [''],
+        nombreOficialSeguridad:       [''],
+      }),
+      recursosHumanos: this.fb.group({
+        capacitacion:                [''],
+        nombreResp_rh1:              [''],
+        evaluacionDesempeno:         [''],
+        nombreResp_rh2:              [''],
+        viajesExterior:              [''],
+        nombreResp_rh3:              [''],
+        siith:                       [''],
+        nombreResp_rh4:              [''],
+        numeroCertificadoVacaciones: [''],
+        nombreResp_rh5:              [''],
+        declaracionJuramentada:      [''],
+        numeroDeclaracionJuramentada:[''],
+        nombreResp_rh6:              [''],
+        credencialInstitucional:     [''],
+        copiaActividadesCD:          [''],
+        nombreResp_rh7:              [''],
+        actaBienes:                  [''],
+        ropaTrabajo:                 [''],
+        nombreResp_rh8:              [''],
+        nombreDirectorRRHH:          [''],
+      }),
+      recepcionDocumentos: this.fb.group({
+        fechaEntregaPazSalvo: [''],
+        numHojasRecibidas:    [''],
+        nombreQuienRecibe:    [''],
+        cargoQuienRecibe:     [''],
+      }),
+      autorizacion: this.fb.group({
+        cedulaServidor: [''],
+      }),
+    });
+  }
+
+  /** Dispara markForCheck en cada cambio del formulario para actualizar el espejo. */
+  private syncEspejo(): void {
+    this.formularioPazSalvo.valueChanges
+      .pipe(debounceTime(0), takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.cdr.markForCheck();
+      });
+  }
+
+  limpiarFormulario(): void {
+    this.form.reset();
+  }
+
+  imprimir(): void {
+    window.print();
   }
 }
