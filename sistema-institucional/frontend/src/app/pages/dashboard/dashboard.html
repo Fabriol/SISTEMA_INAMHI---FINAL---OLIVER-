@@ -18,7 +18,6 @@
         [class.bloqueado]="item.bloqueado">
 
         <span>{{ item.nombre }}</span>
-
         <small *ngIf="item.bloqueado">🔒</small>
       </a>
     </nav>
@@ -26,20 +25,13 @@
 
   <main class="main">
 
-    <!-- HERO PRINCIPAL -->
     <section class="hero">
-
       <div class="hero-overlay"></div>
 
       <div class="hero-content">
+        <span class="badge">Plataforma Oficial INAMHI</span>
 
-        <span class="badge">
-          Plataforma Oficial INAMHI
-        </span>
-
-        <h1>
-          Centro de Gestión Institucional
-        </h1>
+        <h1>Centro de Gestión Institucional</h1>
 
         <p>
           Sistema moderno para la administración de documentos,
@@ -48,7 +40,6 @@
         </p>
 
         <div class="hero-info">
-
           <div class="hero-item">
             <strong>{{ resumen.usuarios }}</strong>
             <span>Usuarios activos</span>
@@ -63,17 +54,12 @@
             <strong>{{ usuario?.rol }}</strong>
             <span>Rol institucional</span>
           </div>
-
         </div>
-
       </div>
 
       <div class="hero-right">
-
         <div class="weather-card">
-          <div class="weather-icon">
-            ⛅
-          </div>
+          <div class="weather-icon">⛅</div>
 
           <h2>INAMHI</h2>
 
@@ -85,79 +71,54 @@
           <div class="pulse-ring"></div>
         </div>
 
-        <button class="logout" (click)="logout()">
+        <button class="logout" type="button" (click)="logout()">
           Cerrar sesión
         </button>
-
       </div>
-
     </section>
 
-    <!-- TARJETAS -->
     <section class="dashboard-grid">
 
       <div class="info-card blue">
         <div class="card-icon">📄</div>
-
         <div>
           <h3>Gestión documental</h3>
-
-          <p>
-            Control y almacenamiento seguro de archivos institucionales.
-          </p>
+          <p>Control y almacenamiento seguro de archivos institucionales.</p>
         </div>
       </div>
 
       <div class="info-card green">
         <div class="card-icon">📊</div>
-
         <div>
           <h3>Reportes dinámicos</h3>
-
-          <p>
-            Visualización estadística y análisis institucional.
-          </p>
+          <p>Visualización estadística y análisis institucional.</p>
         </div>
       </div>
 
       <div class="info-card purple">
         <div class="card-icon">🧾</div>
-
         <div>
           <h3>Formularios inteligentes</h3>
-
-          <p>
-            Procesos automatizados para solicitudes y registros.
-          </p>
+          <p>Procesos automatizados para solicitudes y registros.</p>
         </div>
       </div>
 
       <div class="info-card orange">
         <div class="card-icon">🛡️</div>
-
         <div>
           <h3>Seguridad institucional</h3>
-
-          <p>
-            Acceso controlado mediante roles y permisos del sistema.
-          </p>
+          <p>Acceso controlado mediante roles y permisos del sistema.</p>
         </div>
       </div>
 
     </section>
 
-    <!-- PANEL INFORMATIVO -->
     <section class="institution-panel">
 
       <div class="panel-left">
+        <span class="panel-badge">INAMHI ECUADOR</span>
 
-        <span class="panel-badge">
-          INAMHI ECUADOR
-        </span>
-
-        <h2>
-          Innovación tecnológica para la gestión institucional
-        </h2>
+        <h2>Innovación tecnológica para la gestión institucional</h2>
 
         <p>
           Esta plataforma fortalece la organización administrativa,
@@ -166,7 +127,6 @@
         </p>
 
         <div class="panel-features">
-
           <div class="feature">
             <span>✔</span>
             <p>Control centralizado de información</p>
@@ -181,24 +141,90 @@
             <span>✔</span>
             <p>Administración segura y moderna</p>
           </div>
-
         </div>
-
       </div>
 
       <div class="panel-right">
-
         <div class="circle circle-1"></div>
         <div class="circle circle-2"></div>
         <div class="circle circle-3"></div>
 
-        <div class="center-icon">
-          🌎
-        </div>
-
+        <div class="center-icon">🌎</div>
       </div>
 
     </section>
+
+    <footer class="footer-inamhi">
+      <div class="footer-container">
+
+        <div class="footer-grid">
+
+          <div class="footer-brand">
+            <div class="footer-logo-box">
+              <img src="/img/logo.png" alt="INAMHI">
+            </div>
+
+            <div>
+              <h3>Tiempo, Clima y Agua</h3>
+              <p>
+                Comprometidos con la generación de datos precisos para la prevención
+                de riesgos y el desarrollo sostenible del Ecuador.
+              </p>
+            </div>
+
+            <div class="footer-social">
+              <a href="/dashboard" aria-label="Facebook">📘</a>
+              <a href="/dashboard" aria-label="YouTube">▶️</a>
+              <a href="/dashboard" aria-label="WhatsApp">💬</a>
+            </div>
+          </div>
+
+          <div class="footer-sites">
+
+            <div class="footer-card">
+              <div class="footer-card-icon blue-icon">🚢</div>
+              <h4>Sede Guayas</h4>
+              <p>
+                Ubicada en el Campus Gustavo Galindo de la ESPOL. Especializada
+                en ingeniería marítima y ciencias del mar para el monitoreo del Litoral.
+              </p>
+            </div>
+
+            <div class="footer-card">
+              <div class="footer-card-icon green-icon">🍃</div>
+              <h4>Sede Pastaza</h4>
+              <p>
+                Centro neurálgico en la Amazonía, operando desde la ESPOCH con
+                estaciones meteorológicas de última generación para la vigilancia hídrica.
+              </p>
+            </div>
+
+            <div class="footer-card">
+              <div class="footer-card-icon purple-icon">⛰️</div>
+              <h4>Sede Loja</h4>
+              <p>
+                Situada en el Edificio del Gobierno Zonal 7. Encargada de la coordinación
+                técnica para la cuenca del Jubones y el sur del país.
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <div>
+            <p>© 2026 Instituto Nacional de Meteorología e Hidrología</p>
+            <span>Dirección Matriz: Corea N36-14 y Iñaquito, Quito - Ecuador</span>
+          </div>
+
+          <div class="footer-contact">
+            <span>Contacto Nacional</span>
+            <strong>593-2 397-1100</strong>
+          </div>
+        </div>
+
+      </div>
+    </footer>
 
   </main>
 
