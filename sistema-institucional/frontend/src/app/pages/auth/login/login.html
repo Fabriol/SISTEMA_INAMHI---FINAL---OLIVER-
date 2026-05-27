@@ -10,10 +10,10 @@
     </p>
 
     <ul>
-      <li>✔ Gestión centralizada de solicitudes</li>
-      <li>✔ Validación por áreas institucionales</li>
-      <li>✔ Control y seguimiento en tiempo real</li>
-      <li>✔ Auditoría y trazabilidad completa</li>
+      <li>Gestión centralizada de solicitudes</li>
+      <li>Validación por áreas institucionales</li>
+      <li>Control y seguimiento en tiempo real</li>
+      <li>Auditoría y trazabilidad completa</li>
     </ul>
   </div>
 
@@ -28,51 +28,83 @@
 
     <!-- USUARIO -->
     <div class="form-group">
-      <label>Usuario</label>
-      <input
-        type="text"
-        placeholder="Ingrese su usuario"
-        [(ngModel)]="usuario"
-        (input)="error=''"
-        autocomplete="off"
-        [class.input-error]="error && !usuario"
-      >
+      <label>
+        Usuario
+        <span class="required">*</span>
+      </label>
+
+      <input type="text" placeholder="Ej: Inamhi" [(ngModel)]="usuario"
+        (input)="error=''; usuario = usuario.trim().toLowerCase()" autocomplete="off" maxlength="30"
+        [class.input-error]="
+          usuario &&
+          (
+            usuario.length < 3 ||
+            usuario.includes(' ') ||
+            !usuarioValido(usuario)
+          )
+        ">
+
+      <small class="error-text" *ngIf="usuario && usuario.length < 3">
+        El usuario debe tener mínimo 3 caracteres.
+      </small>
+
+      <small class="error-text" *ngIf="usuario && usuario.includes(' ')">
+        El usuario no debe contener espacios.
+      </small>
+
+      <small class="error-text" *ngIf="usuario && !usuarioValido(usuario)">
+        Solo se permiten letras, números, punto, guion y guion bajo.
+      </small>
     </div>
 
-    <!-- PASSWORD -->
+    <!-- CONTRASEÑA -->
     <div class="form-group">
-      <label>Contraseña</label>
+      <label>
+        Contraseña
+        <span class="required">*</span>
+      </label>
 
       <div class="password-box">
-        <input
-          [type]="mostrarPassword ? 'text' : 'password'"
-          placeholder="Ingrese su contraseña"
-          [(ngModel)]="password"
-          (keyup.enter)="ingresar()"
-          (input)="error=''"
-          [class.input-error]="error && !password"
-        >
 
-        
+        <input [type]="mostrarPassword ? 'text' : 'password'" placeholder="Ingrese su contraseña" [(ngModel)]="password"
+          (keyup.enter)="formularioLoginValido() && ingresar()" (input)="error=''" autocomplete="current-password"
+          minlength="6" maxlength="50" [class.input-error]="password && password.length < 6">
+
+        <button
+  type="button"
+  class="toggle-pass"
+  (click)="mostrarPassword = !mostrarPassword">
+
+  <i
+    class="bi"
+    [ngClass]="mostrarPassword ? 'bi-eye-slash-fill' : 'bi-eye-fill'">
+  </i>
+
+</button>
+
       </div>
 
+      <small class="error-text" *ngIf="password && password.length < 6">
+        La contraseña es demasiado corta.
+      </small>
     </div>
 
-    <!-- BOTÓN LOGIN -->
-    <button
-      class="btn-login"
-      (click)="ingresar()"
-      [disabled]="cargando || !usuario || !password"
-      [class.loading]="cargando"
-    >
-      <span *ngIf="!cargando">Ingresar al sistema</span>
-      <span *ngIf="cargando">Ingresando...</span>
-    </button>
-
-    <!-- ERROR -->
+    <!-- ERROR BACKEND -->
     <p class="error" *ngIf="error">
       {{ error }}
     </p>
+
+    <!-- BOTÓN LOGIN -->
+    <button type="button" class="btn-login" (click)="ingresar()" [disabled]="cargando || !formularioLoginValido()"
+      [class.loading]="cargando">
+      <span *ngIf="!cargando">Ingresar al sistema</span>
+      <span *ngIf="cargando">Validando acceso...</span>
+    </button>
+
+    <!-- AYUDA -->
+    <small class="login-help">
+      Si olvidó sus credenciales, contacte al administrador del sistema.
+    </small>
 
     <!-- FOOTER -->
     <small class="footer">
@@ -82,8 +114,8 @@
   </div>
 
   <!-- BURBUJAS -->
-  <span></span>
-  <span></span>
-  <span></span>
+  <span class="bubble bubble-1"></span>
+  <span class="bubble bubble-2"></span>
+  <span class="bubble bubble-3"></span>
 
 </div>

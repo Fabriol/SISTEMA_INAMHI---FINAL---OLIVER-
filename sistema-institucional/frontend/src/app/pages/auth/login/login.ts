@@ -21,22 +21,65 @@ export class Login {
   cargando = false;
   mostrarPassword = false;
 
+  private alertaActiva = false;
+
   constructor(
     private auth: AuthService,
     private router: Router,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
+
+  usuarioValido(valor: string): boolean {
+    return /^[a-zA-Z0-9._-]+$/.test(valor || '');
+  }
+
+  limpiarUsuario(): void {
+    this.usuario = String(this.usuario || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '');
+  }
+
+  formularioLoginValido(): boolean {
+    const usuarioLimpio = String(this.usuario || '').trim();
+
+    return (
+      !!usuarioLimpio &&
+      !!this.password &&
+      usuarioLimpio.length >= 3 &&
+      usuarioLimpio.length <= 30 &&
+      this.password.length >= 6 &&
+      this.password.length <= 50 &&
+      !usuarioLimpio.includes(' ') &&
+      this.usuarioValido(usuarioLimpio)
+    );
+  }
 
   validarUsuario(): boolean {
-    const regex = /^[a-zA-Z0-9._-]+$/;
+    this.limpiarUsuario();
 
-    if (!this.usuario.trim()) {
+    if (!this.usuario) {
       this.mostrarError('Ingrese su usuario');
       return false;
     }
 
-    if (!regex.test(this.usuario)) {
-      this.mostrarError('Usuario inválido');
+    if (this.usuario.length < 3) {
+      this.mostrarError('El usuario debe tener mínimo 3 caracteres');
+      return false;
+    }
+
+    if (this.usuario.length > 30) {
+      this.mostrarError('El usuario no debe superar 30 caracteres');
+      return false;
+    }
+
+    if (this.usuario.includes(' ')) {
+      this.mostrarError('El usuario no debe contener espacios');
+      return false;
+    }
+
+    if (!this.usuarioValido(this.usuario)) {
+      this.mostrarError('Usuario inválido. Use letras, números, punto, guion o guion bajo');
       return false;
     }
 
@@ -44,13 +87,18 @@ export class Login {
   }
 
   validarPassword(): boolean {
-    if (!this.password.trim()) {
+    if (!this.password || !this.password.trim()) {
       this.mostrarError('Ingrese su contraseña');
       return false;
     }
 
-    if (this.password.length < 4) {
-      this.mostrarError('La contraseña debe tener mínimo 4 caracteres');
+    if (this.password.length < 6) {
+      this.mostrarError('La contraseña debe tener mínimo 6 caracteres');
+      return false;
+    }
+
+    if (this.password.length > 50) {
+      this.mostrarError('La contraseña no debe superar 50 caracteres');
       return false;
     }
 
@@ -62,23 +110,43 @@ export class Login {
     this.cargando = false;
     this.cdr.detectChanges();
 
+    if (this.alertaActiva) return;
+
+    this.alertaActiva = true;
+
     Swal.fire({
       icon: 'error',
-      title: 'Error',
+      title: 'Acceso denegado',
       text: mensaje,
-      timer: 1600,
-      showConfirmButton: false
+      confirmButtonText: 'Intentar nuevamente',
+      confirmButtonColor: '#dc2626',
+      background: '#ffffff',
+      color: '#0f172a',
+      width: 430,
+      timer: 2200,
+      timerProgressBar: true
+    }).then(() => {
+      this.alertaActiva = false;
     });
+  }
+
+  limpiarError(): void {
+    this.error = '';
   }
 
   ingresar(): void {
     if (this.cargando) return;
 
     this.error = '';
-    this.usuario = this.usuario.trim().toLowerCase();
+    this.limpiarUsuario();
 
     if (!this.validarUsuario()) return;
     if (!this.validarPassword()) return;
+
+    if (!this.formularioLoginValido()) {
+      this.mostrarError('Complete correctamente sus credenciales');
+      return;
+    }
 
     this.cargando = true;
     this.cdr.detectChanges();
@@ -87,17 +155,23 @@ export class Login {
       usuario: this.usuario,
       password: this.password
     }).pipe(
-      timeout(1500),
+      timeout(8000),
 
       catchError((err: any) => {
         if (err.status === 401) {
           this.mostrarError('Usuario o contraseña incorrectos');
         } else if (err.status === 403) {
-          this.mostrarError('Usuario inhabilitado');
+          this.mostrarError('Usuario inhabilitado. Contacte al administrador');
+        } else if (err.status === 0) {
+          this.mostrarError('No se pudo conectar con el servidor');
         } else if (err.name === 'TimeoutError') {
-          this.mostrarError('El servidor tardó demasiado');
+          this.mostrarError('El servidor tardó demasiado en responder');
         } else {
-          this.mostrarError(err.error?.mensaje || 'Error al iniciar sesión');
+          this.mostrarError(
+            err.error?.mensaje ||
+            err.error?.error ||
+            'Error al iniciar sesión'
+          );
         }
 
         return of(null);
@@ -110,10 +184,30 @@ export class Login {
     ).subscribe((res: any) => {
       if (!res) return;
 
-      localStorage.setItem('token', res.token);
-      localStorage.setItem('usuario', JSON.stringify(res.usuario));
+      if (!res.token || !res.usuario) {
+        this.mostrarError('Respuesta inválida del servidor');
+        return;
+      }
 
-      this.router.navigate(['/dashboard']);
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('auth_token', res.token);
+      localStorage.setItem('usuario', JSON.stringify(res.usuario));
+      localStorage.setItem('user_role', res.usuario?.rol || '');
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Acceso correcto',
+        text: `Bienvenido, ${res.usuario?.nombres || this.usuario}`,
+        confirmButtonText: 'Continuar',
+        confirmButtonColor: '#2563eb',
+        background: '#ffffff',
+        color: '#0f172a',
+        width: 430,
+        timer: 1400,
+        timerProgressBar: true
+      }).then(() => {
+        this.router.navigate(['/dashboard']);
+      });
     });
   }
 }
