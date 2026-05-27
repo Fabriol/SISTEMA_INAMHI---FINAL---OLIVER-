@@ -2296,6 +2296,57 @@ button {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// FIRMAS ELECTRÓNICAS — sección 11 del accordion (tono violeta/índigo)
+// ══════════════════════════════════════════════════════════════════════════════
+.accordion-item--firmasEC {
+  border-color: #c4b5fd;
+}
+
+.accordion-header--firmasEC {
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-left-color: #7c3aed;
+
+  &:hover { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
+
+  h3 { color: #4c1d95; }
+
+  span {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    box-shadow: 0 2px 8px rgba(124, 58, 237, .35);
+  }
+}
+
+.firmasEC-hint {
+  font-size: 12.5px;
+  color: #6d28d9;
+  background: #f5f3ff;
+  border: 1px solid #c4b5fd;
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin: 0 0 12px;
+}
+
+.tabla-campos--firmasEC {
+  .col-nombre--firma { font-weight: 600; color: #4c1d95; }
+
+  thead tr { background: linear-gradient(135deg, #5b21b6, #4c1d95); }
+
+  .col-seccion-firma { width: 160px; text-align: center; }
+}
+
+.badge-seccion-firma {
+  display: inline-block;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: var(--r-full);
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // SELECTOR DE USUARIO
 // ══════════════════════════════════════════════════════════════════════════════
 .asignar-usuario-wrapper {

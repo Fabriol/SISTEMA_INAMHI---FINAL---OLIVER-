@@ -285,6 +285,7 @@ export class Formularios implements OnInit, OnDestroy {
     rrhh:       false,
     recepcion:  false,
     firma:      false,
+    firmasEC:   false,
   };
 
   // ── Catálogo de campos para designación (admin) ─────────────
@@ -414,6 +415,39 @@ export class Formularios implements OnInit, OnDestroy {
     // ── Firma ──
     { id: 'cedula_firmante', nombre: 'cedula_firmante', etiqueta: 'C.C. del Firmante',  seccion: 'Firma', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     { id: 'fecha_firma',     nombre: 'fecha_firma',     etiqueta: 'Fecha de Firma',     seccion: 'Firma', tipo: 'FECHA', seleccionado: false, bloqueado: false },
+    // ── Firmas Electrónicas (FirmaEC) ──
+    { id: 'tramites_r1',   nombre: 'tramites_r1',   etiqueta: 'FirmaEC — Trámites: Fila 1',                    seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tramites_r2',   nombre: 'tramites_r2',   etiqueta: 'FirmaEC — Trámites: Fila 2',                    seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tramites_r3',   nombre: 'tramites_r3',   etiqueta: 'FirmaEC — Trámites: Fila 3',                    seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tramites_jefe', nombre: 'tramites_jefe', etiqueta: 'FirmaEC — Trámites: Jefe Inmediato',            seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'admin_r1',      nombre: 'admin_r1',      etiqueta: 'FirmaEC — Administrativa: Fila 1',              seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'admin_r2',      nombre: 'admin_r2',      etiqueta: 'FirmaEC — Administrativa: Fila 2',              seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'admin_r3',      nombre: 'admin_r3',      etiqueta: 'FirmaEC — Administrativa: Fila 3',              seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'admin_r4',      nombre: 'admin_r4',      etiqueta: 'FirmaEC — Administrativa: Fila 4',              seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'admin_dir',     nombre: 'admin_dir',     etiqueta: 'FirmaEC — Administrativa: Director/a',          seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tic_r1',        nombre: 'tic_r1',        etiqueta: 'FirmaEC — TIC: Fila 1',                         seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tic_r2',        nombre: 'tic_r2',        etiqueta: 'FirmaEC — TIC: Fila 2',                         seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tic_r3',        nombre: 'tic_r3',        etiqueta: 'FirmaEC — TIC: Fila 3',                         seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tic_r4',        nombre: 'tic_r4',        etiqueta: 'FirmaEC — TIC: Fila 4',                         seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tic_r5',        nombre: 'tic_r5',        etiqueta: 'FirmaEC — TIC: Fila 5',                         seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'fin_r1',        nombre: 'fin_r1',        etiqueta: 'FirmaEC — Financiera: Fila 1',                  seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'fin_r2',        nombre: 'fin_r2',        etiqueta: 'FirmaEC — Financiera: Fila 2',                  seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'fin_r3',        nombre: 'fin_r3',        etiqueta: 'FirmaEC — Financiera: Fila 3',                  seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'fin_r4',        nombre: 'fin_r4',        etiqueta: 'FirmaEC — Financiera: Fila 4',                  seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'fin_dir',       nombre: 'fin_dir',       etiqueta: 'FirmaEC — Financiera: Director/a',              seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'seg_r1',        nombre: 'seg_r1',        etiqueta: 'FirmaEC — Seguridad: Fila 1',                   seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'seg_r2',        nombre: 'seg_r2',        etiqueta: 'FirmaEC — Seguridad: Fila 2',                   seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'seg_oficial',   nombre: 'seg_oficial',   etiqueta: 'FirmaEC — Seguridad: Oficial de Seguridad',     seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r1',       nombre: 'rrhh_r1',       etiqueta: 'FirmaEC — RRHH: Fila 1',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r2',       nombre: 'rrhh_r2',       etiqueta: 'FirmaEC — RRHH: Fila 2',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r3',       nombre: 'rrhh_r3',       etiqueta: 'FirmaEC — RRHH: Fila 3',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r4',       nombre: 'rrhh_r4',       etiqueta: 'FirmaEC — RRHH: Fila 4',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r5',       nombre: 'rrhh_r5',       etiqueta: 'FirmaEC — RRHH: Fila 5',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r6',       nombre: 'rrhh_r6',       etiqueta: 'FirmaEC — RRHH: Fila 6',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r7',       nombre: 'rrhh_r7',       etiqueta: 'FirmaEC — RRHH: Fila 7',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r8',       nombre: 'rrhh_r8',       etiqueta: 'FirmaEC — RRHH: Fila 8',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_dir',      nombre: 'rrhh_dir',      etiqueta: 'FirmaEC — RRHH: Director/a',                    seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'recepcion_r1',  nombre: 'recepcion_r1',  etiqueta: 'FirmaEC — Recepción: Servidor/a que recibe',    seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
   ];
 
   // ── FormGroup PLANO (1:1 con el HTML) ───────────────────────
@@ -1046,7 +1080,8 @@ export class Formularios implements OnInit, OnDestroy {
   private validarFirmasEC(): boolean {
     let todasOk = true;
     Object.keys(this.firmasEC).forEach(key => {
-      if (!this.firmasEC[key]) {
+      const debeSubir = this.esAdmin() || this.camposAsignadosUsuario.includes(key);
+      if (debeSubir && !this.firmasEC[key]) {
         this.firmasECRequired[key] = true;
         todasOk = false;
       }
@@ -1319,6 +1354,28 @@ export class Formularios implements OnInit, OnDestroy {
       this.camposBloqueados       = [...new Set(this.camposBloqueados)];
       this.camposYaDesignados     = [...new Set(this.camposYaDesignados)];
 
+      // Procesar firmasEC (claves que no son controles del formulario reactivo)
+      preguntas.forEach((p: any) => {
+        const campo: string = p.codigo ?? p.campo ?? p.pregunta ?? '';
+        if (!campo || !(campo in this.firmasEC)) return;
+
+        this.camposAsignadosUsuario.push(campo);
+
+        if (p.respuesta !== null && p.respuesta !== undefined && p.respuesta !== '') {
+          this.firmasEC[campo] = p.respuesta as string;
+          this.camposBloqueados.push(campo);
+        }
+
+        if (p.ya_asignado === 1 || p.asignacion_id) {
+          this.camposYaDesignados.push(campo);
+        }
+      });
+
+      // Re-deduplicar tras añadir firmasEC
+      this.camposAsignadosUsuario = [...new Set(this.camposAsignadosUsuario)];
+      this.camposBloqueados       = [...new Set(this.camposBloqueados)];
+      this.camposYaDesignados     = [...new Set(this.camposYaDesignados)];
+
       // Marcar campos ya designados como bloqueados en el catálogo de checkboxes (admin)
       this.camposFormulario.forEach(c => {
         c.bloqueado = this.camposYaDesignados.includes(c.id);
@@ -1347,6 +1404,14 @@ export class Formularios implements OnInit, OnDestroy {
       } else {
         ctrl.disable({ emitEvent: false });
       }
+    });
+
+    // Activar/desactivar firmasEC según asignación y estado de carga
+    Object.keys(this.firmasEC).forEach(key => {
+      const asignado  = this.esAdmin() || this.camposAsignadosUsuario.includes(key);
+      const bloqueado = this.camposBloqueados.includes(key);
+      // true = mostrar botón de carga / indicador requerido
+      this.firmasECRequired[key] = asignado && !bloqueado && !this.firmasEC[key];
     });
   }
 
