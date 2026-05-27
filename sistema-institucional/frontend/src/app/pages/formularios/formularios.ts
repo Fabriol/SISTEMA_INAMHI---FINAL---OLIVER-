@@ -276,178 +276,178 @@ export class Formularios implements OnInit, OnDestroy {
   // ── Secciones del acordeón (panel admin) ────────────────────
   seccionesAbiertas: Record<string, boolean> = {
     personales: true,
-    direccion:  false,
-    tramites:   false,
-    admin:      false,
-    tic:        false,
+    direccion: false,
+    tramites: false,
+    admin: false,
+    tic: false,
     financiero: false,
-    seguridad:  false,
-    rrhh:       false,
-    recepcion:  false,
-    firma:      false,
-    firmasEC:   false,
+    seguridad: false,
+    rrhh: false,
+    recepcion: false,
+    firma: false,
+    firmasEC: false,
   };
 
   // ── Catálogo de campos para designación (admin) ─────────────
   camposFormulario: CampoFormulario[] = [
     // ── Datos Personales ──
-    { id: 'nombres_apellidos',  nombre: 'nombres_apellidos',  etiqueta: 'Nombres y Apellidos',    seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'modalidad',          nombre: 'modalidad',          etiqueta: 'Modalidad Laboral',       seccion: 'Datos Personales',      tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'cedula',             nombre: 'cedula',             etiqueta: 'Cédula / Pasaporte',      seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'fecha_ingreso',      nombre: 'fecha_ingreso',      etiqueta: 'Fecha de Ingreso',        seccion: 'Datos Personales',      tipo: 'FECHA',  seleccionado: false, bloqueado: false },
-    { id: 'fecha_salida',       nombre: 'fecha_salida',       etiqueta: 'Fecha de Salida',         seccion: 'Datos Personales',      tipo: 'FECHA',  seleccionado: false, bloqueado: false },
-    { id: 'direccion',          nombre: 'direccion',          etiqueta: 'Dirección Domiciliaria',  seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'numero_domicilio',   nombre: 'numero_domicilio',   etiqueta: 'Número Domicilio',        seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'celular',            nombre: 'celular',            etiqueta: 'Número Celular',          seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'emergencia',         nombre: 'emergencia',         etiqueta: 'Contacto Emergencia',     seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'email1',             nombre: 'email1',             etiqueta: 'Email Principal',         seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'email2',             nombre: 'email2',             etiqueta: 'Email Secundario',        seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'provincia',          nombre: 'provincia',          etiqueta: 'Provincia',               seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'canton',             nombre: 'canton',             etiqueta: 'Cantón',                  seccion: 'Datos Personales',      tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'nombres_apellidos', nombre: 'nombres_apellidos', etiqueta: 'Nombres y Apellidos', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'modalidad', nombre: 'modalidad', etiqueta: 'Modalidad Laboral', seccion: 'Datos Personales', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'cedula', nombre: 'cedula', etiqueta: 'Cédula / Pasaporte', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fecha_ingreso', nombre: 'fecha_ingreso', etiqueta: 'Fecha de Ingreso', seccion: 'Datos Personales', tipo: 'FECHA', seleccionado: false, bloqueado: false },
+    { id: 'fecha_salida', nombre: 'fecha_salida', etiqueta: 'Fecha de Salida', seccion: 'Datos Personales', tipo: 'FECHA', seleccionado: false, bloqueado: false },
+    { id: 'direccion', nombre: 'direccion', etiqueta: 'Dirección Domiciliaria', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'numero_domicilio', nombre: 'numero_domicilio', etiqueta: 'Número Domicilio', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'celular', nombre: 'celular', etiqueta: 'Número Celular', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'emergencia', nombre: 'emergencia', etiqueta: 'Contacto Emergencia', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'email1', nombre: 'email1', etiqueta: 'Email Principal', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'email2', nombre: 'email2', etiqueta: 'Email Secundario', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'provincia', nombre: 'provincia', etiqueta: 'Provincia', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'canton', nombre: 'canton', etiqueta: 'Cantón', seccion: 'Datos Personales', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     // ── Dirección / Unidad ──
-    { id: 'lugar_trabajo',      nombre: 'lugar_trabajo',      etiqueta: 'Lugar de Trabajo',        seccion: 'Dirección / Unidad',    tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'unidad',             nombre: 'unidad',             etiqueta: 'Dirección / Unidad',      seccion: 'Dirección / Unidad',    tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'cargo',              nombre: 'cargo',              etiqueta: 'Cargo Desempeñado',       seccion: 'Dirección / Unidad',    tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'grupo_ocupacional',  nombre: 'grupo_ocupacional',  etiqueta: 'Grupo Ocupacional',       seccion: 'Dirección / Unidad',    tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'lugar_trabajo', nombre: 'lugar_trabajo', etiqueta: 'Lugar de Trabajo', seccion: 'Dirección / Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'unidad', nombre: 'unidad', etiqueta: 'Dirección / Unidad', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'cargo', nombre: 'cargo', etiqueta: 'Cargo Desempeñado', seccion: 'Dirección / Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'grupo_ocupacional', nombre: 'grupo_ocupacional', etiqueta: 'Grupo Ocupacional', seccion: 'Dirección / Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
     // ── Trámites y Unidad ──
-    { id: 'tramites_informe',            nombre: 'tramites_informe',            etiqueta: 'Entrega informe fin de gestión',              seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tramites_fe_presentacion',    nombre: 'tramites_fe_presentacion',    etiqueta: 'Fe de presentación entrega recepción',        seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tramites_losep',              nombre: 'tramites_losep',              etiqueta: 'Entrega archivo físico y digital (LOSEP)',     seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tramites_admin_contrato',     nombre: 'tramites_admin_contrato',     etiqueta: '¿Es Administrador de Contrato?',              seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tramites_desc_contrato',      nombre: 'tramites_desc_contrato',      etiqueta: 'Descripción del contrato',                    seccion: 'Trámites y Unidad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tramites_memo',               nombre: 'tramites_memo',               etiqueta: 'Número Memorando',                            seccion: 'Trámites y Unidad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tramites_jefe_inmediato',     nombre: 'tramites_jefe_inmediato',     etiqueta: 'Nombre del Jefe Inmediato',                   seccion: 'Trámites y Unidad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tramites_quipux_cero',        nombre: 'tramites_quipux_cero',        etiqueta: 'QUIPUX Bandeja en Cero',                      seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tramites_claves_asignadas',   nombre: 'tramites_claves_asignadas',   etiqueta: 'Claves de acceso asignadas',                  seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tramites_acta_claves',        nombre: 'tramites_acta_claves',        etiqueta: 'Acta entrega de claves',                      seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tramites_servidor_recibe',    nombre: 'tramites_servidor_recibe',    etiqueta: 'Servidor que recibe trámites',                seccion: 'Trámites y Unidad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tramites_nombre_responsable', nombre: 'tramites_nombre_responsable', etiqueta: 'Nombre Responsable Trámites',                 seccion: 'Trámites y Unidad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tramites_nombre_resp1',       nombre: 'tramites_nombre_resp1',       etiqueta: 'Nombre Responsable Trámites Fila 1',           seccion: 'Trámites y Unidad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tramites_nombre_resp2',       nombre: 'tramites_nombre_resp2',       etiqueta: 'Nombre Responsable Trámites Fila 2',           seccion: 'Trámites y Unidad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tramites_nombre_resp3',       nombre: 'tramites_nombre_resp3',       etiqueta: 'Nombre Responsable Trámites Fila 3',           seccion: 'Trámites y Unidad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'tramites_informe', nombre: 'tramites_informe', etiqueta: 'Entrega informe fin de gestión', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tramites_fe_presentacion', nombre: 'tramites_fe_presentacion', etiqueta: 'Fe de presentación entrega recepción', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tramites_losep', nombre: 'tramites_losep', etiqueta: 'Entrega archivo físico y digital (LOSEP)', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tramites_admin_contrato', nombre: 'tramites_admin_contrato', etiqueta: '¿Es Administrador de Contrato?', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tramites_desc_contrato', nombre: 'tramites_desc_contrato', etiqueta: 'Descripción del contrato', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tramites_memo', nombre: 'tramites_memo', etiqueta: 'Número Memorando', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tramites_jefe_inmediato', nombre: 'tramites_jefe_inmediato', etiqueta: 'Nombre del Jefe Inmediato', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tramites_quipux_cero', nombre: 'tramites_quipux_cero', etiqueta: 'QUIPUX Bandeja en Cero', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tramites_claves_asignadas', nombre: 'tramites_claves_asignadas', etiqueta: 'Claves de acceso asignadas', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tramites_acta_claves', nombre: 'tramites_acta_claves', etiqueta: 'Acta entrega de claves', seccion: 'Trámites y Unidad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tramites_servidor_recibe', nombre: 'tramites_servidor_recibe', etiqueta: 'Servidor que recibe trámites', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tramites_nombre_responsable', nombre: 'tramites_nombre_responsable', etiqueta: 'Nombre Responsable Trámites', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tramites_nombre_resp1', nombre: 'tramites_nombre_resp1', etiqueta: 'Nombre Responsable Trámites Fila 1', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tramites_nombre_resp2', nombre: 'tramites_nombre_resp2', etiqueta: 'Nombre Responsable Trámites Fila 2', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tramites_nombre_resp3', nombre: 'tramites_nombre_resp3', etiqueta: 'Nombre Responsable Trámites Fila 3', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     // ── Gestión Administrativa ──
-    { id: 'admin_informe',         nombre: 'admin_informe',         etiqueta: '¿Realizó entrega de informe?',     seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'admin_bienes',          nombre: 'admin_bienes',          etiqueta: '¿Entregó bienes y muebles?',       seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'admin_acta_bienes',     nombre: 'admin_acta_bienes',     etiqueta: 'Número de Acta',                   seccion: 'Gestión Administrativa', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'admin_valor_bienes',    nombre: 'admin_valor_bienes',    etiqueta: 'Valor a Descontar (Bienes)',       seccion: 'Gestión Administrativa', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
-    { id: 'admin_deducibles',      nombre: 'admin_deducibles',      etiqueta: '¿Tiene Deducibles?',               seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'admin_deducibles_valor',nombre: 'admin_deducibles_valor',etiqueta: 'Valor Deducibles',                 seccion: 'Gestión Administrativa', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
-    { id: 'admin_pasajes',         nombre: 'admin_pasajes',         etiqueta: '¿Pasajes aéreos por justificar?',  seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'admin_pasajes_valor',    nombre: 'admin_pasajes_valor',   etiqueta: 'Valor a Descontar (Pasajes)',       seccion: 'Gestión Administrativa', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
-    { id: 'admin_responsable',     nombre: 'admin_responsable',     etiqueta: 'Responsable Administrativo',       seccion: 'Gestión Administrativa', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'admin_nombre_resp1',    nombre: 'admin_nombre_resp1',    etiqueta: 'Nombre Responsable Admin Fila 1',  seccion: 'Gestión Administrativa', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'admin_nombre_resp2',    nombre: 'admin_nombre_resp2',    etiqueta: 'Nombre Responsable Admin Fila 2',  seccion: 'Gestión Administrativa', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'admin_nombre_resp3',    nombre: 'admin_nombre_resp3',    etiqueta: 'Nombre Responsable Admin Fila 3',  seccion: 'Gestión Administrativa', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'admin_nombre_resp4',    nombre: 'admin_nombre_resp4',    etiqueta: 'Nombre Responsable Admin Fila 4',  seccion: 'Gestión Administrativa', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'admin_informe', nombre: 'admin_informe', etiqueta: '¿Realizó entrega de informe?', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'admin_bienes', nombre: 'admin_bienes', etiqueta: '¿Entregó bienes y muebles?', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'admin_acta_bienes', nombre: 'admin_acta_bienes', etiqueta: 'Número de Acta', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'admin_valor_bienes', nombre: 'admin_valor_bienes', etiqueta: 'Valor a Descontar (Bienes)', seccion: 'Gestión Administrativa', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'admin_deducibles', nombre: 'admin_deducibles', etiqueta: '¿Tiene Deducibles?', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'admin_deducibles_valor', nombre: 'admin_deducibles_valor', etiqueta: 'Valor Deducibles', seccion: 'Gestión Administrativa', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'admin_pasajes', nombre: 'admin_pasajes', etiqueta: '¿Pasajes aéreos por justificar?', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'admin_pasajes_valor', nombre: 'admin_pasajes_valor', etiqueta: 'Valor a Descontar (Pasajes)', seccion: 'Gestión Administrativa', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'admin_responsable', nombre: 'admin_responsable', etiqueta: 'Responsable Administrativo', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'admin_nombre_resp1', nombre: 'admin_nombre_resp1', etiqueta: 'Nombre Responsable Admin Fila 1', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'admin_nombre_resp2', nombre: 'admin_nombre_resp2', etiqueta: 'Nombre Responsable Admin Fila 2', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'admin_nombre_resp3', nombre: 'admin_nombre_resp3', etiqueta: 'Nombre Responsable Admin Fila 3', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'admin_nombre_resp4', nombre: 'admin_nombre_resp4', etiqueta: 'Nombre Responsable Admin Fila 4', seccion: 'Gestión Administrativa', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     // ── Gestión TIC ──
-    { id: 'tic_verificacion',  nombre: 'tic_verificacion',  etiqueta: 'Verificación Equipo Informático',    seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tic_ip_fija',       nombre: 'tic_ip_fija',       etiqueta: 'Acceso IP Fija / Wi-Fi / Móvil',    seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tic_liberacion',    nombre: 'tic_liberacion',    etiqueta: 'Se realizó la liberación de IP',    seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_verificacion', nombre: 'tic_verificacion', etiqueta: 'Verificación Equipo Informático', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_ip_fija', nombre: 'tic_ip_fija', etiqueta: 'Acceso IP Fija / Wi-Fi / Móvil', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_liberacion', nombre: 'tic_liberacion', etiqueta: 'Se realizó la liberación de IP', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
     { id: 'tic_retiro_acceso', nombre: 'tic_retiro_acceso', etiqueta: 'Retiro control acceso / contraseñas', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tic_backup',        nombre: 'tic_backup',        etiqueta: 'Entrega Backup',                    seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tic_ruta_backup',   nombre: 'tic_ruta_backup',   etiqueta: 'Ruta del Backup',                   seccion: 'Gestión TIC', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tic_cierre_correo', nombre: 'tic_cierre_correo', etiqueta: 'Cierre Correo Institucional',       seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tic_esigef',        nombre: 'tic_esigef',        etiqueta: 'Cierre eSIGEF',                     seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tic_spryn',         nombre: 'tic_spryn',         etiqueta: 'Cierre SPRYN',                      seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tic_esbye',         nombre: 'tic_esbye',         etiqueta: 'Cierre eSByE',                      seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tic_quipux',        nombre: 'tic_quipux',        etiqueta: 'Cierre QUIPUX',                     seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tic_tarjeta_cuentas',nombre:'tic_tarjeta_cuentas',etiqueta: 'Entrega y Desactivación Tarjeta Acceso', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'tic_responsable',   nombre: 'tic_responsable',   etiqueta: 'Nombre Responsable TIC',            seccion: 'Gestión TIC', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tic_nombre_resp1',  nombre: 'tic_nombre_resp1',  etiqueta: 'Nombre Responsable TIC Fila 1',     seccion: 'Gestión TIC', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tic_nombre_resp2',  nombre: 'tic_nombre_resp2',  etiqueta: 'Nombre Responsable TIC Fila 2',     seccion: 'Gestión TIC', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tic_nombre_resp3',  nombre: 'tic_nombre_resp3',  etiqueta: 'Nombre Responsable TIC Fila 3',     seccion: 'Gestión TIC', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'tic_nombre_resp4',  nombre: 'tic_nombre_resp4',  etiqueta: 'Nombre Responsable TIC Fila 4',     seccion: 'Gestión TIC', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'tic_backup', nombre: 'tic_backup', etiqueta: 'Entrega Backup', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_ruta_backup', nombre: 'tic_ruta_backup', etiqueta: 'Ruta del Backup', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tic_cierre_correo', nombre: 'tic_cierre_correo', etiqueta: 'Cierre Correo Institucional', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_esigef', nombre: 'tic_esigef', etiqueta: 'Cierre eSIGEF', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_spryn', nombre: 'tic_spryn', etiqueta: 'Cierre SPRYN', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_esbye', nombre: 'tic_esbye', etiqueta: 'Cierre eSByE', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_quipux', nombre: 'tic_quipux', etiqueta: 'Cierre QUIPUX', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_tarjeta_cuentas', nombre: 'tic_tarjeta_cuentas', etiqueta: 'Entrega y Desactivación Tarjeta Acceso', seccion: 'Gestión TIC', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'tic_responsable', nombre: 'tic_responsable', etiqueta: 'Nombre Responsable TIC', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tic_nombre_resp1', nombre: 'tic_nombre_resp1', etiqueta: 'Nombre Responsable TIC Fila 1', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tic_nombre_resp2', nombre: 'tic_nombre_resp2', etiqueta: 'Nombre Responsable TIC Fila 2', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tic_nombre_resp3', nombre: 'tic_nombre_resp3', etiqueta: 'Nombre Responsable TIC Fila 3', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tic_nombre_resp4', nombre: 'tic_nombre_resp4', etiqueta: 'Nombre Responsable TIC Fila 4', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     // ── Gestión Financiera ──
-    { id: 'fin_saldos',             nombre: 'fin_saldos',             etiqueta: 'Saldos Contables Pendientes',       seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'fin_saldos_valor',       nombre: 'fin_saldos_valor',       etiqueta: 'Valor Saldos Contables',            seccion: 'Gestión Financiera', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
-    { id: 'fin_saldos_obs',         nombre: 'fin_saldos_obs',         etiqueta: 'Observación Saldos',                seccion: 'Gestión Financiera', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'fin_anticipo',           nombre: 'fin_anticipo',           etiqueta: 'Anticipo de Sueldos Pendiente',     seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'fin_anticipo_valor',     nombre: 'fin_anticipo_valor',     etiqueta: 'Valor Anticipo Sueldos',            seccion: 'Gestión Financiera', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
-    { id: 'fin_anticipo_obs',       nombre: 'fin_anticipo_obs',       etiqueta: 'Observación Anticipo',              seccion: 'Gestión Financiera', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'fin_recuperacion',       nombre: 'fin_recuperacion',       etiqueta: 'Recuperación de Valores Pendiente', seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'fin_recuperacion_valor', nombre: 'fin_recuperacion_valor', etiqueta: 'Valor Recuperación',                seccion: 'Gestión Financiera', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
-    { id: 'fin_recuperacion_obs',   nombre: 'fin_recuperacion_obs',   etiqueta: 'Observación Recuperación',          seccion: 'Gestión Financiera', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'fin_devolucion',         nombre: 'fin_devolucion',         etiqueta: 'Devolución Muebles / Equipos',      seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'fin_devolucion_valor',   nombre: 'fin_devolucion_valor',   etiqueta: 'Valor Devolución Muebles',          seccion: 'Gestión Financiera', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
-    { id: 'fin_devolucion_obs',     nombre: 'fin_devolucion_obs',     etiqueta: 'Observación Devolución',            seccion: 'Gestión Financiera', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'fin_director',           nombre: 'fin_director',           etiqueta: 'Director/a Administrativo/a Financiero/a', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
-    { id: 'fin_nombre_resp1',       nombre: 'fin_nombre_resp1',       etiqueta: 'Nombre Responsable Financiero Fila 1',     seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
-    { id: 'fin_nombre_resp2',       nombre: 'fin_nombre_resp2',       etiqueta: 'Nombre Responsable Financiero Fila 2',     seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
-    { id: 'fin_nombre_resp3',       nombre: 'fin_nombre_resp3',       etiqueta: 'Nombre Responsable Financiero Fila 3',     seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
-    { id: 'fin_nombre_resp4',       nombre: 'fin_nombre_resp4',       etiqueta: 'Nombre Responsable Financiero Fila 4',     seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fin_saldos', nombre: 'fin_saldos', etiqueta: 'Saldos Contables Pendientes', seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'fin_saldos_valor', nombre: 'fin_saldos_valor', etiqueta: 'Valor Saldos Contables', seccion: 'Gestión Financiera', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'fin_saldos_obs', nombre: 'fin_saldos_obs', etiqueta: 'Observación Saldos', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fin_anticipo', nombre: 'fin_anticipo', etiqueta: 'Anticipo de Sueldos Pendiente', seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'fin_anticipo_valor', nombre: 'fin_anticipo_valor', etiqueta: 'Valor Anticipo Sueldos', seccion: 'Gestión Financiera', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'fin_anticipo_obs', nombre: 'fin_anticipo_obs', etiqueta: 'Observación Anticipo', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fin_recuperacion', nombre: 'fin_recuperacion', etiqueta: 'Recuperación de Valores Pendiente', seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'fin_recuperacion_valor', nombre: 'fin_recuperacion_valor', etiqueta: 'Valor Recuperación', seccion: 'Gestión Financiera', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'fin_recuperacion_obs', nombre: 'fin_recuperacion_obs', etiqueta: 'Observación Recuperación', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fin_devolucion', nombre: 'fin_devolucion', etiqueta: 'Devolución Muebles / Equipos', seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'fin_devolucion_valor', nombre: 'fin_devolucion_valor', etiqueta: 'Valor Devolución Muebles', seccion: 'Gestión Financiera', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'fin_devolucion_obs', nombre: 'fin_devolucion_obs', etiqueta: 'Observación Devolución', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fin_director', nombre: 'fin_director', etiqueta: 'Director/a Administrativo/a Financiero/a', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fin_nombre_resp1', nombre: 'fin_nombre_resp1', etiqueta: 'Nombre Responsable Financiero Fila 1', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fin_nombre_resp2', nombre: 'fin_nombre_resp2', etiqueta: 'Nombre Responsable Financiero Fila 2', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fin_nombre_resp3', nombre: 'fin_nombre_resp3', etiqueta: 'Nombre Responsable Financiero Fila 3', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fin_nombre_resp4', nombre: 'fin_nombre_resp4', etiqueta: 'Nombre Responsable Financiero Fila 4', seccion: 'Gestión Financiera', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     // ── Seguridad ──
-    { id: 'seg_archivos',         nombre: 'seg_archivos',         etiqueta: 'Archivos Digitales (EGSI)',              seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'seg_archivos_fisicos', nombre: 'seg_archivos_fisicos', etiqueta: 'Archivos Físicos (EGSI)',                seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'seg_entrega_copia',    nombre: 'seg_entrega_copia',    etiqueta: 'Entrega Copia de Informe de Actividades',seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'seg_verificacion_info',nombre: 'seg_verificacion_info',etiqueta: 'Verificación de Información Institucional',seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'seg_oficial',          nombre: 'seg_oficial',          etiqueta: 'Oficial de Seguridad Institucional',    seccion: 'Seguridad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'seg_responsable',      nombre: 'seg_responsable',      etiqueta: 'Nombre Responsable Seguridad',          seccion: 'Seguridad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'seg_nombre_resp1',     nombre: 'seg_nombre_resp1',     etiqueta: 'Nombre Responsable Seguridad Fila 1',   seccion: 'Seguridad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'seg_nombre_resp2',     nombre: 'seg_nombre_resp2',     etiqueta: 'Nombre Responsable Seguridad Fila 2',   seccion: 'Seguridad', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'seg_archivos', nombre: 'seg_archivos', etiqueta: 'Archivos Digitales (EGSI)', seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'seg_archivos_fisicos', nombre: 'seg_archivos_fisicos', etiqueta: 'Archivos Físicos (EGSI)', seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'seg_entrega_copia', nombre: 'seg_entrega_copia', etiqueta: 'Entrega Copia de Informe de Actividades', seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'seg_verificacion_info', nombre: 'seg_verificacion_info', etiqueta: 'Verificación de Información Institucional', seccion: 'Seguridad', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'seg_oficial', nombre: 'seg_oficial', etiqueta: 'Oficial de Seguridad Institucional', seccion: 'Seguridad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'seg_responsable', nombre: 'seg_responsable', etiqueta: 'Nombre Responsable Seguridad', seccion: 'Seguridad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'seg_nombre_resp1', nombre: 'seg_nombre_resp1', etiqueta: 'Nombre Responsable Seguridad Fila 1', seccion: 'Seguridad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'seg_nombre_resp2', nombre: 'seg_nombre_resp2', etiqueta: 'Nombre Responsable Seguridad Fila 2', seccion: 'Seguridad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     // ── Recursos Humanos ──
-    { id: 'rrhh_capacitacion',      nombre: 'rrhh_capacitacion',      etiqueta: 'Certifica: Devengó Cursos Recibidos',              seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_resp_capacitacion', nombre: 'rrhh_resp_capacitacion', etiqueta: 'Nombre Responsable Capacitación',                  seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'rrhh_evaluacion',        nombre: 'rrhh_evaluacion',        etiqueta: 'Certifica: Evaluación del Desempeño aplicada',      seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_resp_evaluacion',   nombre: 'rrhh_resp_evaluacion',   etiqueta: 'Nombre Responsable Evaluación',                    seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'rrhh_viajes',            nombre: 'rrhh_viajes',            etiqueta: 'Certifica: Devengación Viajes al Exterior',         seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_resp_viajes',       nombre: 'rrhh_resp_viajes',       etiqueta: 'Nombre Responsable Viajes al Exterior',            seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'rrhh_siith',             nombre: 'rrhh_siith',             etiqueta: 'Certifica: Desvinculación SIITH',                  seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_resp_siith',        nombre: 'rrhh_resp_siith',        etiqueta: 'Nombre Responsable SIITH',                        seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'rrhh_cursos_eval',       nombre: 'rrhh_cursos_eval',       etiqueta: 'Devengó Cursos / Evaluación',                     seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_vacaciones',        nombre: 'rrhh_vacaciones',        etiqueta: 'Días Vacaciones Acumuladas',                  seccion: 'Recursos Humanos', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_juramentada',       nombre: 'rrhh_juramentada',       etiqueta: 'Entrega Constancia y Declaración Jurada',     seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_num_certificado',   nombre: 'rrhh_num_certificado',   etiqueta: 'N° Certificado Emitido',                      seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'rrhh_num_declaracion',   nombre: 'rrhh_num_declaracion',   etiqueta: 'N° Declaración Juramentada',                  seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'rrhh_credencial',        nombre: 'rrhh_credencial',        etiqueta: 'Entrega Credencial / Porta Credencial / Colgante', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_entrega_informe_cd',nombre: 'rrhh_entrega_informe_cd',etiqueta: 'Entrega Copia Actividades y Respaldos (CD)',   seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_ropa_trabajo',      nombre: 'rrhh_ropa_trabajo',      etiqueta: 'Entrega Ropa de Trabajo / Equipo de Protección',seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_acta_bienes',       nombre: 'rrhh_acta_bienes',       etiqueta: 'Acta de Bienes del Custodio',                 seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_director',          nombre: 'rrhh_director',          etiqueta: 'Director/a de Administración RRHH',           seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'rrhh_resp_vacaciones',   nombre: 'rrhh_resp_vacaciones',   etiqueta: 'Nombre Responsable Vacaciones RRHH',          seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'rrhh_resp_juramentada',  nombre: 'rrhh_resp_juramentada',  etiqueta: 'Nombre Responsable Declaración Juramentada',  seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'rrhh_resp_credencial2',  nombre: 'rrhh_resp_credencial2',  etiqueta: 'Nombre Responsable Credencial / Copia Act.',  seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'rrhh_resp_acta',         nombre: 'rrhh_resp_acta',         etiqueta: 'Nombre Responsable Acta Bienes / Ropa',       seccion: 'Recursos Humanos', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'rrhh_capacitacion', nombre: 'rrhh_capacitacion', etiqueta: 'Certifica: Devengó Cursos Recibidos', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_resp_capacitacion', nombre: 'rrhh_resp_capacitacion', etiqueta: 'Nombre Responsable Capacitación', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_evaluacion', nombre: 'rrhh_evaluacion', etiqueta: 'Certifica: Evaluación del Desempeño aplicada', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_resp_evaluacion', nombre: 'rrhh_resp_evaluacion', etiqueta: 'Nombre Responsable Evaluación', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_viajes', nombre: 'rrhh_viajes', etiqueta: 'Certifica: Devengación Viajes al Exterior', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_resp_viajes', nombre: 'rrhh_resp_viajes', etiqueta: 'Nombre Responsable Viajes al Exterior', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_siith', nombre: 'rrhh_siith', etiqueta: 'Certifica: Desvinculación SIITH', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_resp_siith', nombre: 'rrhh_resp_siith', etiqueta: 'Nombre Responsable SIITH', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_cursos_eval', nombre: 'rrhh_cursos_eval', etiqueta: 'Devengó Cursos / Evaluación', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_vacaciones', nombre: 'rrhh_vacaciones', etiqueta: 'Días Vacaciones Acumuladas', seccion: 'Recursos Humanos', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_juramentada', nombre: 'rrhh_juramentada', etiqueta: 'Entrega Constancia y Declaración Jurada', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_num_certificado', nombre: 'rrhh_num_certificado', etiqueta: 'N° Certificado Emitido', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_num_declaracion', nombre: 'rrhh_num_declaracion', etiqueta: 'N° Declaración Juramentada', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_credencial', nombre: 'rrhh_credencial', etiqueta: 'Entrega Credencial / Porta Credencial / Colgante', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_entrega_informe_cd', nombre: 'rrhh_entrega_informe_cd', etiqueta: 'Entrega Copia Actividades y Respaldos (CD)', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_ropa_trabajo', nombre: 'rrhh_ropa_trabajo', etiqueta: 'Entrega Ropa de Trabajo / Equipo de Protección', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_acta_bienes', nombre: 'rrhh_acta_bienes', etiqueta: 'Acta de Bienes del Custodio', seccion: 'Recursos Humanos', tipo: 'SELECT', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_director', nombre: 'rrhh_director', etiqueta: 'Director/a de Administración RRHH', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_resp_vacaciones', nombre: 'rrhh_resp_vacaciones', etiqueta: 'Nombre Responsable Vacaciones RRHH', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_resp_juramentada', nombre: 'rrhh_resp_juramentada', etiqueta: 'Nombre Responsable Declaración Juramentada', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_resp_credencial2', nombre: 'rrhh_resp_credencial2', etiqueta: 'Nombre Responsable Credencial / Copia Act.', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_resp_acta', nombre: 'rrhh_resp_acta', etiqueta: 'Nombre Responsable Acta Bienes / Ropa', seccion: 'Recursos Humanos', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     // ── Recepción ──
-    { id: 'recepcion_fecha',    nombre: 'recepcion_fecha',    etiqueta: 'Fecha de Entrega Paz y Salvo', seccion: 'Recepción', tipo: 'FECHA',  seleccionado: false, bloqueado: false },
-    { id: 'recepcion_hojas',    nombre: 'recepcion_hojas',    etiqueta: 'N° Hojas Recibidas',           seccion: 'Recepción', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
-    { id: 'recepcion_servidor', nombre: 'recepcion_servidor', etiqueta: 'Servidor/a que recibe',        seccion: 'Recepción', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
-    { id: 'recepcion_cargo',    nombre: 'recepcion_cargo',    etiqueta: 'Cargo del Servidor/a',         seccion: 'Recepción', tipo: 'TEXTO',  seleccionado: false, bloqueado: false },
+    { id: 'recepcion_fecha', nombre: 'recepcion_fecha', etiqueta: 'Fecha de Entrega Paz y Salvo', seccion: 'Recepción', tipo: 'FECHA', seleccionado: false, bloqueado: false },
+    { id: 'recepcion_hojas', nombre: 'recepcion_hojas', etiqueta: 'N° Hojas Recibidas', seccion: 'Recepción', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
+    { id: 'recepcion_servidor', nombre: 'recepcion_servidor', etiqueta: 'Servidor/a que recibe', seccion: 'Recepción', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'recepcion_cargo', nombre: 'recepcion_cargo', etiqueta: 'Cargo del Servidor/a', seccion: 'Recepción', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     // ── Firma ──
-    { id: 'cedula_firmante', nombre: 'cedula_firmante', etiqueta: 'C.C. del Firmante',  seccion: 'Firma', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
-    { id: 'fecha_firma',     nombre: 'fecha_firma',     etiqueta: 'Fecha de Firma',     seccion: 'Firma', tipo: 'FECHA', seleccionado: false, bloqueado: false },
+    { id: 'cedula_firmante', nombre: 'cedula_firmante', etiqueta: 'C.C. del Firmante', seccion: 'Firma', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'fecha_firma', nombre: 'fecha_firma', etiqueta: 'Fecha de Firma', seccion: 'Firma', tipo: 'FECHA', seleccionado: false, bloqueado: false },
     // ── Firmas Electrónicas (FirmaEC) ──
-    { id: 'tramites_r1',   nombre: 'tramites_r1',   etiqueta: 'FirmaEC — Trámites: Fila 1',                    seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'tramites_r2',   nombre: 'tramites_r2',   etiqueta: 'FirmaEC — Trámites: Fila 2',                    seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'tramites_r3',   nombre: 'tramites_r3',   etiqueta: 'FirmaEC — Trámites: Fila 3',                    seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'tramites_jefe', nombre: 'tramites_jefe', etiqueta: 'FirmaEC — Trámites: Jefe Inmediato',            seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'admin_r1',      nombre: 'admin_r1',      etiqueta: 'FirmaEC — Administrativa: Fila 1',              seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'admin_r2',      nombre: 'admin_r2',      etiqueta: 'FirmaEC — Administrativa: Fila 2',              seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'admin_r3',      nombre: 'admin_r3',      etiqueta: 'FirmaEC — Administrativa: Fila 3',              seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'admin_r4',      nombre: 'admin_r4',      etiqueta: 'FirmaEC — Administrativa: Fila 4',              seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'admin_dir',     nombre: 'admin_dir',     etiqueta: 'FirmaEC — Administrativa: Director/a',          seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'tic_r1',        nombre: 'tic_r1',        etiqueta: 'FirmaEC — TIC: Fila 1',                         seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'tic_r2',        nombre: 'tic_r2',        etiqueta: 'FirmaEC — TIC: Fila 2',                         seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'tic_r3',        nombre: 'tic_r3',        etiqueta: 'FirmaEC — TIC: Fila 3',                         seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'tic_r4',        nombre: 'tic_r4',        etiqueta: 'FirmaEC — TIC: Fila 4',                         seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'tic_r5',        nombre: 'tic_r5',        etiqueta: 'FirmaEC — TIC: Fila 5',                         seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'fin_r1',        nombre: 'fin_r1',        etiqueta: 'FirmaEC — Financiera: Fila 1',                  seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'fin_r2',        nombre: 'fin_r2',        etiqueta: 'FirmaEC — Financiera: Fila 2',                  seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'fin_r3',        nombre: 'fin_r3',        etiqueta: 'FirmaEC — Financiera: Fila 3',                  seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'fin_r4',        nombre: 'fin_r4',        etiqueta: 'FirmaEC — Financiera: Fila 4',                  seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'fin_dir',       nombre: 'fin_dir',       etiqueta: 'FirmaEC — Financiera: Director/a',              seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'seg_r1',        nombre: 'seg_r1',        etiqueta: 'FirmaEC — Seguridad: Fila 1',                   seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'seg_r2',        nombre: 'seg_r2',        etiqueta: 'FirmaEC — Seguridad: Fila 2',                   seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'seg_oficial',   nombre: 'seg_oficial',   etiqueta: 'FirmaEC — Seguridad: Oficial de Seguridad',     seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_r1',       nombre: 'rrhh_r1',       etiqueta: 'FirmaEC — RRHH: Fila 1',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_r2',       nombre: 'rrhh_r2',       etiqueta: 'FirmaEC — RRHH: Fila 2',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_r3',       nombre: 'rrhh_r3',       etiqueta: 'FirmaEC — RRHH: Fila 3',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_r4',       nombre: 'rrhh_r4',       etiqueta: 'FirmaEC — RRHH: Fila 4',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_r5',       nombre: 'rrhh_r5',       etiqueta: 'FirmaEC — RRHH: Fila 5',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_r6',       nombre: 'rrhh_r6',       etiqueta: 'FirmaEC — RRHH: Fila 6',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_r7',       nombre: 'rrhh_r7',       etiqueta: 'FirmaEC — RRHH: Fila 7',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_r8',       nombre: 'rrhh_r8',       etiqueta: 'FirmaEC — RRHH: Fila 8',                        seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'rrhh_dir',      nombre: 'rrhh_dir',      etiqueta: 'FirmaEC — RRHH: Director/a',                    seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
-    { id: 'recepcion_r1',  nombre: 'recepcion_r1',  etiqueta: 'FirmaEC — Recepción: Servidor/a que recibe',    seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tramites_r1', nombre: 'tramites_r1', etiqueta: 'FirmaEC — Trámites: Fila 1', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tramites_r2', nombre: 'tramites_r2', etiqueta: 'FirmaEC — Trámites: Fila 2', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tramites_r3', nombre: 'tramites_r3', etiqueta: 'FirmaEC — Trámites: Fila 3', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tramites_jefe', nombre: 'tramites_jefe', etiqueta: 'FirmaEC — Trámites: Jefe Inmediato', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'admin_r1', nombre: 'admin_r1', etiqueta: 'FirmaEC — Administrativa: Fila 1', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'admin_r2', nombre: 'admin_r2', etiqueta: 'FirmaEC — Administrativa: Fila 2', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'admin_r3', nombre: 'admin_r3', etiqueta: 'FirmaEC — Administrativa: Fila 3', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'admin_r4', nombre: 'admin_r4', etiqueta: 'FirmaEC — Administrativa: Fila 4', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'admin_dir', nombre: 'admin_dir', etiqueta: 'FirmaEC — Administrativa: Director/a', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tic_r1', nombre: 'tic_r1', etiqueta: 'FirmaEC — TIC: Fila 1', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tic_r2', nombre: 'tic_r2', etiqueta: 'FirmaEC — TIC: Fila 2', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tic_r3', nombre: 'tic_r3', etiqueta: 'FirmaEC — TIC: Fila 3', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tic_r4', nombre: 'tic_r4', etiqueta: 'FirmaEC — TIC: Fila 4', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'tic_r5', nombre: 'tic_r5', etiqueta: 'FirmaEC — TIC: Fila 5', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'fin_r1', nombre: 'fin_r1', etiqueta: 'FirmaEC — Financiera: Fila 1', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'fin_r2', nombre: 'fin_r2', etiqueta: 'FirmaEC — Financiera: Fila 2', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'fin_r3', nombre: 'fin_r3', etiqueta: 'FirmaEC — Financiera: Fila 3', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'fin_r4', nombre: 'fin_r4', etiqueta: 'FirmaEC — Financiera: Fila 4', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'fin_dir', nombre: 'fin_dir', etiqueta: 'FirmaEC — Financiera: Director/a', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'seg_r1', nombre: 'seg_r1', etiqueta: 'FirmaEC — Seguridad: Fila 1', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'seg_r2', nombre: 'seg_r2', etiqueta: 'FirmaEC — Seguridad: Fila 2', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'seg_oficial', nombre: 'seg_oficial', etiqueta: 'FirmaEC — Seguridad: Oficial de Seguridad', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r1', nombre: 'rrhh_r1', etiqueta: 'FirmaEC — RRHH: Fila 1', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r2', nombre: 'rrhh_r2', etiqueta: 'FirmaEC — RRHH: Fila 2', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r3', nombre: 'rrhh_r3', etiqueta: 'FirmaEC — RRHH: Fila 3', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r4', nombre: 'rrhh_r4', etiqueta: 'FirmaEC — RRHH: Fila 4', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r5', nombre: 'rrhh_r5', etiqueta: 'FirmaEC — RRHH: Fila 5', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r6', nombre: 'rrhh_r6', etiqueta: 'FirmaEC — RRHH: Fila 6', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r7', nombre: 'rrhh_r7', etiqueta: 'FirmaEC — RRHH: Fila 7', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_r8', nombre: 'rrhh_r8', etiqueta: 'FirmaEC — RRHH: Fila 8', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'rrhh_dir', nombre: 'rrhh_dir', etiqueta: 'FirmaEC — RRHH: Director/a', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'recepcion_r1', nombre: 'recepcion_r1', etiqueta: 'FirmaEC — Recepción: Servidor/a que recibe', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
   ];
 
   // ── FormGroup PLANO (1:1 con el HTML) ───────────────────────
@@ -460,7 +460,7 @@ export class Formularios implements OnInit, OnDestroy {
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef,
     private formulariosService: FormulariosService,
-  ) {}
+  ) { }
 
   // ─────────────────────────────────────────────────────────────
   //  GETTERS derivados
@@ -527,7 +527,7 @@ export class Formularios implements OnInit, OnDestroy {
           [Validators.required, Validators.minLength(10), Validators.pattern(/^\d{10}$/), cedulaEcuatorianaValidator()],
         ],
         fecha_ingreso: ['', [Validators.required, noFuturaValidator()]],
-        fecha_salida:  ['', Validators.required],
+        fecha_salida: ['', Validators.required],
         direccion: [
           '',
           [Validators.required, Validators.minLength(5), Validators.maxLength(100)],
@@ -553,40 +553,40 @@ export class Formularios implements OnInit, OnDestroy {
         ],
 
         // ── Step 0: Dirección / Unidad ──────────────────────
-        lugar_trabajo:     ['', Validators.required],
-        unidad:            ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
-        cargo:             ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
+        lugar_trabajo: ['', Validators.required],
+        unidad: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
+        cargo: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
         grupo_ocupacional: ['', Validators.required],
 
         // ── Step 1: Trámites y Unidad ───────────────────────
-        tramites_informe:           ['', Validators.required],
-        tramites_fe_presentacion:   ['', Validators.required],
-        tramites_losep:             ['', Validators.required],
-        tramites_admin_contrato:    ['', Validators.required],
-        tramites_desc_contrato:     [''],
-        tramites_memo:              [''],
-        tramites_jefe_inmediato:    ['', [Validators.required, Validators.minLength(5)]],
-        tramites_quipux_cero:       ['', Validators.required],
-        tramites_claves_asignadas:  ['', Validators.required],
-        tramites_acta_claves:       ['', Validators.required],
-        tramites_servidor_recibe:   ['', [Validators.required, Validators.minLength(5)]],
-        tramites_obs:               [''],
-        tramites_nombre_responsable:['', [Validators.required, Validators.minLength(5)]],
+        tramites_informe: ['', Validators.required],
+        tramites_fe_presentacion: ['', Validators.required],
+        tramites_losep: ['', Validators.required],
+        tramites_admin_contrato: ['', Validators.required],
+        tramites_desc_contrato: [''],
+        tramites_memo: [''],
+        tramites_jefe_inmediato: ['', [Validators.required, Validators.minLength(5)]],
+        tramites_quipux_cero: ['', Validators.required],
+        tramites_claves_asignadas: ['', Validators.required],
+        tramites_acta_claves: ['', Validators.required],
+        tramites_servidor_recibe: ['', [Validators.required, Validators.minLength(5)]],
+        tramites_obs: [''],
+        tramites_nombre_responsable: ['', [Validators.required, Validators.minLength(5)]],
         // Nombres responsables por fila — Trámites
         tramites_nombre_resp1: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
         tramites_nombre_resp2: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
         tramites_nombre_resp3: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
 
         // ── Step 1: Gestión Administrativa ──────────────────
-        admin_informe:         ['', Validators.required],
-        admin_bienes:          ['', Validators.required],
-        admin_acta_bienes:     ['', Validators.pattern(/^[a-zA-Z0-9\-]*$/)],
-        admin_valor_bienes:    [null, Validators.min(0)],
-        admin_deducibles:      ['', Validators.required],
-        admin_deducibles_valor:[null],
-        admin_pasajes:         ['', Validators.required],
-        admin_pasajes_valor:   [null, Validators.min(0)],
-        admin_responsable:     ['', [Validators.required, Validators.minLength(5)]],
+        admin_informe: ['', Validators.required],
+        admin_bienes: ['', Validators.required],
+        admin_acta_bienes: ['', Validators.pattern(/^[a-zA-Z0-9\-]*$/)],
+        admin_valor_bienes: [null, Validators.min(0)],
+        admin_deducibles: ['', Validators.required],
+        admin_deducibles_valor: [null],
+        admin_pasajes: ['', Validators.required],
+        admin_pasajes_valor: [null, Validators.min(0)],
+        admin_responsable: ['', [Validators.required, Validators.minLength(5)]],
         // Nombres responsables por fila — Gestión Administrativa
         admin_nombre_resp1: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
         admin_nombre_resp2: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
@@ -594,20 +594,20 @@ export class Formularios implements OnInit, OnDestroy {
         admin_nombre_resp4: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
 
         // ── Step 1: Gestión TIC ─────────────────────────────
-        tic_verificacion:    ['', Validators.required],
-        tic_ip_fija:         ['', Validators.required],
-        tic_liberacion:      [''],
-        tic_retiro_acceso:   ['', Validators.required],
-        tic_backup:          ['', Validators.required],
-        tic_ruta_backup:     [''],
-        tic_cierre_correo:   ['', Validators.required],
-        tic_esigef:          ['', Validators.required],
-        tic_spryn:           ['', Validators.required],
-        tic_esbye:           ['', Validators.required],
-        tic_quipux:          ['', Validators.required],
+        tic_verificacion: ['', Validators.required],
+        tic_ip_fija: ['', Validators.required],
+        tic_liberacion: [''],
+        tic_retiro_acceso: ['', Validators.required],
+        tic_backup: ['', Validators.required],
+        tic_ruta_backup: [''],
+        tic_cierre_correo: ['', Validators.required],
+        tic_esigef: ['', Validators.required],
+        tic_spryn: ['', Validators.required],
+        tic_esbye: ['', Validators.required],
+        tic_quipux: ['', Validators.required],
         tic_tarjeta_cuentas: ['', Validators.required],
-        tic_obs:             [''],
-        tic_responsable:     ['', [Validators.required, Validators.minLength(5)]],
+        tic_obs: [''],
+        tic_responsable: ['', [Validators.required, Validators.minLength(5)]],
         // Nombres responsables por fila — Gestión TIC
         tic_nombre_resp1: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
         tic_nombre_resp2: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
@@ -615,19 +615,19 @@ export class Formularios implements OnInit, OnDestroy {
         tic_nombre_resp4: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
 
         // ── Step 1: Gestión Financiera ──────────────────────
-        fin_saldos:              ['', Validators.required],
-        fin_saldos_valor:        [null, Validators.min(0)],
-        fin_saldos_obs:          [''],
-        fin_anticipo:            ['', Validators.required],
-        fin_anticipo_valor:      [null, Validators.min(0)],
-        fin_anticipo_obs:        [''],
-        fin_recuperacion:        ['', Validators.required],
-        fin_recuperacion_valor:  [null, Validators.min(0)],
-        fin_recuperacion_obs:    [''],
-        fin_devolucion:          ['', Validators.required],
-        fin_devolucion_valor:    [null, Validators.min(0)],
-        fin_devolucion_obs:      [''],
-        fin_director:            ['', [Validators.required, Validators.minLength(5)]],
+        fin_saldos: ['', Validators.required],
+        fin_saldos_valor: [null, Validators.min(0)],
+        fin_saldos_obs: [''],
+        fin_anticipo: ['', Validators.required],
+        fin_anticipo_valor: [null, Validators.min(0)],
+        fin_anticipo_obs: [''],
+        fin_recuperacion: ['', Validators.required],
+        fin_recuperacion_valor: [null, Validators.min(0)],
+        fin_recuperacion_obs: [''],
+        fin_devolucion: ['', Validators.required],
+        fin_devolucion_valor: [null, Validators.min(0)],
+        fin_devolucion_obs: [''],
+        fin_director: ['', [Validators.required, Validators.minLength(5)]],
         // Nombres responsables por fila — Gestión Financiera
         fin_nombre_resp1: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
         fin_nombre_resp2: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
@@ -635,46 +635,46 @@ export class Formularios implements OnInit, OnDestroy {
         fin_nombre_resp4: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
 
         // ── Step 2: Seguridad de la Información ────────────
-        seg_archivos:       ['', Validators.required],
-        seg_archivos_fisicos:['', Validators.required],
-        seg_entrega_copia:  ['', Validators.required],
-        seg_verificacion_info:['', Validators.required],
-        seg_oficial:        ['', [Validators.required, Validators.minLength(5)]],
-        seg_responsable:    ['', [Validators.required, Validators.minLength(5)]],
+        seg_archivos: ['', Validators.required],
+        seg_archivos_fisicos: ['', Validators.required],
+        seg_entrega_copia: ['', Validators.required],
+        seg_verificacion_info: ['', Validators.required],
+        seg_oficial: ['', [Validators.required, Validators.minLength(5)]],
+        seg_responsable: ['', [Validators.required, Validators.minLength(5)]],
         // Nombres responsables por fila — Seguridad
         seg_nombre_resp1: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
         seg_nombre_resp2: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
 
         // ── Step 2: Recursos Humanos ────────────────────────
-        rrhh_capacitacion:      ['', Validators.required],
+        rrhh_capacitacion: ['', Validators.required],
         rrhh_resp_capacitacion: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
-        rrhh_evaluacion:        ['', Validators.required],
-        rrhh_resp_evaluacion:   ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
-        rrhh_viajes:            ['', Validators.required],
-        rrhh_resp_viajes:       ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
-        rrhh_siith:             ['', Validators.required],
-        rrhh_resp_siith:        ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
-        rrhh_cursos_eval:     [''],
-        rrhh_vacaciones:      [null, [Validators.required, Validators.min(0)]],
-        rrhh_juramentada:     ['', Validators.required],
+        rrhh_evaluacion: ['', Validators.required],
+        rrhh_resp_evaluacion: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
+        rrhh_viajes: ['', Validators.required],
+        rrhh_resp_viajes: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
+        rrhh_siith: ['', Validators.required],
+        rrhh_resp_siith: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
+        rrhh_cursos_eval: [''],
+        rrhh_vacaciones: [null, [Validators.required, Validators.min(0)]],
+        rrhh_juramentada: ['', Validators.required],
         rrhh_num_certificado: ['', Validators.pattern(/^[a-zA-Z0-9\-]*$/)],
         rrhh_num_declaracion: ['', Validators.pattern(/^[a-zA-Z0-9\-]*$/)],
-        rrhh_credencial:      ['', Validators.required],
-        rrhh_entrega_informe_cd:['', Validators.required],
-        rrhh_ropa_trabajo:    ['', Validators.required],
-        rrhh_acta_bienes:     ['', Validators.required],
-        rrhh_director:        ['', [Validators.required, Validators.minLength(5)]],
+        rrhh_credencial: ['', Validators.required],
+        rrhh_entrega_informe_cd: ['', Validators.required],
+        rrhh_ropa_trabajo: ['', Validators.required],
+        rrhh_acta_bienes: ['', Validators.required],
+        rrhh_director: ['', [Validators.required, Validators.minLength(5)]],
         // Nombres responsables por fila — RRHH (filas 5-8; filas 1-4 ya definidas arriba)
-        rrhh_resp_vacaciones:  ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
+        rrhh_resp_vacaciones: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
         rrhh_resp_juramentada: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
         rrhh_resp_credencial2: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
-        rrhh_resp_acta:        ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
+        rrhh_resp_acta: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
 
         // ── Step 2: Recepción de Documentos ────────────────
-        recepcion_fecha:    ['', [Validators.required, noFuturaValidator()]],
-        recepcion_hojas:    [null, [Validators.required, Validators.min(1), Validators.max(50)]],
+        recepcion_fecha: ['', [Validators.required, noFuturaValidator()]],
+        recepcion_hojas: [null, [Validators.required, Validators.min(1), Validators.max(50)]],
         recepcion_servidor: ['', [Validators.required, Validators.minLength(5)]],
-        recepcion_cargo:    ['', [Validators.required, Validators.minLength(3)]],
+        recepcion_cargo: ['', [Validators.required, Validators.minLength(3)]],
 
         // ── Step 2: Autorización y Firma ────────────────────
         cedula_firmante: [
@@ -894,16 +894,16 @@ export class Formularios implements OnInit, OnDestroy {
         const label = def?.etiqueta ?? campo;
         const err = ctrl.errors ?? {};
 
-        if (err['required'])          errores.push(`${label}: campo obligatorio`);
-        else if (err['email'])        errores.push(`${label}: formato de email inválido`);
+        if (err['required']) errores.push(`${label}: campo obligatorio`);
+        else if (err['email']) errores.push(`${label}: formato de email inválido`);
         else if (err['cedulaInvalida']) errores.push(`${label}: cédula con dígito verificador incorrecto`);
-        else if (err['pattern'])      errores.push(`${label}: formato inválido`);
-        else if (err['minlength'])    errores.push(`${label}: muy corto (mín. ${err['minlength'].requiredLength} caracteres)`);
-        else if (err['maxlength'])    errores.push(`${label}: muy largo (máx. ${err['maxlength'].requiredLength} caracteres)`);
-        else if (err['min'])          errores.push(`${label}: valor mínimo no alcanzado`);
-        else if (err['max'])          errores.push(`${label}: valor máximo superado`);
-        else if (err['fechaFutura'])  errores.push(`${label}: la fecha no puede ser futura`);
-        else                          errores.push(`${label}: revise este campo`);
+        else if (err['pattern']) errores.push(`${label}: formato inválido`);
+        else if (err['minlength']) errores.push(`${label}: muy corto (mín. ${err['minlength'].requiredLength} caracteres)`);
+        else if (err['maxlength']) errores.push(`${label}: muy largo (máx. ${err['maxlength'].requiredLength} caracteres)`);
+        else if (err['min']) errores.push(`${label}: valor mínimo no alcanzado`);
+        else if (err['max']) errores.push(`${label}: valor máximo superado`);
+        else if (err['fechaFutura']) errores.push(`${label}: la fecha no puede ser futura`);
+        else errores.push(`${label}: revise este campo`);
       }
     });
 
@@ -1079,14 +1079,25 @@ export class Formularios implements OnInit, OnDestroy {
 
   private validarFirmasEC(): boolean {
     let todasOk = true;
+
     Object.keys(this.firmasEC).forEach(key => {
-      const debeSubir = this.esAdmin() || this.camposAsignadosUsuario.includes(key);
-      if (debeSubir && !this.firmasEC[key]) {
+      const esCampoAsignado = this.camposAsignadosUsuario.includes(key);
+      const estaBloqueado = this.camposBloqueados.includes(key);
+
+      const debeValidar =
+        this.esAdmin() ||
+        (esCampoAsignado && !estaBloqueado);
+
+      if (debeValidar && !this.firmasEC[key]) {
         this.firmasECRequired[key] = true;
         todasOk = false;
+      } else {
+        this.firmasECRequired[key] = false;
       }
     });
+
     if (!todasOk) this.cdr.markForCheck();
+
     return todasOk;
   }
 
@@ -1154,12 +1165,23 @@ export class Formularios implements OnInit, OnDestroy {
     }
 
     // Validar firma del servidor saliente obligatoria
-    if (!this.hasFirma) {
+    // Validar firma del servidor saliente SOLO si ese campo le corresponde al usuario
+    const debeFirmarServidor =
+      this.esAdmin() ||
+      this.camposAsignadosUsuario.includes('cedula_firmante') ||
+      this.camposAsignadosUsuario.includes('fecha_firma');
+
+    if (debeFirmarServidor && !this.hasFirma) {
       this.firmaRequired = true;
       this.cdr.markForCheck();
-      this.alertaRapida('Firma requerida', 'Debe registrar su firma (servidor saliente) para continuar.');
+      this.alertaRapida(
+        'Firma requerida',
+        'Debe registrar su firma (servidor saliente) para continuar.'
+      );
       return;
     }
+
+    this.firmaRequired = false;
 
     if (this.esAdmin()) {
       this.validarTodoYEnviar();
@@ -1351,8 +1373,8 @@ export class Formularios implements OnInit, OnDestroy {
 
       // Deduplicar
       this.camposAsignadosUsuario = [...new Set(this.camposAsignadosUsuario)];
-      this.camposBloqueados       = [...new Set(this.camposBloqueados)];
-      this.camposYaDesignados     = [...new Set(this.camposYaDesignados)];
+      this.camposBloqueados = [...new Set(this.camposBloqueados)];
+      this.camposYaDesignados = [...new Set(this.camposYaDesignados)];
 
       // Procesar firmasEC (claves que no son controles del formulario reactivo)
       preguntas.forEach((p: any) => {
@@ -1373,8 +1395,8 @@ export class Formularios implements OnInit, OnDestroy {
 
       // Re-deduplicar tras añadir firmasEC
       this.camposAsignadosUsuario = [...new Set(this.camposAsignadosUsuario)];
-      this.camposBloqueados       = [...new Set(this.camposBloqueados)];
-      this.camposYaDesignados     = [...new Set(this.camposYaDesignados)];
+      this.camposBloqueados = [...new Set(this.camposBloqueados)];
+      this.camposYaDesignados = [...new Set(this.camposYaDesignados)];
 
       // Marcar campos ya designados como bloqueados en el catálogo de checkboxes (admin)
       this.camposFormulario.forEach(c => {
@@ -1408,7 +1430,7 @@ export class Formularios implements OnInit, OnDestroy {
 
     // Activar/desactivar firmasEC según asignación y estado de carga
     Object.keys(this.firmasEC).forEach(key => {
-      const asignado  = this.esAdmin() || this.camposAsignadosUsuario.includes(key);
+      const asignado = this.esAdmin() || this.camposAsignadosUsuario.includes(key);
       const bloqueado = this.camposBloqueados.includes(key);
       // true = mostrar botón de carga / indicador requerido
       this.firmasECRequired[key] = asignado && !bloqueado && !this.firmasEC[key];
@@ -1510,10 +1532,10 @@ export class Formularios implements OnInit, OnDestroy {
     const payload = {
       formulario_id: this.formularioSeleccionado.id,
       campos: seleccionados.map(c => ({
-        codigo:   c.id,
+        codigo: c.id,
         pregunta: c.etiqueta,
-        seccion:  c.seccion,
-        tipo:     c.tipo,
+        seccion: c.seccion,
+        tipo: c.tipo,
       })),
       usuario_id: this.asignacion.usuario_id,
       rol: null,
@@ -1523,7 +1545,16 @@ export class Formularios implements OnInit, OnDestroy {
     this.formulariosService.asignar(payload).pipe(
       timeout(8000),
       catchError((err: any) => {
-        Swal.fire('Error', err?.error?.mensaje ?? err?.error?.error ?? 'Error al designar campos.', 'error');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error al asignar campos',
+          text: err?.error?.error || err?.error?.mensaje || 'Error interno del servidor',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc2626'
+        });
+
+        console.error('ERROR REAL ASIGNAR:', err?.error);
+
         return of(null);
       }),
       finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
@@ -1606,11 +1637,11 @@ export class Formularios implements OnInit, OnDestroy {
       });
 
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth  = 210;
+      const imgWidth = 210;
       const pageHeight = 297;
-      const imgHeight  = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft   = imgHeight;
-      let position     = 0;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
 
       const imgData = canvas.toDataURL('image/png');
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
@@ -1682,137 +1713,137 @@ export class Formularios implements OnInit, OnDestroy {
   private buildEspejoForm(): void {
     this.form = this.fb.group({
       datosPersonales: this.fb.group({
-        nombresApellidos:       [''],
-        cedula:                 [''],
-        numeroDomicilio:        [''],
+        nombresApellidos: [''],
+        cedula: [''],
+        numeroDomicilio: [''],
         nominamientoPermanente: [false],
-        nominamientoProvisional:[false],
-        contratoOcasional:      [false],
-        contratoTrabajo:        [false],
-        fechaIngreso:           [''],
-        fechaSalida:            [''],
-        numeroCelular:          [''],
-        numeroEmergencia:       [''],
-        email1:                 [''],
-        email2:                 [''],
-        direccionDomiciliaria:  [''],
-        provincia:              [''],
-        canton:                 [''],
+        nominamientoProvisional: [false],
+        contratoOcasional: [false],
+        contratoTrabajo: [false],
+        fechaIngreso: [''],
+        fechaSalida: [''],
+        numeroCelular: [''],
+        numeroEmergencia: [''],
+        email1: [''],
+        email2: [''],
+        direccionDomiciliaria: [''],
+        provincia: [''],
+        canton: [''],
       }),
       datosUnidad: this.fb.group({
-        plantaCentral:           [false],
+        plantaCentral: [false],
         procesosDesconcentrados: [false],
-        direccionUnidad:         [''],
-        cargoDesempenado:        [''],
-        grupoOcupacional:        [''],
+        direccionUnidad: [''],
+        cargoDesempenado: [''],
+        grupoOcupacional: [''],
       }),
       entregaGestion: this.fb.group({
-        informeGestion:       [''],
-        tramitesQuipux:       [''],
-        nombreResp_eg1:       [''],
-        fePresentacion:       [''],
-        clavesAcceso:         [''],
-        nombreResp_eg2:       [''],
-        entregaArchivo:       [''],
-        actaClaves:           [''],
-        nombreResp_eg3:       [''],
-        esAdminContrato:      [''],
-        observacionEG:        [''],
-        nombreResp_eg4:       [''],
-        descripcionContrato:  [''],
-        memorandoNuevoAdmin:  [''],
-        servidorRecibeTramites:[''],
-        jefeInmediato:        [''],
+        informeGestion: [''],
+        tramitesQuipux: [''],
+        nombreResp_eg1: [''],
+        fePresentacion: [''],
+        clavesAcceso: [''],
+        nombreResp_eg2: [''],
+        entregaArchivo: [''],
+        actaClaves: [''],
+        nombreResp_eg3: [''],
+        esAdminContrato: [''],
+        observacionEG: [''],
+        nombreResp_eg4: [''],
+        descripcionContrato: [''],
+        memorandoNuevoAdmin: [''],
+        servidorRecibeTramites: [''],
+        jefeInmediato: [''],
       }),
       gestionAdministrativa: this.fb.group({
         esAdminContratoAdm: [''],
-        entregaInforme:     [''],
-        nombreResp_ga1:     [''],
-        bienesMuebles:      [''],
-        numeroActa:         [''],
-        nombreResp_ga2:     [''],
-        valoresDeducibles:  [''],
-        valorDeducibles:    [''],
-        nombreResp_ga3:     [''],
-        pasajesAereos:      [''],
-        valorPasajes:       [''],
-        nombreResp_ga4:     [''],
+        entregaInforme: [''],
+        nombreResp_ga1: [''],
+        bienesMuebles: [''],
+        numeroActa: [''],
+        nombreResp_ga2: [''],
+        valoresDeducibles: [''],
+        valorDeducibles: [''],
+        nombreResp_ga3: [''],
+        pasajesAereos: [''],
+        valorPasajes: [''],
+        nombreResp_ga4: [''],
       }),
       gestionTIC: this.fb.group({
-        verificacionEquipo:    [''],
+        verificacionEquipo: [''],
         obsVerificacionEquipo: [''],
-        nombreResp_tic1:       [''],
-        accesoIpFija:          [''],
-        liberacionIp:          [''],
-        nombreResp_tic2:       [''],
-        retiroControlAcceso:   [''],
-        backupInformacion:     [''],
-        nombreResp_tic3:       [''],
-        correoInstitucional:   [''],
-        esigef:                [''],
-        quipux:                [''],
-        spryn:                 [''],
-        esbye:                 [''],
-        nombreResp_tic4:       [''],
-        tarjetaAcceso:         [''],
-        obsTarjeta:            [''],
-        nombreResp_tic5:       [''],
+        nombreResp_tic1: [''],
+        accesoIpFija: [''],
+        liberacionIp: [''],
+        nombreResp_tic2: [''],
+        retiroControlAcceso: [''],
+        backupInformacion: [''],
+        nombreResp_tic3: [''],
+        correoInstitucional: [''],
+        esigef: [''],
+        quipux: [''],
+        spryn: [''],
+        esbye: [''],
+        nombreResp_tic4: [''],
+        tarjetaAcceso: [''],
+        obsTarjeta: [''],
+        nombreResp_tic5: [''],
       }),
       gestionFinanciera: this.fb.group({
-        saldosContables:        [''],
-        valorSaldosContables:   [''],
-        obsSaldosContables:     [''],
-        nombreResp_fin1:        [''],
-        anticipoSueldos:        [''],
-        valorAnticipoSueldos:   [''],
-        obsAnticipoSueldos:     [''],
-        nombreResp_fin2:        [''],
-        recuperacionValores:    [''],
-        valorRecuperacion:      [''],
-        obsRecuperacion:        [''],
-        nombreResp_fin3:        [''],
-        devolucionMuebles:      [''],
-        valorDevolucion:        [''],
-        obsDevolucion:          [''],
-        nombreResp_fin4:        [''],
-        nombreDirectorFinanciero:[''],
+        saldosContables: [''],
+        valorSaldosContables: [''],
+        obsSaldosContables: [''],
+        nombreResp_fin1: [''],
+        anticipoSueldos: [''],
+        valorAnticipoSueldos: [''],
+        obsAnticipoSueldos: [''],
+        nombreResp_fin2: [''],
+        recuperacionValores: [''],
+        valorRecuperacion: [''],
+        obsRecuperacion: [''],
+        nombreResp_fin3: [''],
+        devolucionMuebles: [''],
+        valorDevolucion: [''],
+        obsDevolucion: [''],
+        nombreResp_fin4: [''],
+        nombreDirectorFinanciero: [''],
       }),
       seguridadInformacion: this.fb.group({
-        archivosDigitales:            [''],
-        entregaCopiaInforme:          [''],
-        nombreResp_seg1:              [''],
-        archivosFisicos:              [''],
-        verificacionInfoInstitucional:[''],
-        nombreResp_seg2:              [''],
-        nombreOficialSeguridad:       [''],
+        archivosDigitales: [''],
+        entregaCopiaInforme: [''],
+        nombreResp_seg1: [''],
+        archivosFisicos: [''],
+        verificacionInfoInstitucional: [''],
+        nombreResp_seg2: [''],
+        nombreOficialSeguridad: [''],
       }),
       recursosHumanos: this.fb.group({
-        capacitacion:                [''],
-        nombreResp_rh1:              [''],
-        evaluacionDesempeno:         [''],
-        nombreResp_rh2:              [''],
-        viajesExterior:              [''],
-        nombreResp_rh3:              [''],
-        siith:                       [''],
-        nombreResp_rh4:              [''],
+        capacitacion: [''],
+        nombreResp_rh1: [''],
+        evaluacionDesempeno: [''],
+        nombreResp_rh2: [''],
+        viajesExterior: [''],
+        nombreResp_rh3: [''],
+        siith: [''],
+        nombreResp_rh4: [''],
         numeroCertificadoVacaciones: [''],
-        nombreResp_rh5:              [''],
-        declaracionJuramentada:      [''],
-        numeroDeclaracionJuramentada:[''],
-        nombreResp_rh6:              [''],
-        credencialInstitucional:     [''],
-        copiaActividadesCD:          [''],
-        nombreResp_rh7:              [''],
-        actaBienes:                  [''],
-        ropaTrabajo:                 [''],
-        nombreResp_rh8:              [''],
-        nombreDirectorRRHH:          [''],
+        nombreResp_rh5: [''],
+        declaracionJuramentada: [''],
+        numeroDeclaracionJuramentada: [''],
+        nombreResp_rh6: [''],
+        credencialInstitucional: [''],
+        copiaActividadesCD: [''],
+        nombreResp_rh7: [''],
+        actaBienes: [''],
+        ropaTrabajo: [''],
+        nombreResp_rh8: [''],
+        nombreDirectorRRHH: [''],
       }),
       recepcionDocumentos: this.fb.group({
         fechaEntregaPazSalvo: [''],
-        numHojasRecibidas:    [''],
-        nombreQuienRecibe:    [''],
-        cargoQuienRecibe:     [''],
+        numHojasRecibidas: [''],
+        nombreQuienRecibe: [''],
+        cargoQuienRecibe: [''],
       }),
       autorizacion: this.fb.group({
         cedulaServidor: [''],

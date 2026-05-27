@@ -1127,7 +1127,7 @@ def asignar_pregunta():
         if not formulario_id:
             return jsonify({"mensaje": "Formulario obligatorio"}), 400
 
-        if not campos or not isinstance(campos, list):
+        if not isinstance(campos, list) or len(campos) == 0:
             return jsonify({"mensaje": "Debe seleccionar al menos un campo"}), 400
 
         if not usuario_id:
@@ -1137,9 +1137,20 @@ def asignar_pregunta():
         cursor = conn.cursor(dictionary=True)
 
         cursor.execute("""
-            SELECT id, nombres, apellidos
+            SELECT id
+            FROM formularios
+            WHERE id = %s
+            LIMIT 1
+        """, (formulario_id,))
+        formulario = cursor.fetchone()
+
+        if not formulario:
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        cursor.execute("""
+            SELECT id, nombres, apellidos, usuario, rol, estado
             FROM usuarios
-            WHERE id=%s AND estado='ACTIVO'
+            WHERE id = %s AND estado = 'ACTIVO'
             LIMIT 1
         """, (usuario_id,))
         usuario_destino = cursor.fetchone()
@@ -1149,20 +1160,38 @@ def asignar_pregunta():
 
         nuevas = 0
         bloqueadas = []
+        ignoradas = []
 
         for campo in campos:
-            codigo = limpiar_texto(campo.get("codigo"))
-            pregunta = limpiar_texto(campo.get("pregunta"))
-            tipo = limpiar_texto(campo.get("tipo") or "TEXTO")
-            seccion = limpiar_texto(campo.get("seccion"))
+            if isinstance(campo, str):
+                codigo = limpiar_texto(campo)
+                pregunta = limpiar_texto(campo)
+                tipo = "TEXTO"
+                seccion = "GENERAL"
+            else:
+                codigo = limpiar_texto(
+                    campo.get("codigo") or
+                    campo.get("id") or
+                    campo.get("nombre")
+                )
+
+                pregunta = limpiar_texto(
+                    campo.get("pregunta") or
+                    campo.get("etiqueta") or
+                    codigo
+                )
+
+                tipo = limpiar_texto(campo.get("tipo") or "TEXTO")
+                seccion = limpiar_texto(campo.get("seccion") or "GENERAL")
 
             if not codigo or not pregunta:
+                ignoradas.append(campo)
                 continue
 
             cursor.execute("""
                 SELECT id
                 FROM formulario_preguntas
-                WHERE formulario_id=%s AND codigo=%s
+                WHERE formulario_id = %s AND codigo = %s
                 LIMIT 1
             """, (formulario_id, codigo))
             pregunta_db = cursor.fetchone()
@@ -1174,24 +1203,36 @@ def asignar_pregunta():
                     INSERT INTO formulario_preguntas
                     (formulario_id, codigo, pregunta, tipo, seccion, opciones, obligatorio, orden)
                     VALUES (%s, %s, %s, %s, %s, NULL, 0, 0)
-                """, (formulario_id, codigo, pregunta, tipo, seccion))
+                """, (
+                    formulario_id,
+                    codigo,
+                    pregunta,
+                    tipo,
+                    seccion
+                ))
+
                 pregunta_id = cursor.lastrowid
 
             cursor.execute("""
                 SELECT 
                     a.id,
                     u.nombres,
-                    u.apellidos
+                    u.apellidos,
+                    u.usuario
                 FROM formulario_asignaciones a
                 LEFT JOIN usuarios u ON a.asignado_usuario_id = u.id
-                WHERE a.formulario_id=%s
-                AND a.pregunta_id=%s
+                WHERE a.formulario_id = %s
+                AND a.pregunta_id = %s
                 LIMIT 1
             """, (formulario_id, pregunta_id))
             ya_asignada = cursor.fetchone()
 
             if ya_asignada:
                 nombre = f"{ya_asignada.get('nombres') or ''} {ya_asignada.get('apellidos') or ''}".strip()
+
+                if not nombre:
+                    nombre = ya_asignada.get("usuario") or "otro usuario"
+
                 bloqueadas.append(f"{pregunta} → ya asignada a {nombre}")
                 continue
 
@@ -1199,44 +1240,75 @@ def asignar_pregunta():
                 INSERT INTO formulario_asignaciones
                 (formulario_id, pregunta_id, asignado_usuario_id, asignado_rol, estado)
                 VALUES (%s, %s, %s, NULL, 'ENVIADO')
-            """, (formulario_id, pregunta_id, usuario_id))
+            """, (
+                formulario_id,
+                pregunta_id,
+                usuario_id
+            ))
 
             nuevas += 1
 
         if nuevas == 0:
+            conn.rollback()
+
             return jsonify({
                 "mensaje": "No se asignó ningún campo. Las preguntas seleccionadas ya están designadas.",
-                "bloqueadas": bloqueadas
+                "nuevas": nuevas,
+                "bloqueadas": bloqueadas,
+                "ignoradas": ignoradas
             }), 400
 
         cursor.execute("""
             UPDATE formularios
-            SET estado='ENVIADO'
-            WHERE id=%s
+            SET estado = 'ENVIADO'
+            WHERE id = %s
         """, (formulario_id,))
 
-        cursor.execute("""
-            INSERT INTO notificaciones
-            (usuario_id, rol_destino, titulo, mensaje, leido)
-            VALUES (%s, NULL, %s, %s, 0)
-        """, (
-            usuario_id,
-            "Formulario pendiente",
-            f"Tiene {nuevas} campo(s) nuevo(s) por llenar."
-        ))
+        try:
+            cursor.execute("""
+                INSERT INTO notificaciones
+                (usuario_id, rol_destino, titulo, mensaje, leido)
+                VALUES (%s, NULL, %s, %s, 0)
+            """, (
+                usuario_id,
+                "Formulario pendiente",
+                f"Tiene {nuevas} campo(s) nuevo(s) por llenar."
+            ))
+        except Exception as notif_error:
+            print("ERROR NOTIFICACION:", str(notif_error))
 
         conn.commit()
 
+        registrar_auditoria(
+            user["usuario"],
+            user["rol"],
+            "Formularios",
+            "Asignar campos",
+            f"Se asignaron {nuevas} campo(s) al usuario ID {usuario_id}"
+        )
+
         return jsonify({
-            "mensaje": f"{nuevas} campo(s) asignado(s). Las ya designadas fueron bloqueadas.",
+            "mensaje": f"{nuevas} campo(s) asignado(s) correctamente.",
             "nuevas": nuevas,
-            "bloqueadas": bloqueadas
+            "bloqueadas": bloqueadas,
+            "ignoradas": ignoradas
         }), 201
 
     except Exception as e:
         if conn:
             conn.rollback()
-        return jsonify({"mensaje": "Error al asignar campos", "error": str(e)}), 500
+
+        import traceback
+        detalle = traceback.format_exc()
+
+        print("ERROR REAL /api/formularios/asignar:")
+        print(detalle)
+
+        return jsonify({
+            "mensaje": "Error al asignar campos",
+            "error": str(e),
+            "detalle": detalle
+        }), 500
 
     finally:
         close_db(cursor, conn)
