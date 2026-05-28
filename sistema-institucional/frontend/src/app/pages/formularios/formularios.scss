@@ -3422,7 +3422,42 @@ button {
   .ep2-section__body { padding: 1px !important; }
   .ep2-section { margin-bottom: 1px !important; }
   .ep2-val { font-size: 7px !important; }
-  .ep2-lbl { font-size: 6.2px !important; }
+  .ep2-lbl {
+    font-size: 5.8px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    text-align: center !important;
+    line-height: 1.1 !important;
+  }
+
+  .ep2-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1.4fr 1.4fr 1.1fr !important;
+    gap: 3px !important;
+    width: 100% !important;
+    align-items: start !important;
+  }
+
+  .ep2-field--firma {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .ep2-val--firma {
+    width: 100% !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid #8fa3c8 !important;
+    background: #fafcff !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+  }
 
   th, td {
     padding: 1px 2px !important;
@@ -3437,10 +3472,10 @@ button {
   }
 
   .ep2-firma-mini {
-    width: 44px !important;
-    max-width: 44px !important;
-    height: 14px !important;
-    max-height: 14px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 36px !important;
+    max-height: 36px !important;
     object-fit: contain !important;
     display: block !important;
     margin: 0 auto !important;
@@ -4163,42 +4198,36 @@ button {
 ///---
 /* ARREGLO FIRMA RECEPCIÓN RRHH EN ESPEJO A4 */
 .ep2-field--firma {
-  width: 95px !important;
-  min-width: 95px !important;
-  max-width: 95px !important;
+  flex: 1.1 !important;
+  min-width: 80px !important;
   text-align: center;
-  overflow: hidden;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 2px !important;
 }
 
 .ep2-val--firma {
-  width: 95px !important;
-  height: 22px !important;
-
+  width: 100% !important;
+  height: 56px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-
+  border: 1.5px solid #8fa3c8 !important;
+  border-radius: 3px !important;
+  background: #fafcff !important;
   overflow: hidden !important;
   padding: 0 !important;
 }
 
 .ep2-firma-mini {
-  width: 82px !important;
-  max-width: 82px !important;
-  height: 20px !important;
-  max-height: 20px !important;
-
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 48px !important;
+  max-height: 48px !important;
   object-fit: contain !important;
   display: block !important;
   margin: 0 auto !important;
-}
-
-.ep2-row {
-  overflow: hidden !important;
-}
-
-.ep2-section {
-  overflow: hidden !important;
 }
 
 /* CAMPO ASIGNADO AL USUARIO */
@@ -4445,34 +4474,6 @@ textarea.dark-input:disabled {
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. AJUSTES FIRMA MINI Y CÉDULA EN ESPEJO
 // ─────────────────────────────────────────────────────────────────────────────
-.ep2-field--firma {
-  width: 96px !important;
-  min-width: 96px !important;
-  max-width: 96px !important;
-  text-align: center !important;
-  overflow: hidden !important;
-}
-
-.ep2-val--firma {
-  width: 96px !important;
-  height: 24px !important;
-  padding: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: hidden !important;
-}
-
-.ep2-firma-mini {
-  display: block !important;
-  width: 72px !important;
-  max-width: 72px !important;
-  height: 22px !important;
-  max-height: 22px !important;
-  object-fit: contain !important;
-  margin: 0 auto !important;
-}
-
 .ep2-firma-img {
   display: block !important;
   max-width: 120px !important;
@@ -4699,21 +4700,48 @@ textarea.dark-input:disabled {
 
   .ep2-row {
     display: grid !important;
-    grid-template-columns: 1fr 1fr 1.35fr 1.35fr .8fr !important;
-    gap: 2px !important;
+    grid-template-columns: 1fr 1fr 1.4fr 1.4fr 1.1fr !important;
+    gap: 3px !important;
     width: 100% !important;
-    overflow: hidden !important;
+    overflow: visible !important;
+    align-items: start !important;
   }
 
   .ep2-field {
     min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  // La columna de firma recepción: ancho fijo para que quepa la imagen
+  .ep2-field--firma {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 2px !important;
+  }
+
+  .ep2-val--firma {
+    width: 100% !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid #8fa3c8 !important;
+    border-radius: 2px !important;
+    background: #fafcff !important;
     overflow: hidden !important;
+    padding: 0 !important;
   }
 
   .ep2-lbl {
-    font-size: 6.2px !important;
-    line-height: 1 !important;
-    white-space: nowrap !important;
+    font-size: 5.8px !important;
+    line-height: 1.1 !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    text-align: center !important;
   }
 
   .ep2-val {
@@ -4750,11 +4778,12 @@ textarea.dark-input:disabled {
   }
 
   .ep2-firma-mini {
-    width: 44px !important;
-    max-width: 44px !important;
-    height: 15px !important;
-    max-height: 15px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 36px !important;
+    max-height: 36px !important;
     object-fit: contain !important;
+    display: block !important;
     margin: 0 auto !important;
   }
 

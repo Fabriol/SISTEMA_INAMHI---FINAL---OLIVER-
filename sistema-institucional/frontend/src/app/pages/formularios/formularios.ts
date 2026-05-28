@@ -1688,36 +1688,80 @@ export class Formularios implements OnInit, OnDestroy {
 
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const jsPDF = (await import('jspdf')).default;
+      const jsPDF    = (await import('jspdf')).default;
 
+      const SCALE      = 2;
+      const PAGE_W_MM  = 210;
+      const PAGE_H_MM  = 297;
+      const MARGIN_MM  = 10;                              // margen en todos los lados
+      const CONT_W_MM  = PAGE_W_MM - MARGIN_MM * 2;      // 190 mm — ancho de contenido
+      const CONT_H_MM  = PAGE_H_MM - MARGIN_MM * 2;      // 277 mm — alto de contenido por página
+
+      // ── 1. Recoger posiciones de cada fila ANTES de capturar ──────────────
+      const elementAbsTop = element.getBoundingClientRect().top + window.scrollY;
+      const rowBottomsPx: number[] = Array.from(element.querySelectorAll('tr'))
+        .map(row => {
+          const r = row.getBoundingClientRect();
+          return (r.bottom + window.scrollY - elementAbsTop) * SCALE;
+        })
+        .sort((a, b) => a - b);
+
+      // ── 2. Capturar el elemento completo ──────────────────────────────────
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: SCALE,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
       });
 
+      const canvasW   = canvas.width;
+      const canvasH   = canvas.height;
+      // Relación: el contenido ocupa CONT_W_MM mm en el PDF
+      const pxPerMm   = canvasW / CONT_W_MM;             // canvas px por mm de contenido
+      const pageHpx   = CONT_H_MM * pxPerMm;             // px por página de contenido (277mm)
+
+      // ── 3. Generar páginas cortando justo al final de una fila ────────────
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 297;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      let sliceTop    = 0;
+      let firstPage   = true;
 
-      const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      while (sliceTop < canvasH) {
+        const naiveEnd = sliceTop + pageHpx;
 
-      while (heightLeft > 0) {
-        position -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        let sliceEnd: number;
+        if (naiveEnd >= canvasH) {
+          sliceEnd = canvasH;
+        } else {
+          // Última fila que termina DENTRO de esta página
+          const lastRowInPage = rowBottomsPx
+            .filter(b => b > sliceTop && b <= naiveEnd)
+            .pop();
+          sliceEnd = lastRowInPage ?? naiveEnd;
+        }
+
+        const sliceH    = sliceEnd - sliceTop;
+        const sliceHmm  = sliceH / pxPerMm;
+
+        // Sub-canvas con solo el trozo de esta página
+        const slice     = document.createElement('canvas');
+        slice.width     = canvasW;
+        slice.height    = sliceH;
+        slice.getContext('2d')!
+          .drawImage(canvas, 0, sliceTop, canvasW, sliceH, 0, 0, canvasW, sliceH);
+
+        if (!firstPage) pdf.addPage();
+        firstPage = false;
+
+        // Posicionar con márgenes: x=MARGIN_MM, y=MARGIN_MM
+        pdf.addImage(slice.toDataURL('image/png'), 'PNG',
+          MARGIN_MM, MARGIN_MM, CONT_W_MM, sliceHmm);
+
+        sliceTop = sliceEnd;
       }
 
-      const nombreArchivo = `paz-y-salvo-${this.formularioSeleccionado?.id ?? 'formulario'}.pdf`;
-      pdf.save(nombreArchivo);
-    } catch {
+      pdf.save(`paz-y-salvo-${this.formularioSeleccionado?.id ?? 'formulario'}.pdf`);
+    } catch (err) {
+      console.error(err);
       Swal.fire('Error', 'No se pudo generar el PDF. Intente de nuevo.', 'error');
     }
   }
