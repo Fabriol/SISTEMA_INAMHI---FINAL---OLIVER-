@@ -2756,10 +2756,13 @@ button {
     overflow-wrap: normal !important;
   }
 
-  .ep2-section {
-    margin-bottom: 2px !important;
+  tr {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  .ep2-section {
+    margin-bottom: 2px !important;
   }
 
   .ep2-section__head {
@@ -3347,17 +3350,17 @@ button {
 
 // ── Print: espejo-page ────────────────────────────────────────────────────────
 @media print {
-  // Primera página: flujo natural, sin page-break-after forzado
+  // Flujo continuo: sin min-height forzado, sin saltos forzados entre páginas
   .espejo-page {
     display: block !important;
     width: 210mm !important;
-    min-height: auto !important;
+    min-height: 0 !important;
+    height: auto !important;
     max-height: none !important;
     overflow: visible !important;
     box-shadow: none !important;
     margin: 0 auto !important;
     border: none !important;
-    border-top: 2px solid #1e3a5f !important;
     padding: 4mm 6mm !important;
     background: #fff !important;
     font-size: 6.8px !important;
@@ -3386,17 +3389,15 @@ button {
     }
   }
 
-  // Segunda página: forzar nueva página física antes de ella
+  // Sin salto forzado — el contenido fluye naturalmente
   .espejo-page.ep-page-break {
-    page-break-before: always !important;
-    break-before: page !important;
+    page-break-before: auto !important;
+    break-before: auto !important;
     margin-top: 0 !important;
   }
 
   .ep-tabla,
   .ep-tabla-cuentas {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
     width: 100% !important;
     font-size: 6.5px !important;
   }
@@ -3411,9 +3412,15 @@ button {
     table-layout: fixed !important;
     border-collapse: collapse !important;
   }
-  .ep2-section__head { font-size: 6.5px !important; padding: 1px 3px !important; min-height: unset !important; }
+  .ep2-section__head {
+    font-size: 6.5px !important;
+    padding: 1px 3px !important;
+    min-height: unset !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
   .ep2-section__body { padding: 1px !important; }
-  .ep2-section { margin-bottom: 1px !important; page-break-inside: avoid !important; }
+  .ep2-section { margin-bottom: 1px !important; }
   .ep2-val { font-size: 7px !important; }
   .ep2-lbl { font-size: 6.2px !important; }
 
@@ -3422,6 +3429,11 @@ button {
     font-size: 6.5px !important;
     line-height: 1.04 !important;
     vertical-align: middle !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .ep2-firma-mini {
@@ -3435,22 +3447,22 @@ button {
   }
 
   .ep2-firma-img {
-    max-width: 60px !important;
-    max-height: 22px !important;
+    max-width: 80px !important;
+    max-height: 44px !important;
     object-fit: contain !important;
     margin: 0 auto 1px !important;
   }
 
   // Celda de firma — tamaño adecuado para FirmaEC
   .ep2-firma-cell {
-    height: 36px !important;
-    min-height: 36px !important;
+    height: 72px !important;
+    min-height: 72px !important;
     overflow: hidden !important;
     width: 100% !important;
   }
 
   .ep2-firma-img-cell {
-    max-height: 32px !important;
+    max-height: 64px !important;
     max-width: 100% !important;
     width: auto !important;
     height: auto !important;
@@ -3703,7 +3715,7 @@ button {
   align-items: center;
   justify-content: center;
   border: 1.5px solid #8fa3c8;
-  height: 48px;
+  height: 96px;
   border-radius: 3px;
   background: #fafcff;
   overflow: hidden;
@@ -3716,7 +3728,7 @@ button {
   width: 100%;
   height: 100%;
   max-width: 100%;
-  max-height: 44px;
+  max-height: 88px;
   object-fit: contain;
   object-position: center;
 }
@@ -4557,19 +4569,20 @@ textarea.dark-input:disabled {
     gap: 0 !important;
   }
 
-  // Override final para espejo-page — contenido completo sin cortes
+  // Override final para espejo-page — flujo continuo sin páginas en blanco
   .espejo-page {
     display: block !important;
     width: 210mm !important;
-    min-height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
+    height: auto !important;
     overflow: visible !important;
     box-shadow: none !important;
     margin: 0 auto !important;
     padding: 4mm 6mm !important;
     background: #fff !important;
     border: none !important;
-    border-top: 2px solid #1e3a5f !important;
+    border-top: none !important;
     font-family: Arial, Helvetica, sans-serif !important;
     font-size: 7.5px !important;
     line-height: 1.08 !important;
@@ -4579,9 +4592,10 @@ textarea.dark-input:disabled {
     page-break-inside: auto !important;
     break-inside: auto !important;
 
+    // Sin salto forzado: el contenido fluye naturalmente de página en página
     &.ep-page-break {
-      page-break-before: always !important;
-      break-before: page !important;
+      page-break-before: auto !important;
+      break-before: auto !important;
       margin-top: 0 !important;
     }
   }
@@ -4594,12 +4608,12 @@ textarea.dark-input:disabled {
   .ep2-td-firma { padding: 2px 2px !important; }
 
   .ep2-firma-cell {
-    height: 36px !important;
-    min-height: 36px !important;
+    height: 72px !important;
+    min-height: 72px !important;
   }
 
   .ep2-firma-img-cell {
-    max-height: 32px !important;
+    max-height: 64px !important;
     max-width: 100% !important;
     width: auto !important;
     height: auto !important;
@@ -4624,6 +4638,9 @@ textarea.dark-input:disabled {
     max-width: 100% !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
+  }
+
+  tr {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
@@ -4648,8 +4665,8 @@ textarea.dark-input:disabled {
   }
 
   .ep2-firma-cell {
-    height: 34px !important;
-    min-height: 34px !important;
+    height: 68px !important;
+    min-height: 68px !important;
     overflow: hidden !important;
     width: 100% !important;
   }
@@ -4657,7 +4674,7 @@ textarea.dark-input:disabled {
   .ep2-firma-img-cell {
     display: block !important;
     max-width: 100% !important;
-    max-height: 30px !important;
+    max-height: 60px !important;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
@@ -4666,14 +4683,14 @@ textarea.dark-input:disabled {
   .ep2-section {
     margin-bottom: 2px !important;
     overflow: visible !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
   }
 
   .ep2-section__head {
     font-size: 7px !important;
     padding: 2px 4px !important;
     min-height: unset !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   .ep2-section__body {
