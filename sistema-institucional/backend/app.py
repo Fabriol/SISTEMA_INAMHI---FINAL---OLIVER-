@@ -67,6 +67,34 @@ db_pool = pooling.MySQLConnectionPool(
 def get_connection():
     return db_pool.get_connection()
 
+def _ensure_mediumtext():
+    """Ensure respuesta column can hold base64 firma images (run once at startup)."""
+    conn = cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = 'sistema_institucional'
+              AND TABLE_NAME   = 'formulario_respuestas'
+              AND COLUMN_NAME  = 'respuesta'
+        """)
+        row = cursor.fetchone()
+        if row and row[0].lower() not in ('mediumtext', 'longtext'):
+            cursor.execute(
+                "ALTER TABLE formulario_respuestas MODIFY COLUMN respuesta MEDIUMTEXT"
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"[startup] _ensure_mediumtext: {e}")
+    finally:
+        close_db(cursor, conn)
+
+try:
+    _ensure_mediumtext()
+except Exception:
+    pass
+
 def close_db(cursor=None, conn=None):
     try:
         if cursor:
@@ -1385,7 +1413,12 @@ def responder_formulario():
 
         formulario_id = data.get("formulario_id")
         campo = limpiar_texto(data.get("campo"))
-        respuesta = limpiar_texto(data.get("respuesta"))
+        respuesta_raw = data.get("respuesta")
+        # Skip limpiar_texto for base64 firma data (starts with "data:")
+        if isinstance(respuesta_raw, str) and respuesta_raw.startswith("data:"):
+            respuesta = respuesta_raw
+        else:
+            respuesta = limpiar_texto(respuesta_raw)
 
         if not formulario_id or not campo or respuesta == "":
             return jsonify({"mensaje": "Datos incompletos"}), 400

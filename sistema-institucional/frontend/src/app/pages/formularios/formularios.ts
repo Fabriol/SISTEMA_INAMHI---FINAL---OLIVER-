@@ -1059,17 +1059,31 @@ export class Formularios implements OnInit, OnDestroy {
     }
     const reader = new FileReader();
     reader.onload = (e) => {
-      this.firmasEC[seccion] = e.target?.result as string;
-      this.firmasECRequired[seccion] = false;
-      this.cdr.markForCheck();
+      // Compress to max 500×200 px JPEG so base64 stays well below DB column limits
+      const img = new Image();
+      img.onload = () => {
+        const MAX_W = 500, MAX_H = 200;
+        const ratio = Math.min(MAX_W / img.width, MAX_H / img.height, 1);
+        const cvs = document.createElement('canvas');
+        cvs.width  = Math.round(img.width  * ratio);
+        cvs.height = Math.round(img.height * ratio);
+        cvs.getContext('2d')!.drawImage(img, 0, 0, cvs.width, cvs.height);
+        this.firmasEC[seccion] = cvs.toDataURL('image/jpeg', 0.80);
+        this.firmasECRequired[seccion] = false;
+        this.cdr.markForCheck();
+      };
+      img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
-    // Reset input to allow re-upload of same file
     input.value = '';
   }
 
   clearFirmaEC(seccion: string): void {
     this.firmasEC[seccion] = null;
+    // Restore upload button if the firma is still assigned and not yet saved
+    const asignado = this.esAdmin() || this.camposAsignadosUsuario.includes(seccion);
+    const bloqueado = this.camposBloqueados.includes(seccion);
+    this.firmasECRequired[seccion] = asignado && !bloqueado;
     this.cdr.markForCheck();
   }
 
@@ -1213,24 +1227,32 @@ export class Formularios implements OnInit, OnDestroy {
   }
 
   private guardarCamposAsignados(): void {
+    // Campos de formulario reactivo asignados con valor
     const camposAGuardar = this.camposAsignadosUsuario.filter(campo => {
       if (this.camposBloqueados.includes(campo)) return false;
       const ctrl = this.formularioPazSalvo.get(campo);
       if (!ctrl) return false;
       const val = ctrl.value;
-      // Excluir null, undefined, string vacío o solo espacios, y arrays/objetos vacíos
       if (val === null || val === undefined) return false;
       if (typeof val === 'string' && val.trim() === '') return false;
       if (typeof val === 'number' && isNaN(val)) return false;
       return true;
     });
 
-    if (camposAGuardar.length === 0) {
-      this.alertaRapida('Sin cambios', 'No hay campos nuevos para guardar.');
+    // FirmaEC asignadas con imagen cargada (no son controles reactivos)
+    const firmasAGuardar = this.camposAsignadosUsuario.filter(campo => {
+      if (this.camposBloqueados.includes(campo)) return false;
+      return (campo in this.firmasEC) && !!this.firmasEC[campo];
+    });
+
+    const total = camposAGuardar.length + firmasAGuardar.length;
+
+    if (total === 0) {
+      this.alertaRapida('Sin cambios', 'No hay campos ni firmas nuevas para guardar.');
       return;
     }
 
-    // Validar solo los campos asignados
+    // Validar solo los campos reactivos asignados
     let hayErrores = false;
     camposAGuardar.forEach(campo => {
       const ctrl = this.formularioPazSalvo.get(campo);
@@ -1249,6 +1271,22 @@ export class Formularios implements OnInit, OnDestroy {
     let guardados = 0;
     let errores = 0;
 
+    const onDone = () => {
+      if (guardados + errores < total) return;
+      this.cargando = false;
+      this.cdr.markForCheck();
+      if (errores === 0) {
+        Swal.fire('Guardado', 'Campos guardados correctamente.', 'success');
+        localStorage.removeItem('pazYSalvoDraft');
+        this.cargarDetalleFormulario(this.formularioSeleccionado);
+      } else if (guardados > 0) {
+        Swal.fire('Advertencia', `Se guardaron ${guardados} de ${total}. Fallaron ${errores}.`, 'warning');
+      } else {
+        Swal.fire('Error', `No se pudo guardar. Fallaron ${errores} campos.`, 'error');
+      }
+    };
+
+    // Guardar campos reactivos
     camposAGuardar.forEach(campo => {
       const ctrl = this.formularioPazSalvo.get(campo);
       this.formulariosService
@@ -1258,28 +1296,22 @@ export class Formularios implements OnInit, OnDestroy {
           respuesta: this.limpiarTexto(ctrl?.value),
         })
         .subscribe({
-          next: () => {
-            guardados++;
-            if (guardados + errores === camposAGuardar.length) {
-              this.cargando = false;
-              this.cdr.markForCheck();
-              if (errores === 0) {
-                Swal.fire('Guardado', 'Campos guardados correctamente.', 'success');
-                localStorage.removeItem('pazYSalvoDraft');
-                this.cargarDetalleFormulario(this.formularioSeleccionado);
-              } else {
-                Swal.fire('Advertencia', `Se guardaron ${guardados} campos. Fallaron ${errores}.`, 'warning');
-              }
-            }
-          },
-          error: () => {
-            errores++;
-            if (guardados + errores === camposAGuardar.length) {
-              this.cargando = false;
-              this.cdr.markForCheck();
-              Swal.fire('Error parcial', `Se guardaron ${guardados} campos. Fallaron ${errores}.`, 'warning');
-            }
-          },
+          next: () => { guardados++; onDone(); },
+          error: (err: any) => { console.error(`Error guardando campo '${campo}':`, err?.error); errores++; onDone(); },
+        });
+    });
+
+    // Guardar firmasEC (base64 — sin pasar por limpiarTexto)
+    firmasAGuardar.forEach(campo => {
+      this.formulariosService
+        .responder({
+          formulario_id: this.formularioSeleccionado.id,
+          campo,
+          respuesta: this.firmasEC[campo] as string,
+        })
+        .subscribe({
+          next: () => { guardados++; onDone(); },
+          error: (err: any) => { console.error(`Error guardando firma '${campo}':`, err?.error); errores++; onDone(); },
         });
     });
   }
