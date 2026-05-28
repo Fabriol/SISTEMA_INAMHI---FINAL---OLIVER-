@@ -3440,6 +3440,29 @@ button {
     object-fit: contain !important;
     margin: 0 auto 1px !important;
   }
+
+  // Celda de firma — tamaño adecuado para FirmaEC
+  .ep2-firma-cell {
+    height: 36px !important;
+    min-height: 36px !important;
+    overflow: hidden !important;
+    width: 100% !important;
+  }
+
+  .ep2-firma-img-cell {
+    max-height: 32px !important;
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+
+  .ep2-td-firma {
+    width: 20% !important;
+    max-width: 20% !important;
+    padding: 2px 2px !important;
+    overflow: hidden !important;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3658,12 +3681,13 @@ button {
   tbody tr:hover td { background: #eef4ff; }
 }
 
-.ep2-th-det    { width: 26%; text-align: left !important; }
+// Anchos de columnas suman 100% (con firma más ancha para FirmaEC)
+.ep2-th-det    { width: 24%; text-align: left !important; }
 .ep2-th-yn     { width: 6%;  text-align: center !important; }
-.ep2-th-nombre { width: 20%; text-align: center !important; }
-.ep2-th-valor  { width: 14%; text-align: center !important; }
-.ep2-th-obs    { width: 14%; text-align: center !important; }
-.ep2-th-firma  { width: 13%; text-align: center !important; }
+.ep2-th-nombre { width: 19%; text-align: center !important; }
+.ep2-th-valor  { width: 12%; text-align: center !important; }
+.ep2-th-obs    { width: 12%; text-align: center !important; }
+.ep2-th-firma  { width: 20%; text-align: center !important; }
 
 .ep2-td-det    { font-size: 8.5px; vertical-align: top; padding: 3px 5px; line-height: 1.4; }
 .ep2-td-yn     { text-align: center; vertical-align: middle; padding: 2px; }
@@ -3672,23 +3696,29 @@ button {
 .ep2-td-valor  { font-size: 9px; vertical-align: middle; padding: 2px 5px; }
 .ep2-td-obs    { font-size: 8.5px; vertical-align: top; padding: 2px 4px; }
 .ep2-td-obs-fin{ font-size: 8.5px; vertical-align: top; padding: 2px 4px; color: #475569; }
-.ep2-td-firma  { vertical-align: middle; padding: 3px 4px; min-width: 58px; }
+.ep2-td-firma  { vertical-align: middle; padding: 2px 3px; width: 20%; max-width: 20%; overflow: hidden; }
 
 .ep2-firma-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #8fa3c8;
-  height: 34px;
-  border-radius: 2px;
+  border: 1.5px solid #8fa3c8;
+  height: 48px;
+  border-radius: 3px;
   background: #fafcff;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .ep2-firma-img-cell {
+  display: block;
+  width: 100%;
+  height: 100%;
   max-width: 100%;
-  max-height: 32px;
+  max-height: 44px;
   object-fit: contain;
+  object-position: center;
 }
 
 .ep2-td-cuentas-grid {
@@ -4541,8 +4571,8 @@ textarea.dark-input:disabled {
     border: none !important;
     border-top: 2px solid #1e3a5f !important;
     font-family: Arial, Helvetica, sans-serif !important;
-    font-size: 6.8px !important;
-    line-height: 1.06 !important;
+    font-size: 7.5px !important;
+    line-height: 1.08 !important;
     color: #111 !important;
     page-break-after: auto !important;
     break-after: auto !important;
@@ -4554,12 +4584,37 @@ textarea.dark-input:disabled {
       break-before: page !important;
       margin-top: 0 !important;
     }
-
-    * {
-      font-size: inherit !important;
-      line-height: inherit !important;
-    }
   }
+
+  // Elementos del espejo — tamaños específicos en print
+  .ep2-td-det  { font-size: 7px !important; padding: 2px 3px !important; }
+  .ep2-td-resp { font-size: 7px !important; padding: 1px 3px !important; }
+  .ep2-td-valor{ font-size: 7px !important; padding: 1px 3px !important; }
+  .ep2-td-obs, .ep2-td-obs-fin { font-size: 7px !important; padding: 1px 2px !important; }
+  .ep2-td-firma { padding: 2px 2px !important; }
+
+  .ep2-firma-cell {
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .ep2-firma-img-cell {
+    max-height: 32px !important;
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+
+  .ep2-lbl { font-size: 6.2px !important; }
+  .ep2-val { font-size: 7px !important; }
+  .ep2-section__head { font-size: 7px !important; padding: 1.5px 4px !important; }
+  .ep2-section__body { padding: 1px !important; }
+  .ep2-section { margin-bottom: 2px !important; }
+  .ep2-row { gap: 2px !important; }
+  .ep2-field { padding: 2px 3px !important; }
+  .ep2-auth-text { font-size: 6.5px !important; line-height: 1.3 !important; }
+  .ep2-money { font-size: 7px !important; }
 
   .tabla-pdf,
   .tabla-encabezado,
@@ -4575,17 +4630,42 @@ textarea.dark-input:disabled {
 
   th,
   td {
-    padding: 1.8px 2.4px !important;
-    font-size: 6.8px !important;
+    padding: 2px 3px !important;
+    font-size: 7px !important;
     line-height: 1.06 !important;
     vertical-align: middle !important;
     word-break: normal !important;
     overflow-wrap: normal !important;
   }
 
+  // Columna firma — más ancha para FirmaEC
+  .ep2-th-firma { width: 20% !important; }
+  .ep2-td-firma {
+    width: 20% !important;
+    max-width: 20% !important;
+    padding: 2px 2px !important;
+    overflow: hidden !important;
+  }
+
+  .ep2-firma-cell {
+    height: 34px !important;
+    min-height: 34px !important;
+    overflow: hidden !important;
+    width: 100% !important;
+  }
+
+  .ep2-firma-img-cell {
+    display: block !important;
+    max-width: 100% !important;
+    max-height: 30px !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+
   .ep2-section {
     margin-bottom: 2px !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
@@ -4614,16 +4694,15 @@ textarea.dark-input:disabled {
   }
 
   .ep2-lbl {
-    font-size: 5.8px !important;
+    font-size: 6.2px !important;
     line-height: 1 !important;
     white-space: nowrap !important;
   }
 
   .ep2-val {
-    font-size: 6.6px !important;
+    font-size: 7px !important;
     line-height: 1.05 !important;
-    white-space: nowrap !important;
-    word-break: keep-all !important;
+    word-break: normal !important;
     overflow-wrap: normal !important;
   }
 
@@ -4637,8 +4716,8 @@ textarea.dark-input:disabled {
 
   .ep2-auth-text,
   .texto-legal {
-    font-size: 6.6px !important;
-    line-height: 1.17 !important;
+    font-size: 6.8px !important;
+    line-height: 1.2 !important;
     text-align: justify !important;
   }
 
