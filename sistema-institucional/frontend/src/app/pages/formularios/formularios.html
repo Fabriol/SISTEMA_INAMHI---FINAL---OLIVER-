@@ -17,109 +17,43 @@
   </div>
 
   <!-- ════════════════════════════════════════════════
-       ALERTA ANIMADA — TRIGGER PRINCIPAL
-       Visible solo cuando hay notificaciones sin leer
-       y el contenido aún está oculto.
+       AVISO CAMPOS ASIGNADOS — banner limpio
   ════════════════════════════════════════════════ -->
-  <div class="alerta-asignacion" *ngIf="totalSinLeer > 0 && !contenidoVisible" (click)="toggleContenido()"
-    (keydown.enter)="toggleContenido()" (keydown.space)="$event.preventDefault(); toggleContenido()" role="button"
-    tabindex="0" aria-live="polite"
-    [attr.aria-label]="'¡Tienes ' + totalSinLeer + ' campo(s) asignado(s)! Clic para desplegar el formulario.'">
-
-    <!-- Auras de pulso radial -->
-    <span class="alerta-asignacion__aura alerta-asignacion__aura--1" aria-hidden="true"></span>
-    <span class="alerta-asignacion__aura alerta-asignacion__aura--2" aria-hidden="true"></span>
-    <span class="alerta-asignacion__aura alerta-asignacion__aura--3" aria-hidden="true"></span>
-
-    <!-- Icono campana con badge de conteo -->
-    <div class="alerta-asignacion__icono-wrap" aria-hidden="true">
-      <span class="alerta-asignacion__campana">🔔</span>
-      <span class="alerta-asignacion__badge">{{ totalSinLeer }}</span>
+  <div class="aviso-asignacion" *ngIf="totalSinLeer > 0 && !contenidoVisible"
+    (click)="toggleContenido()" role="button" tabindex="0"
+    (keydown.enter)="toggleContenido()" aria-live="polite">
+    <span class="aviso-asignacion__icon">📋</span>
+    <div class="aviso-asignacion__texto">
+      <strong>Tienes {{ totalSinLeer }} campo{{ totalSinLeer > 1 ? 's' : '' }} asignado{{ totalSinLeer > 1 ? 's' : '' }} por completar</strong>
+      <span>Haz clic aquí para desplegar tu formulario Paz y Salvo.</span>
     </div>
-
-    <!-- Texto principal -->
-    <div class="alerta-asignacion__texto">
-      <div class="alerta-asignacion__etiqueta">FORMULARIO ASIGNADO</div>
-      <h2 class="alerta-asignacion__titulo">
-        ¡Tienes {{ totalSinLeer }} campo{{ totalSinLeer > 1 ? 's' : '' }} pendiente{{ totalSinLeer > 1 ? 's' : '' }}!
-      </h2>
-      <p class="alerta-asignacion__desc">
-        El administrador asignó campos del formulario <strong>Paz y Salvo</strong> que debes completar.
-      </p>
-      <div class="alerta-asignacion__cta" aria-hidden="true">
-        <span class="alerta-asignacion__cta-icon">▼</span>
-        Toca aquí para desplegar tu formulario
-      </div>
-    </div>
-
-    <!-- Indicador visual de expandir -->
-    <div class="alerta-asignacion__expand" aria-hidden="true">
-      <span class="alerta-asignacion__expand-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-          stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
-      </span>
-      <span>Ver formulario</span>
-    </div>
+    <button class="aviso-asignacion__btn" type="button">Ver formulario ▼</button>
   </div>
 
-  <!-- Banner compacto de "marcar leídas" — visible cuando contenido está desplegado -->
-  <div class="notif-banner-alerta fade-in" *ngIf="totalSinLeer > 0 && contenidoVisible" role="alert">
-    <div class="notif-banner-alerta__izq">
-      <span class="notif-banner-alerta__campana">🔔</span>
-      <div>
-        <strong>¡Tienes {{ totalSinLeer }} notificación{{ totalSinLeer > 1 ? 'es' : '' }} pendiente{{ totalSinLeer > 1 ?
-          's' : '' }}!</strong>
-        <span>Hay campos del formulario asignados que debes completar.</span>
-      </div>
+  <!-- Notificaciones pendientes (contenido expandido) -->
+  <div class="notif-simple" *ngIf="totalSinLeer > 0 && contenidoVisible">
+    <span class="notif-simple__icon">🔔</span>
+    <div class="notif-simple__texto">
+      <strong>{{ totalSinLeer }} notificación{{ totalSinLeer > 1 ? 'es' : '' }} pendiente{{ totalSinLeer > 1 ? 's' : '' }}</strong>
+      <span *ngFor="let n of notificaciones | slice:0:3">{{ n.titulo }} — {{ n.mensaje }}</span>
     </div>
-    <div class="notif-banner-alerta__acciones">
-      <button type="button" class="notif-btn-marcar-todo" (click)="marcarTodasLeidas()">
-        ✓ Marcar todas como leídas
-      </button>
-      <button type="button" class="notif-btn-colapsar" (click)="toggleContenido()" aria-label="Colapsar contenido">
-        ▲ Colapsar
-      </button>
-    </div>
+    <button class="notif-simple__marcar" type="button" (click)="marcarTodasLeidas()">Marcar leídas</button>
   </div>
 
-  <!-- Tarjetas de notificaciones — solo visibles cuando el contenido está desplegado -->
-  <ng-container *ngIf="notificaciones.length > 0 && contenidoVisible">
-    <section class="notif-card fade-in" aria-label="Notificaciones">
-      <div class="notif-card__header">
-        <div class="notif-card__titulo">
-          <span class="notif-icono-header" [class.notif-icono-header--activo]="totalSinLeer > 0">🔔</span>
-          <h2>Notificaciones</h2>
-          <span class="notif-badge-sinleer" *ngIf="totalSinLeer > 0">{{ totalSinLeer }} sin leer</span>
-          <span class="notif-badge-todas" *ngIf="totalSinLeer === 0">Todo al día ✓</span>
-        </div>
-        <span class="badge-count">Total: {{ notificaciones.length }}</span>
+  <section class="notif-card fade-in" *ngIf="formularioTerminado">
+    <div class="notif-card__header">
+      <div class="notif-card__titulo">
+        <span class="notif-icono-header">✅</span>
+        <h2>Formulario completado</h2>
+        <span class="notif-badge-todas">TERMINADO</span>
       </div>
+    </div>
 
-      <div class="notif-lista">
-        <div class="notif-item" *ngFor="let n of notificaciones" [class.notif-item--nueva]="!n.leido"
-          [class.notif-item--leida]="n.leido" (mouseenter)="marcarNotificacionLeida(n)"
-          (click)="irAListadoFormularios()" role="button" tabindex="0"
-          [attr.aria-label]="'Notificación: ' + n.titulo + (n.leido ? '. Leída' : '. Nueva — clic para ver formulario')">
-          <div class="notif-item__barra"></div>
-          <div class="notif-item__icono">
-            <span *ngIf="!n.leido" class="notif-dot-pulso" aria-hidden="true"></span>
-            <span class="notif-item__emoji">{{ n.leido ? '✅' : '📋' }}</span>
-          </div>
-          <div class="notif-item__cuerpo">
-            <h3>{{ n.titulo }}</h3>
-            <p>{{ n.mensaje }}</p>
-            <span class="notif-item__accion" *ngIf="!n.leido">👆 Clic para ir al formulario asignado</span>
-          </div>
-          <div class="notif-item__estado">
-            <span class="notif-tag notif-tag--nueva" *ngIf="!n.leido">NUEVO</span>
-            <span class="notif-tag notif-tag--leida" *ngIf="n.leido">LEÍDO</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  </ng-container>
+    <p style="padding:20px; color:#475569; font-size:15px;">
+      Todos los campos asignados fueron completados correctamente.
+      Ya no tienes formularios pendientes por llenar.
+    </p>
+  </section>
 
   <!-- ════════════════════════════════════════════════
        CREAR FORMULARIO (solo admin)
@@ -147,7 +81,9 @@
   <section class="card fade-in contenido-reveal" id="listado-formularios" *ngIf="contenidoVisible">
     <div class="card-title">
       <h2>Listado de formularios</h2>
-      <span class="badge-count">Total: {{ formularios.length }}</span>
+      <span class="badge-count">
+        Pendientes: {{ totalSinLeer }}
+      </span>
     </div>
     <div class="lista" *ngIf="formularios.length > 0">
       <div class="item hover-scale" *ngFor="let f of formularios" (click)="verFormulario(f)"
@@ -518,8 +454,8 @@
             </thead>
             <tbody>
               <ng-container *ngFor="let c of camposFormulario">
-                <tr *ngIf="c.tipo === 'FIRMA'"
-                  [class.fila-bloqueada]="c.bloqueado" [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
+                <tr *ngIf="c.tipo === 'FIRMA'" [class.fila-bloqueada]="c.bloqueado"
+                  [class.fila-seleccionada]="c.seleccionado && !c.bloqueado">
                   <td class="col-check">
                     <input type="checkbox" [(ngModel)]="c.seleccionado" [disabled]="c.bloqueado">
                   </td>
@@ -598,9 +534,9 @@
   <section *ngIf="formularioSeleccionado && contenidoVisible" class="paz-salvo-container fade-in contenido-reveal">
 
     <!-- ── COLUMNA IZQUIERDA: FORMULARIO DOCUMENTO PAZ Y SALVO ── -->
-    <div class="formulario-ingreso" id="paso-formulario">
+    <div class="formulario-ingreso" id="paso-formulario" [class.modo-usuario]="!esAdmin()">
 
-      
+
 
       <form [formGroup]="formularioPazSalvo" novalidate>
 
@@ -1241,7 +1177,8 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['tramites_r1'] && firmasECRequired['tramites_r1']" class="btn-firma-mini" for="fec-tramites-r1">✍
+                      <label *ngIf="!firmasEC['tramites_r1'] && firmasECRequired['tramites_r1']" class="btn-firma-mini"
+                        for="fec-tramites-r1">✍
                         FirmaEC<input type="file" id="fec-tramites-r1" accept="image/*"
                           (change)="onFirmaECChange('tramites_r1',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['tramites_r1']" class="firma-mini-ok"><img [src]="firmasEC['tramites_r1']"
@@ -1262,7 +1199,8 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['tramites_r2'] && firmasECRequired['tramites_r2']" class="btn-firma-mini" for="fec-tramites-r2">✍
+                      <label *ngIf="!firmasEC['tramites_r2'] && firmasECRequired['tramites_r2']" class="btn-firma-mini"
+                        for="fec-tramites-r2">✍
                         FirmaEC<input type="file" id="fec-tramites-r2" accept="image/*"
                           (change)="onFirmaECChange('tramites_r2',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['tramites_r2']" class="firma-mini-ok"><img [src]="firmasEC['tramites_r2']"
@@ -1283,7 +1221,8 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['tramites_r3'] && firmasECRequired['tramites_r3']" class="btn-firma-mini" for="fec-tramites-r3">✍
+                      <label *ngIf="!firmasEC['tramites_r3'] && firmasECRequired['tramites_r3']" class="btn-firma-mini"
+                        for="fec-tramites-r3">✍
                         FirmaEC<input type="file" id="fec-tramites-r3" accept="image/*"
                           (change)="onFirmaECChange('tramites_r3',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['tramites_r3']" class="firma-mini-ok"><img [src]="firmasEC['tramites_r3']"
@@ -1298,7 +1237,8 @@
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('tramites_jefe_inmediato')?.value ||
                       '—' }}</td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['tramites_jefe'] && firmasECRequired['tramites_jefe']" class="btn-firma-mini" for="fec-tramites-jefe">✍
+                      <label *ngIf="!firmasEC['tramites_jefe'] && firmasECRequired['tramites_jefe']"
+                        class="btn-firma-mini" for="fec-tramites-jefe">✍
                         FirmaEC<input type="file" id="fec-tramites-jefe" accept="image/*"
                           (change)="onFirmaECChange('tramites_jefe',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['tramites_jefe']" class="firma-mini-ok"><img
@@ -1495,9 +1435,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['admin_r1'] && firmasECRequired['admin_r1']" class="btn-firma-mini" for="fec-admin-r1">✍ FirmaEC<input
-                          type="file" id="fec-admin-r1" accept="image/*" (change)="onFirmaECChange('admin_r1',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['admin_r1'] && firmasECRequired['admin_r1']" class="btn-firma-mini"
+                        for="fec-admin-r1">✍ FirmaEC<input type="file" id="fec-admin-r1" accept="image/*"
+                          (change)="onFirmaECChange('admin_r1',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['admin_r1']" class="firma-mini-ok"><img [src]="firmasEC['admin_r1']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('admin_r1')">✕</button></div>
@@ -1516,9 +1456,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['admin_r2'] && firmasECRequired['admin_r2']" class="btn-firma-mini" for="fec-admin-r2">✍ FirmaEC<input
-                          type="file" id="fec-admin-r2" accept="image/*" (change)="onFirmaECChange('admin_r2',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['admin_r2'] && firmasECRequired['admin_r2']" class="btn-firma-mini"
+                        for="fec-admin-r2">✍ FirmaEC<input type="file" id="fec-admin-r2" accept="image/*"
+                          (change)="onFirmaECChange('admin_r2',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['admin_r2']" class="firma-mini-ok"><img [src]="firmasEC['admin_r2']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('admin_r2')">✕</button></div>
@@ -1537,9 +1477,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['admin_r3'] && firmasECRequired['admin_r3']" class="btn-firma-mini" for="fec-admin-r3">✍ FirmaEC<input
-                          type="file" id="fec-admin-r3" accept="image/*" (change)="onFirmaECChange('admin_r3',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['admin_r3'] && firmasECRequired['admin_r3']" class="btn-firma-mini"
+                        for="fec-admin-r3">✍ FirmaEC<input type="file" id="fec-admin-r3" accept="image/*"
+                          (change)="onFirmaECChange('admin_r3',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['admin_r3']" class="firma-mini-ok"><img [src]="firmasEC['admin_r3']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('admin_r3')">✕</button></div>
@@ -1558,9 +1498,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['admin_r4'] && firmasECRequired['admin_r4']" class="btn-firma-mini" for="fec-admin-r4">✍ FirmaEC<input
-                          type="file" id="fec-admin-r4" accept="image/*" (change)="onFirmaECChange('admin_r4',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['admin_r4'] && firmasECRequired['admin_r4']" class="btn-firma-mini"
+                        for="fec-admin-r4">✍ FirmaEC<input type="file" id="fec-admin-r4" accept="image/*"
+                          (change)="onFirmaECChange('admin_r4',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['admin_r4']" class="firma-mini-ok"><img [src]="firmasEC['admin_r4']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('admin_r4')">✕</button></div>
@@ -1573,9 +1513,9 @@
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('admin_responsable')?.value || '—'
                       }}</td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['admin_dir'] && firmasECRequired['admin_dir']" class="btn-firma-mini" for="fec-admin-dir">✍ FirmaEC<input
-                          type="file" id="fec-admin-dir" accept="image/*" (change)="onFirmaECChange('admin_dir',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['admin_dir'] && firmasECRequired['admin_dir']" class="btn-firma-mini"
+                        for="fec-admin-dir">✍ FirmaEC<input type="file" id="fec-admin-dir" accept="image/*"
+                          (change)="onFirmaECChange('admin_dir',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['admin_dir']" class="firma-mini-ok"><img [src]="firmasEC['admin_dir']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('admin_dir')">✕</button></div>
@@ -1847,9 +1787,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['tic_r1'] && firmasECRequired['tic_r1']" class="btn-firma-mini" for="fec-tic-r1">✍ FirmaEC<input
-                          type="file" id="fec-tic-r1" accept="image/*" (change)="onFirmaECChange('tic_r1',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['tic_r1'] && firmasECRequired['tic_r1']" class="btn-firma-mini"
+                        for="fec-tic-r1">✍ FirmaEC<input type="file" id="fec-tic-r1" accept="image/*"
+                          (change)="onFirmaECChange('tic_r1',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['tic_r1']" class="firma-mini-ok"><img [src]="firmasEC['tic_r1']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('tic_r1')">✕</button></div>
@@ -1868,9 +1808,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['tic_r2'] && firmasECRequired['tic_r2']" class="btn-firma-mini" for="fec-tic-r2">✍ FirmaEC<input
-                          type="file" id="fec-tic-r2" accept="image/*" (change)="onFirmaECChange('tic_r2',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['tic_r2'] && firmasECRequired['tic_r2']" class="btn-firma-mini"
+                        for="fec-tic-r2">✍ FirmaEC<input type="file" id="fec-tic-r2" accept="image/*"
+                          (change)="onFirmaECChange('tic_r2',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['tic_r2']" class="firma-mini-ok"><img [src]="firmasEC['tic_r2']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('tic_r2')">✕</button></div>
@@ -1889,9 +1829,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['tic_r3'] && firmasECRequired['tic_r3']" class="btn-firma-mini" for="fec-tic-r3">✍ FirmaEC<input
-                          type="file" id="fec-tic-r3" accept="image/*" (change)="onFirmaECChange('tic_r3',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['tic_r3'] && firmasECRequired['tic_r3']" class="btn-firma-mini"
+                        for="fec-tic-r3">✍ FirmaEC<input type="file" id="fec-tic-r3" accept="image/*"
+                          (change)="onFirmaECChange('tic_r3',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['tic_r3']" class="firma-mini-ok"><img [src]="firmasEC['tic_r3']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('tic_r3')">✕</button></div>
@@ -1910,9 +1850,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['tic_r4'] && firmasECRequired['tic_r4']" class="btn-firma-mini" for="fec-tic-r4">✍ FirmaEC<input
-                          type="file" id="fec-tic-r4" accept="image/*" (change)="onFirmaECChange('tic_r4',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['tic_r4'] && firmasECRequired['tic_r4']" class="btn-firma-mini"
+                        for="fec-tic-r4">✍ FirmaEC<input type="file" id="fec-tic-r4" accept="image/*"
+                          (change)="onFirmaECChange('tic_r4',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['tic_r4']" class="firma-mini-ok"><img [src]="firmasEC['tic_r4']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('tic_r4')">✕</button></div>
@@ -1925,9 +1865,9 @@
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('tic_responsable')?.value || '—' }}
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['tic_r5'] && firmasECRequired['tic_r5']" class="btn-firma-mini" for="fec-tic-r5">✍ FirmaEC<input
-                          type="file" id="fec-tic-r5" accept="image/*" (change)="onFirmaECChange('tic_r5',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['tic_r5'] && firmasECRequired['tic_r5']" class="btn-firma-mini"
+                        for="fec-tic-r5">✍ FirmaEC<input type="file" id="fec-tic-r5" accept="image/*"
+                          (change)="onFirmaECChange('tic_r5',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['tic_r5']" class="firma-mini-ok"><img [src]="firmasEC['tic_r5']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('tic_r5')">✕</button></div>
@@ -2146,9 +2086,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['fin_r1'] && firmasECRequired['fin_r1']" class="btn-firma-mini" for="fec-fin-r1">✍ FirmaEC<input
-                          type="file" id="fec-fin-r1" accept="image/*" (change)="onFirmaECChange('fin_r1',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['fin_r1'] && firmasECRequired['fin_r1']" class="btn-firma-mini"
+                        for="fec-fin-r1">✍ FirmaEC<input type="file" id="fec-fin-r1" accept="image/*"
+                          (change)="onFirmaECChange('fin_r1',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['fin_r1']" class="firma-mini-ok"><img [src]="firmasEC['fin_r1']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('fin_r1')">✕</button></div>
@@ -2167,9 +2107,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['fin_r2'] && firmasECRequired['fin_r2']" class="btn-firma-mini" for="fec-fin-r2">✍ FirmaEC<input
-                          type="file" id="fec-fin-r2" accept="image/*" (change)="onFirmaECChange('fin_r2',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['fin_r2'] && firmasECRequired['fin_r2']" class="btn-firma-mini"
+                        for="fec-fin-r2">✍ FirmaEC<input type="file" id="fec-fin-r2" accept="image/*"
+                          (change)="onFirmaECChange('fin_r2',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['fin_r2']" class="firma-mini-ok"><img [src]="firmasEC['fin_r2']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('fin_r2')">✕</button></div>
@@ -2188,9 +2128,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['fin_r3'] && firmasECRequired['fin_r3']" class="btn-firma-mini" for="fec-fin-r3">✍ FirmaEC<input
-                          type="file" id="fec-fin-r3" accept="image/*" (change)="onFirmaECChange('fin_r3',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['fin_r3'] && firmasECRequired['fin_r3']" class="btn-firma-mini"
+                        for="fec-fin-r3">✍ FirmaEC<input type="file" id="fec-fin-r3" accept="image/*"
+                          (change)="onFirmaECChange('fin_r3',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['fin_r3']" class="firma-mini-ok"><img [src]="firmasEC['fin_r3']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('fin_r3')">✕</button></div>
@@ -2209,9 +2149,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['fin_r4'] && firmasECRequired['fin_r4']" class="btn-firma-mini" for="fec-fin-r4">✍ FirmaEC<input
-                          type="file" id="fec-fin-r4" accept="image/*" (change)="onFirmaECChange('fin_r4',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['fin_r4'] && firmasECRequired['fin_r4']" class="btn-firma-mini"
+                        for="fec-fin-r4">✍ FirmaEC<input type="file" id="fec-fin-r4" accept="image/*"
+                          (change)="onFirmaECChange('fin_r4',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['fin_r4']" class="firma-mini-ok"><img [src]="firmasEC['fin_r4']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('fin_r4')">✕</button></div>
@@ -2224,9 +2164,9 @@
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('fin_director')?.value || '—' }}
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['fin_dir'] && firmasECRequired['fin_dir']" class="btn-firma-mini" for="fec-fin-dir">✍ FirmaEC<input
-                          type="file" id="fec-fin-dir" accept="image/*" (change)="onFirmaECChange('fin_dir',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['fin_dir'] && firmasECRequired['fin_dir']" class="btn-firma-mini"
+                        for="fec-fin-dir">✍ FirmaEC<input type="file" id="fec-fin-dir" accept="image/*"
+                          (change)="onFirmaECChange('fin_dir',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['fin_dir']" class="firma-mini-ok"><img [src]="firmasEC['fin_dir']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('fin_dir')">✕</button></div>
@@ -2373,9 +2313,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['seg_r1'] && firmasECRequired['seg_r1']" class="btn-firma-mini" for="fec-seg-r1">✍ FirmaEC<input
-                          type="file" id="fec-seg-r1" accept="image/*" (change)="onFirmaECChange('seg_r1',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['seg_r1'] && firmasECRequired['seg_r1']" class="btn-firma-mini"
+                        for="fec-seg-r1">✍ FirmaEC<input type="file" id="fec-seg-r1" accept="image/*"
+                          (change)="onFirmaECChange('seg_r1',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['seg_r1']" class="firma-mini-ok"><img [src]="firmasEC['seg_r1']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('seg_r1')">✕</button></div>
@@ -2394,9 +2334,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['seg_r2'] && firmasECRequired['seg_r2']" class="btn-firma-mini" for="fec-seg-r2">✍ FirmaEC<input
-                          type="file" id="fec-seg-r2" accept="image/*" (change)="onFirmaECChange('seg_r2',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['seg_r2'] && firmasECRequired['seg_r2']" class="btn-firma-mini"
+                        for="fec-seg-r2">✍ FirmaEC<input type="file" id="fec-seg-r2" accept="image/*"
+                          (change)="onFirmaECChange('seg_r2',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['seg_r2']" class="firma-mini-ok"><img [src]="firmasEC['seg_r2']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('seg_r2')">✕</button></div>
@@ -2408,7 +2348,8 @@
                     <td class="doc-resp-item">Oficial de Seguridad Institucional</td>
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('seg_oficial')?.value || '—' }}</td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['seg_oficial'] && firmasECRequired['seg_oficial']" class="btn-firma-mini" for="fec-seg-oficial">✍
+                      <label *ngIf="!firmasEC['seg_oficial'] && firmasECRequired['seg_oficial']" class="btn-firma-mini"
+                        for="fec-seg-oficial">✍
                         FirmaEC<input type="file" id="fec-seg-oficial" accept="image/*"
                           (change)="onFirmaECChange('seg_oficial',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['seg_oficial']" class="firma-mini-ok"><img [src]="firmasEC['seg_oficial']"
@@ -2684,9 +2625,9 @@
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_resp_capacitacion')?.value ||
                       '—' }}</td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['rrhh_r1'] && firmasECRequired['rrhh_r1']" class="btn-firma-mini" for="fec-rrhh-r1">✍ FirmaEC<input
-                          type="file" id="fec-rrhh-r1" accept="image/*" (change)="onFirmaECChange('rrhh_r1',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['rrhh_r1'] && firmasECRequired['rrhh_r1']" class="btn-firma-mini"
+                        for="fec-rrhh-r1">✍ FirmaEC<input type="file" id="fec-rrhh-r1" accept="image/*"
+                          (change)="onFirmaECChange('rrhh_r1',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['rrhh_r1']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r1']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('rrhh_r1')">✕</button></div>
@@ -2699,9 +2640,9 @@
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_resp_evaluacion')?.value ||
                       '—' }}</td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['rrhh_r2'] && firmasECRequired['rrhh_r2']" class="btn-firma-mini" for="fec-rrhh-r2">✍ FirmaEC<input
-                          type="file" id="fec-rrhh-r2" accept="image/*" (change)="onFirmaECChange('rrhh_r2',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['rrhh_r2'] && firmasECRequired['rrhh_r2']" class="btn-firma-mini"
+                        for="fec-rrhh-r2">✍ FirmaEC<input type="file" id="fec-rrhh-r2" accept="image/*"
+                          (change)="onFirmaECChange('rrhh_r2',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['rrhh_r2']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r2']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('rrhh_r2')">✕</button></div>
@@ -2714,9 +2655,9 @@
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_resp_viajes')?.value || '—' }}
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['rrhh_r3'] && firmasECRequired['rrhh_r3']" class="btn-firma-mini" for="fec-rrhh-r3">✍ FirmaEC<input
-                          type="file" id="fec-rrhh-r3" accept="image/*" (change)="onFirmaECChange('rrhh_r3',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['rrhh_r3'] && firmasECRequired['rrhh_r3']" class="btn-firma-mini"
+                        for="fec-rrhh-r3">✍ FirmaEC<input type="file" id="fec-rrhh-r3" accept="image/*"
+                          (change)="onFirmaECChange('rrhh_r3',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['rrhh_r3']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r3']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('rrhh_r3')">✕</button></div>
@@ -2729,9 +2670,9 @@
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_resp_siith')?.value || '—' }}
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['rrhh_r4'] && firmasECRequired['rrhh_r4']" class="btn-firma-mini" for="fec-rrhh-r4">✍ FirmaEC<input
-                          type="file" id="fec-rrhh-r4" accept="image/*" (change)="onFirmaECChange('rrhh_r4',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['rrhh_r4'] && firmasECRequired['rrhh_r4']" class="btn-firma-mini"
+                        for="fec-rrhh-r4">✍ FirmaEC<input type="file" id="fec-rrhh-r4" accept="image/*"
+                          (change)="onFirmaECChange('rrhh_r4',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['rrhh_r4']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r4']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('rrhh_r4')">✕</button></div>
@@ -2750,9 +2691,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['rrhh_r5'] && firmasECRequired['rrhh_r5']" class="btn-firma-mini" for="fec-rrhh-r5">✍ FirmaEC<input
-                          type="file" id="fec-rrhh-r5" accept="image/*" (change)="onFirmaECChange('rrhh_r5',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['rrhh_r5'] && firmasECRequired['rrhh_r5']" class="btn-firma-mini"
+                        for="fec-rrhh-r5">✍ FirmaEC<input type="file" id="fec-rrhh-r5" accept="image/*"
+                          (change)="onFirmaECChange('rrhh_r5',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['rrhh_r5']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r5']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('rrhh_r5')">✕</button></div>
@@ -2771,9 +2712,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['rrhh_r6'] && firmasECRequired['rrhh_r6']" class="btn-firma-mini" for="fec-rrhh-r6">✍ FirmaEC<input
-                          type="file" id="fec-rrhh-r6" accept="image/*" (change)="onFirmaECChange('rrhh_r6',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['rrhh_r6'] && firmasECRequired['rrhh_r6']" class="btn-firma-mini"
+                        for="fec-rrhh-r6">✍ FirmaEC<input type="file" id="fec-rrhh-r6" accept="image/*"
+                          (change)="onFirmaECChange('rrhh_r6',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['rrhh_r6']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r6']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('rrhh_r6')">✕</button></div>
@@ -2792,9 +2733,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['rrhh_r7'] && firmasECRequired['rrhh_r7']" class="btn-firma-mini" for="fec-rrhh-r7">✍ FirmaEC<input
-                          type="file" id="fec-rrhh-r7" accept="image/*" (change)="onFirmaECChange('rrhh_r7',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['rrhh_r7'] && firmasECRequired['rrhh_r7']" class="btn-firma-mini"
+                        for="fec-rrhh-r7">✍ FirmaEC<input type="file" id="fec-rrhh-r7" accept="image/*"
+                          (change)="onFirmaECChange('rrhh_r7',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['rrhh_r7']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r7']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('rrhh_r7')">✕</button></div>
@@ -2813,9 +2754,9 @@
                         Requerido</span>
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['rrhh_r8'] && firmasECRequired['rrhh_r8']" class="btn-firma-mini" for="fec-rrhh-r8">✍ FirmaEC<input
-                          type="file" id="fec-rrhh-r8" accept="image/*" (change)="onFirmaECChange('rrhh_r8',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['rrhh_r8'] && firmasECRequired['rrhh_r8']" class="btn-firma-mini"
+                        for="fec-rrhh-r8">✍ FirmaEC<input type="file" id="fec-rrhh-r8" accept="image/*"
+                          (change)="onFirmaECChange('rrhh_r8',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['rrhh_r8']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_r8']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('rrhh_r8')">✕</button></div>
@@ -2828,9 +2769,9 @@
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_director')?.value || '—' }}
                     </td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['rrhh_dir'] && firmasECRequired['rrhh_dir']" class="btn-firma-mini" for="fec-rrhh-dir">✍ FirmaEC<input
-                          type="file" id="fec-rrhh-dir" accept="image/*" (change)="onFirmaECChange('rrhh_dir',$event)"
-                          style="display:none"></label>
+                      <label *ngIf="!firmasEC['rrhh_dir'] && firmasECRequired['rrhh_dir']" class="btn-firma-mini"
+                        for="fec-rrhh-dir">✍ FirmaEC<input type="file" id="fec-rrhh-dir" accept="image/*"
+                          (change)="onFirmaECChange('rrhh_dir',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['rrhh_dir']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_dir']"
                           class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear"
                           (click)="clearFirmaEC('rrhh_dir')">✕</button></div>
@@ -2952,7 +2893,8 @@
                     <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('recepcion_servidor')?.value || '—'
                       }}</td>
                     <td class="doc-resp-firma">
-                      <label *ngIf="!firmasEC['recepcion_r1'] && firmasECRequired['recepcion_r1']" class="btn-firma-mini" for="fec-recepcion-r1">✍
+                      <label *ngIf="!firmasEC['recepcion_r1'] && firmasECRequired['recepcion_r1']"
+                        class="btn-firma-mini" for="fec-recepcion-r1">✍
                         FirmaEC<input type="file" id="fec-recepcion-r1" accept="image/*"
                           (change)="onFirmaECChange('recepcion_r1',$event)" style="display:none"></label>
                       <div *ngIf="firmasEC['recepcion_r1']" class="firma-mini-ok"><img [src]="firmasEC['recepcion_r1']"
@@ -3129,15 +3071,13 @@
             </span>
           </div>
 
-          <button type="button" class="btn-guardar-principal"
-            (click)="validarYActualizarEspejo()"
-            [disabled]="cargando"
+          <button type="button" class="btn-guardar-principal" (click)="validarYActualizarEspejo()" [disabled]="cargando"
             [attr.aria-busy]="cargando">
             <span *ngIf="cargando" class="btn-spinner"></span>
             <span *ngIf="!cargando">💾</span>
             {{ esAdmin()
-              ? (cargando ? 'Validando...' : 'Guardar y Validar Formulario')
-              : (cargando ? 'Guardando...' : 'Guardar información') }}
+            ? (cargando ? 'Validando...' : 'Guardar y Validar Formulario')
+            : (cargando ? 'Guardando...' : 'Guardar información') }}
           </button>
         </div>
 
@@ -3187,11 +3127,13 @@
               <div class="ep2-row">
                 <div class="ep2-field ep2-field--lg">
                   <span class="ep2-lbl">NOMBRES Y APELLIDOS</span>
-                  <span class="ep2-val ep2-val--primary">{{ formularioPazSalvo.get('nombres_apellidos')?.value || '—' }}</span>
+                  <span class="ep2-val ep2-val--primary">{{ formularioPazSalvo.get('nombres_apellidos')?.value || '—'
+                    }}</span>
                 </div>
                 <div class="ep2-field">
                   <span class="ep2-lbl">CÉDULA / PASAPORTE</span>
-                  <span class="ep2-val ep2-val--mono">{{ formularioPazSalvo.get('cedula')?.value || '—' }}</span>
+                  <span class="ep2-val ep2-val--mono">{{
+                    formatearCedula(formularioPazSalvo.get('cedula_firmante')?.value) }}</span>
                 </div>
                 <div class="ep2-field">
                   <span class="ep2-lbl">N° DOMICILIO</span>
@@ -3201,7 +3143,8 @@
               <div class="ep2-row">
                 <div class="ep2-field ep2-field--md">
                   <span class="ep2-lbl">MODALIDAD LABORAL</span>
-                  <span class="ep2-yn ep2-yn--neutral ep2-val--caps">{{ formularioPazSalvo.get('modalidad')?.value || '—' }}</span>
+                  <span class="ep2-yn ep2-yn--neutral ep2-val--caps">{{ formularioPazSalvo.get('modalidad')?.value ||
+                    '—' }}</span>
                 </div>
                 <div class="ep2-field">
                   <span class="ep2-lbl">FECHA INGRESO</span>
@@ -3249,12 +3192,14 @@
 
           <!-- ── DIRECCIÓN / UNIDAD ──────────────────────────── -->
           <div class="ep2-section">
-            <div class="ep2-section__head"><span class="ep2-section__icon">🏢</span> DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS</div>
+            <div class="ep2-section__head"><span class="ep2-section__icon">🏢</span> DIRECCIÓN / UNIDAD QUE PRESTÓ SUS
+              SERVICIOS</div>
             <div class="ep2-section__body">
               <div class="ep2-row">
                 <div class="ep2-field">
                   <span class="ep2-lbl">LUGAR DE TRABAJO</span>
-                  <span class="ep2-yn ep2-yn--neutral ep2-val--caps">{{ formularioPazSalvo.get('lugar_trabajo')?.value || '—' }}</span>
+                  <span class="ep2-yn ep2-yn--neutral ep2-val--caps">{{ formularioPazSalvo.get('lugar_trabajo')?.value
+                    || '—' }}</span>
                 </div>
                 <div class="ep2-field ep2-field--lg">
                   <span class="ep2-lbl">DIRECCIÓN / UNIDAD</span>
@@ -3274,13 +3219,16 @@
 
           <!-- ── TRÁMITES Y GESTIÓN DOCUMENTAL ──────────────── -->
           <div class="ep2-section">
-            <div class="ep2-section__head"><span class="ep2-section__icon">📋</span> ENTREGA / GESTIÓN DOCUMENTAL Y DE TRÁMITES</div>
+            <div class="ep2-section__head"><span class="ep2-section__icon">📋</span> ENTREGA / GESTIÓN DOCUMENTAL Y DE
+              TRÁMITES</div>
             <div class="ep2-section__body ep2-p0">
               <table class="ep2-table">
                 <thead>
                   <tr>
-                    <th class="ep2-th-det">DETALLE</th><th class="ep2-th-yn">RESP.</th>
-                    <th class="ep2-th-det">DETALLE</th><th class="ep2-th-yn">RESP.</th>
+                    <th class="ep2-th-det">DETALLE</th>
+                    <th class="ep2-th-yn">RESP.</th>
+                    <th class="ep2-th-det">DETALLE</th>
+                    <th class="ep2-th-yn">RESP.</th>
                     <th class="ep2-th-nombre">NOMBRE RESPONSABLE</th>
                     <th class="ep2-th-firma">FIRMA</th>
                   </tr>
@@ -3288,34 +3236,62 @@
                 <tbody>
                   <tr>
                     <td class="ep2-td-det">Entrega informe de fin de gestión con detalle de actividades</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_informe')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_informe')?.value==='NO'}">{{ formularioPazSalvo.get('tramites_informe')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_informe')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_informe')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tramites_informe')?.value || '—' }}</span></td>
                     <td class="ep2-td-det">Trámites QUIPUX (bandeja en cero)</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_quipux_cero')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_quipux_cero')?.value==='NO'}">{{ formularioPazSalvo.get('tramites_quipux_cero')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_quipux_cero')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_quipux_cero')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tramites_quipux_cero')?.value || '—' }}</span></td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('tramites_nombre_resp1')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['tramites_r1']" [src]="firmasEC['tramites_r1']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['tramites_r1']" [src]="firmasEC['tramites_r1']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Fe de presentación del informe de fin de gestión en recepción</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_fe_presentacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_fe_presentacion')?.value==='NO'}">{{ formularioPazSalvo.get('tramites_fe_presentacion')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_fe_presentacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_fe_presentacion')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tramites_fe_presentacion')?.value || '—' }}</span></td>
                     <td class="ep2-td-det">Tiene claves de acceso asignadas en su unidad</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_claves_asignadas')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_claves_asignadas')?.value==='NO'}">{{ formularioPazSalvo.get('tramites_claves_asignadas')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_claves_asignadas')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_claves_asignadas')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tramites_claves_asignadas')?.value || '—' }}</span></td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('tramites_nombre_resp2')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['tramites_r2']" [src]="firmasEC['tramites_r2']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['tramites_r2']" [src]="firmasEC['tramites_r2']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Entrega de archivo documentación física y digital (LOSEP)</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_losep')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_losep')?.value==='NO'}">{{ formularioPazSalvo.get('tramites_losep')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_losep')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_losep')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tramites_losep')?.value || '—' }}</span></td>
                     <td class="ep2-td-det">Realizó acta entrega de claves de su unidad</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_acta_claves')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_acta_claves')?.value==='NO'}">{{ formularioPazSalvo.get('tramites_acta_claves')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_acta_claves')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_acta_claves')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tramites_acta_claves')?.value || '—' }}</span></td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('tramites_nombre_resp3')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['tramites_r3']" [src]="firmasEC['tramites_r3']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['tramites_r3']" [src]="firmasEC['tramites_r3']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Es administrador de contrato</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_admin_contrato')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_admin_contrato')?.value==='NO'}">{{ formularioPazSalvo.get('tramites_admin_contrato')?.value || '—' }}</span></td>
-                    <td colspan="2" class="ep2-td-obs"><span class="ep2-sublbl">OBS: </span>{{ formularioPazSalvo.get('tramites_obs')?.value || '—' }}</td>
-                    <td class="ep2-td-resp">{{ formularioPazSalvo.get('tramites_nombre_responsable')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['tramites_jefe']" [src]="firmasEC['tramites_jefe']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tramites_admin_contrato')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tramites_admin_contrato')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tramites_admin_contrato')?.value || '—' }}</span></td>
+                    <td colspan="2" class="ep2-td-obs"><span class="ep2-sublbl">OBS: </span>{{
+                      formularioPazSalvo.get('tramites_obs')?.value || '—' }}</td>
+                    <td class="ep2-td-resp">{{ formularioPazSalvo.get('tramites_nombre_responsable')?.value || '—' }}
+                    </td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['tramites_jefe']"
+                          [src]="firmasEC['tramites_jefe']" class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -3338,7 +3314,8 @@
               <div class="ep2-row">
                 <div class="ep2-field ep2-field--full">
                   <span class="ep2-lbl">NOMBRE Y CARGO DEL JEFE INMEDIATO</span>
-                  <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('tramites_jefe_inmediato')?.value || '—' }}</span>
+                  <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('tramites_jefe_inmediato')?.value
+                    || '—' }}</span>
                 </div>
               </div>
             </div>
@@ -3346,12 +3323,14 @@
 
           <!-- ── GESTIÓN ADMINISTRATIVA ──────────────────────── -->
           <div class="ep2-section">
-            <div class="ep2-section__head"><span class="ep2-section__icon">🗄</span> GESTIÓN ADMINISTRATIVA — DIRECCIÓN ADMINISTRATIVA FINANCIERA</div>
+            <div class="ep2-section__head"><span class="ep2-section__icon">🗄</span> GESTIÓN ADMINISTRATIVA — DIRECCIÓN
+              ADMINISTRATIVA FINANCIERA</div>
             <div class="ep2-section__body ep2-p0">
               <table class="ep2-table">
                 <thead>
                   <tr>
-                    <th class="ep2-th-det">DETALLE</th><th class="ep2-th-yn">RESP.</th>
+                    <th class="ep2-th-det">DETALLE</th>
+                    <th class="ep2-th-yn">RESP.</th>
                     <th class="ep2-th-valor">VALOR / DATO</th>
                     <th class="ep2-th-nombre">NOMBRE RESPONSABLE</th>
                     <th class="ep2-th-firma">FIRMA</th>
@@ -3360,38 +3339,64 @@
                 <tbody>
                   <tr>
                     <td class="ep2-td-det">Realizó entrega del informe</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('admin_informe')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('admin_informe')?.value==='NO'}">{{ formularioPazSalvo.get('admin_informe')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('admin_informe')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('admin_informe')?.value==='NO'}">{{
+                        formularioPazSalvo.get('admin_informe')?.value || '—' }}</span></td>
                     <td class="ep2-td-valor">—</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('admin_nombre_resp1')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['admin_r1']" [src]="firmasEC['admin_r1']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['admin_r1']" [src]="firmasEC['admin_r1']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Entregó bienes muebles y equipos</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('admin_bienes')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('admin_bienes')?.value==='NO'}">{{ formularioPazSalvo.get('admin_bienes')?.value || '—' }}</span></td>
-                    <td class="ep2-td-valor"><span class="ep2-sublbl">N° ACTA: </span>{{ formularioPazSalvo.get('admin_acta_bienes')?.value || '—' }}</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('admin_bienes')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('admin_bienes')?.value==='NO'}">{{
+                        formularioPazSalvo.get('admin_bienes')?.value || '—' }}</span></td>
+                    <td class="ep2-td-valor"><span class="ep2-sublbl">N° ACTA: </span>{{
+                      formularioPazSalvo.get('admin_acta_bienes')?.value || '—' }}</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('admin_nombre_resp2')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['admin_r2']" [src]="firmasEC['admin_r2']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['admin_r2']" [src]="firmasEC['admin_r2']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Tiene valores pendientes por deducibles</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('admin_deducibles')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('admin_deducibles')?.value==='NO'}">{{ formularioPazSalvo.get('admin_deducibles')?.value || '—' }}</span></td>
-                    <td class="ep2-td-valor"><span class="ep2-sublbl">VALOR: </span><span class="ep2-money">{{ formularioPazSalvo.get('admin_deducibles_valor')?.value != null ? ('$ ' + formularioPazSalvo.get('admin_deducibles_valor')?.value) : '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('admin_deducibles')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('admin_deducibles')?.value==='NO'}">{{
+                        formularioPazSalvo.get('admin_deducibles')?.value || '—' }}</span></td>
+                    <td class="ep2-td-valor"><span class="ep2-sublbl">VALOR: </span><span class="ep2-money">{{
+                        formularioPazSalvo.get('admin_deducibles_valor')?.value != null ? ('$ ' +
+                        formularioPazSalvo.get('admin_deducibles_valor')?.value) : '—' }}</span></td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('admin_nombre_resp3')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['admin_r3']" [src]="firmasEC['admin_r3']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['admin_r3']" [src]="firmasEC['admin_r3']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Tiene pasajes aéreos por justificar</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('admin_pasajes')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('admin_pasajes')?.value==='NO'}">{{ formularioPazSalvo.get('admin_pasajes')?.value || '—' }}</span></td>
-                    <td class="ep2-td-valor"><span class="ep2-sublbl">VALOR: </span><span class="ep2-money">{{ formularioPazSalvo.get('admin_pasajes_valor')?.value != null ? ('$ ' + formularioPazSalvo.get('admin_pasajes_valor')?.value) : '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('admin_pasajes')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('admin_pasajes')?.value==='NO'}">{{
+                        formularioPazSalvo.get('admin_pasajes')?.value || '—' }}</span></td>
+                    <td class="ep2-td-valor"><span class="ep2-sublbl">VALOR: </span><span class="ep2-money">{{
+                        formularioPazSalvo.get('admin_pasajes_valor')?.value != null ? ('$ ' +
+                        formularioPazSalvo.get('admin_pasajes_valor')?.value) : '—' }}</span></td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('admin_nombre_resp4')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['admin_r4']" [src]="firmasEC['admin_r4']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['admin_r4']" [src]="firmasEC['admin_r4']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div class="ep2-section__footer">
               <span class="ep2-lbl">RESPONSABLE GENERAL: </span>
-              <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('admin_responsable')?.value || '—' }}</span>
+              <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('admin_responsable')?.value || '—'
+                }}</span>
               <div class="ep2-footer-firma">
                 <div class="ep2-footer-firma-linea"></div>
                 <span class="ep2-footer-firma-lbl">FIRMA RESPONSABLE</span>
@@ -3401,12 +3406,14 @@
 
           <!-- ── GESTIÓN TIC ──────────────────────────────────── -->
           <div class="ep2-section">
-            <div class="ep2-section__head"><span class="ep2-section__icon">💻</span> GESTIÓN DE TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIÓN</div>
+            <div class="ep2-section__head"><span class="ep2-section__icon">💻</span> GESTIÓN DE TECNOLOGÍAS DE LA
+              INFORMACIÓN Y COMUNICACIÓN</div>
             <div class="ep2-section__body ep2-p0">
               <table class="ep2-table">
                 <thead>
                   <tr>
-                    <th class="ep2-th-det">DETALLE</th><th class="ep2-th-yn">RESP.</th>
+                    <th class="ep2-th-det">DETALLE</th>
+                    <th class="ep2-th-yn">RESP.</th>
                     <th class="ep2-th-valor">DETALLE / OBSERVACIÓN</th>
                     <th class="ep2-th-nombre">NOMBRE RESPONSABLE</th>
                     <th class="ep2-th-firma">FIRMA</th>
@@ -3415,47 +3422,86 @@
                 <tbody>
                   <tr>
                     <td class="ep2-td-det">Verificación del equipo informático</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_verificacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_verificacion')?.value==='NO'}">{{ formularioPazSalvo.get('tic_verificacion')?.value || '—' }}</span></td>
-                    <td class="ep2-td-valor"><span class="ep2-sublbl">OBS: </span>{{ formularioPazSalvo.get('tic_obs')?.value || '—' }}</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_verificacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_verificacion')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tic_verificacion')?.value || '—' }}</span></td>
+                    <td class="ep2-td-valor"><span class="ep2-sublbl">OBS: </span>{{
+                      formularioPazSalvo.get('tic_obs')?.value || '—' }}</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('tic_nombre_resp1')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['tic_r1']" [src]="firmasEC['tic_r1']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['tic_r1']" [src]="firmasEC['tic_r1']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Acceso a IP fija Wi-Fi y/o móvil</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_ip_fija')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_ip_fija')?.value==='NO'}">{{ formularioPazSalvo.get('tic_ip_fija')?.value || '—' }}</span></td>
-                    <td class="ep2-td-valor"><span class="ep2-sublbl">LIBERACIÓN: </span><span class="ep2-yn ep2-yn--sm" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_liberacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_liberacion')?.value==='NO'}">{{ formularioPazSalvo.get('tic_liberacion')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_ip_fija')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_ip_fija')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tic_ip_fija')?.value || '—' }}</span></td>
+                    <td class="ep2-td-valor"><span class="ep2-sublbl">LIBERACIÓN: </span><span class="ep2-yn ep2-yn--sm"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_liberacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_liberacion')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tic_liberacion')?.value || '—' }}</span></td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('tic_nombre_resp2')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['tic_r2']" [src]="firmasEC['tic_r2']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['tic_r2']" [src]="firmasEC['tic_r2']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Retiro de control de acceso (contraseñas de sistemas)</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_retiro_acceso')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_retiro_acceso')?.value==='NO'}">{{ formularioPazSalvo.get('tic_retiro_acceso')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_retiro_acceso')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_retiro_acceso')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tic_retiro_acceso')?.value || '—' }}</span></td>
                     <td class="ep2-td-valor">
-                      <span class="ep2-sublbl">BACKUP: </span><span class="ep2-yn ep2-yn--sm" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_backup')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_backup')?.value==='NO'}">{{ formularioPazSalvo.get('tic_backup')?.value || '—' }}</span>
-                      <span class="ep2-sublbl ep2-ml4">RUTA: </span>{{ formularioPazSalvo.get('tic_ruta_backup')?.value || '—' }}
+                      <span class="ep2-sublbl">BACKUP: </span><span class="ep2-yn ep2-yn--sm"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_backup')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_backup')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tic_backup')?.value || '—' }}</span>
+                      <span class="ep2-sublbl ep2-ml4">RUTA: </span>{{ formularioPazSalvo.get('tic_ruta_backup')?.value
+                      || '—' }}
                     </td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('tic_nombre_resp3')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['tic_r3']" [src]="firmasEC['tic_r3']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['tic_r3']" [src]="firmasEC['tic_r3']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Cierre de cuentas en sistemas institucionales</td>
                     <td class="ep2-td-yn">—</td>
                     <td class="ep2-td-cuentas-grid">
-                      <span class="ep2-cuenta-item">CORREO <span class="ep2-yn ep2-yn--sm" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_cierre_correo')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_cierre_correo')?.value==='NO'}">{{ formularioPazSalvo.get('tic_cierre_correo')?.value || '—' }}</span></span>
-                      <span class="ep2-cuenta-item">eSIGEF <span class="ep2-yn ep2-yn--sm" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_esigef')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_esigef')?.value==='NO'}">{{ formularioPazSalvo.get('tic_esigef')?.value || '—' }}</span></span>
-                      <span class="ep2-cuenta-item">QUIPUX <span class="ep2-yn ep2-yn--sm" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_quipux')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_quipux')?.value==='NO'}">{{ formularioPazSalvo.get('tic_quipux')?.value || '—' }}</span></span>
-                      <span class="ep2-cuenta-item">SPRYN <span class="ep2-yn ep2-yn--sm" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_spryn')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_spryn')?.value==='NO'}">{{ formularioPazSalvo.get('tic_spryn')?.value || '—' }}</span></span>
-                      <span class="ep2-cuenta-item">eSByE <span class="ep2-yn ep2-yn--sm" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_esbye')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_esbye')?.value==='NO'}">{{ formularioPazSalvo.get('tic_esbye')?.value || '—' }}</span></span>
+                      <span class="ep2-cuenta-item">CORREO <span class="ep2-yn ep2-yn--sm"
+                          [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_cierre_correo')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_cierre_correo')?.value==='NO'}">{{
+                          formularioPazSalvo.get('tic_cierre_correo')?.value || '—' }}</span></span>
+                      <span class="ep2-cuenta-item">eSIGEF <span class="ep2-yn ep2-yn--sm"
+                          [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_esigef')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_esigef')?.value==='NO'}">{{
+                          formularioPazSalvo.get('tic_esigef')?.value || '—' }}</span></span>
+                      <span class="ep2-cuenta-item">QUIPUX <span class="ep2-yn ep2-yn--sm"
+                          [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_quipux')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_quipux')?.value==='NO'}">{{
+                          formularioPazSalvo.get('tic_quipux')?.value || '—' }}</span></span>
+                      <span class="ep2-cuenta-item">SPRYN <span class="ep2-yn ep2-yn--sm"
+                          [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_spryn')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_spryn')?.value==='NO'}">{{
+                          formularioPazSalvo.get('tic_spryn')?.value || '—' }}</span></span>
+                      <span class="ep2-cuenta-item">eSByE <span class="ep2-yn ep2-yn--sm"
+                          [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_esbye')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_esbye')?.value==='NO'}">{{
+                          formularioPazSalvo.get('tic_esbye')?.value || '—' }}</span></span>
                     </td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('tic_nombre_resp4')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['tic_r4']" [src]="firmasEC['tic_r4']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['tic_r4']" [src]="firmasEC['tic_r4']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Entrega y desactivación de tarjeta de acceso</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_tarjeta_cuentas')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_tarjeta_cuentas')?.value==='NO'}">{{ formularioPazSalvo.get('tic_tarjeta_cuentas')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('tic_tarjeta_cuentas')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('tic_tarjeta_cuentas')?.value==='NO'}">{{
+                        formularioPazSalvo.get('tic_tarjeta_cuentas')?.value || '—' }}</span></td>
                     <td class="ep2-td-valor">—</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('tic_responsable')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['tic_r5']" [src]="firmasEC['tic_r5']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['tic_r5']" [src]="firmasEC['tic_r5']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -3469,8 +3515,10 @@
               <table class="ep2-table">
                 <thead>
                   <tr>
-                    <th class="ep2-th-det">DETALLE</th><th class="ep2-th-yn">RESP.</th>
-                    <th class="ep2-th-valor">VALOR</th><th class="ep2-th-obs">OBSERVACIÓN</th>
+                    <th class="ep2-th-det">DETALLE</th>
+                    <th class="ep2-th-yn">RESP.</th>
+                    <th class="ep2-th-valor">VALOR</th>
+                    <th class="ep2-th-obs">OBSERVACIÓN</th>
                     <th class="ep2-th-nombre">NOMBRE RESPONSABLE</th>
                     <th class="ep2-th-firma">FIRMA</th>
                   </tr>
@@ -3478,35 +3526,59 @@
                 <tbody>
                   <tr>
                     <td class="ep2-td-det">Saldos contables pendientes (viáticos, caja chica, pasajes)</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('fin_saldos')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('fin_saldos')?.value==='NO'}">{{ formularioPazSalvo.get('fin_saldos')?.value || '—' }}</span></td>
-                    <td class="ep2-td-valor ep2-money">{{ formularioPazSalvo.get('fin_saldos_valor')?.value != null ? ('$ ' + formularioPazSalvo.get('fin_saldos_valor')?.value) : '—' }}</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('fin_saldos')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('fin_saldos')?.value==='NO'}">{{
+                        formularioPazSalvo.get('fin_saldos')?.value || '—' }}</span></td>
+                    <td class="ep2-td-valor ep2-money">{{ formularioPazSalvo.get('fin_saldos_valor')?.value != null ?
+                      ('$ ' + formularioPazSalvo.get('fin_saldos_valor')?.value) : '—' }}</td>
                     <td class="ep2-td-obs-fin">{{ formularioPazSalvo.get('fin_saldos_obs')?.value || '—' }}</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('fin_nombre_resp1')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['fin_r1']" [src]="firmasEC['fin_r1']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['fin_r1']" [src]="firmasEC['fin_r1']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Anticipo de sueldos pendiente de pago</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('fin_anticipo')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('fin_anticipo')?.value==='NO'}">{{ formularioPazSalvo.get('fin_anticipo')?.value || '—' }}</span></td>
-                    <td class="ep2-td-valor ep2-money">{{ formularioPazSalvo.get('fin_anticipo_valor')?.value != null ? ('$ ' + formularioPazSalvo.get('fin_anticipo_valor')?.value) : '—' }}</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('fin_anticipo')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('fin_anticipo')?.value==='NO'}">{{
+                        formularioPazSalvo.get('fin_anticipo')?.value || '—' }}</span></td>
+                    <td class="ep2-td-valor ep2-money">{{ formularioPazSalvo.get('fin_anticipo_valor')?.value != null ?
+                      ('$ ' + formularioPazSalvo.get('fin_anticipo_valor')?.value) : '—' }}</td>
                     <td class="ep2-td-obs-fin">{{ formularioPazSalvo.get('fin_anticipo_obs')?.value || '—' }}</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('fin_nombre_resp2')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['fin_r2']" [src]="firmasEC['fin_r2']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['fin_r2']" [src]="firmasEC['fin_r2']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Recuperación de valores pendiente</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('fin_recuperacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('fin_recuperacion')?.value==='NO'}">{{ formularioPazSalvo.get('fin_recuperacion')?.value || '—' }}</span></td>
-                    <td class="ep2-td-valor ep2-money">{{ formularioPazSalvo.get('fin_recuperacion_valor')?.value != null ? ('$ ' + formularioPazSalvo.get('fin_recuperacion_valor')?.value) : '—' }}</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('fin_recuperacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('fin_recuperacion')?.value==='NO'}">{{
+                        formularioPazSalvo.get('fin_recuperacion')?.value || '—' }}</span></td>
+                    <td class="ep2-td-valor ep2-money">{{ formularioPazSalvo.get('fin_recuperacion_valor')?.value !=
+                      null ? ('$ ' + formularioPazSalvo.get('fin_recuperacion_valor')?.value) : '—' }}</td>
                     <td class="ep2-td-obs-fin">{{ formularioPazSalvo.get('fin_recuperacion_obs')?.value || '—' }}</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('fin_nombre_resp3')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['fin_r3']" [src]="firmasEC['fin_r3']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['fin_r3']" [src]="firmasEC['fin_r3']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Devolución de muebles y equipos pendiente</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('fin_devolucion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('fin_devolucion')?.value==='NO'}">{{ formularioPazSalvo.get('fin_devolucion')?.value || '—' }}</span></td>
-                    <td class="ep2-td-valor ep2-money">{{ formularioPazSalvo.get('fin_devolucion_valor')?.value != null ? ('$ ' + formularioPazSalvo.get('fin_devolucion_valor')?.value) : '—' }}</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('fin_devolucion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('fin_devolucion')?.value==='NO'}">{{
+                        formularioPazSalvo.get('fin_devolucion')?.value || '—' }}</span></td>
+                    <td class="ep2-td-valor ep2-money">{{ formularioPazSalvo.get('fin_devolucion_valor')?.value != null
+                      ? ('$ ' + formularioPazSalvo.get('fin_devolucion_valor')?.value) : '—' }}</td>
                     <td class="ep2-td-obs-fin">{{ formularioPazSalvo.get('fin_devolucion_obs')?.value || '—' }}</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('fin_nombre_resp4')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['fin_r4']" [src]="firmasEC['fin_r4']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['fin_r4']" [src]="firmasEC['fin_r4']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -3515,7 +3587,8 @@
               <span class="ep2-lbl">DIRECTOR/A ADMINISTRATIVO/A FINANCIERO/A: </span>
               <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('fin_director')?.value || '—' }}</span>
               <div class="ep2-footer-firma">
-                <div class="ep2-footer-firma-linea"><img *ngIf="firmasEC['fin_dir']" [src]="firmasEC['fin_dir']" class="ep2-firma-img-cell" alt="firma dir"></div>
+                <div class="ep2-footer-firma-linea"><img *ngIf="firmasEC['fin_dir']" [src]="firmasEC['fin_dir']"
+                    class="ep2-firma-img-cell" alt="firma dir"></div>
                 <span class="ep2-footer-firma-lbl">FIRMA DIR. FINANCIERO/A</span>
               </div>
             </div>
@@ -3543,13 +3616,16 @@
 
           <!-- ── SEGURIDAD DE LA INFORMACIÓN ────────────────── -->
           <div class="ep2-section">
-            <div class="ep2-section__head"><span class="ep2-section__icon">🔐</span> SEGURIDAD DE LA INFORMACIÓN — Acuerdo Ministerial 166 (EGSI)</div>
+            <div class="ep2-section__head"><span class="ep2-section__icon">🔐</span> SEGURIDAD DE LA INFORMACIÓN —
+              Acuerdo Ministerial 166 (EGSI)</div>
             <div class="ep2-section__body ep2-p0">
               <table class="ep2-table">
                 <thead>
                   <tr>
-                    <th class="ep2-th-det">DETALLE</th><th class="ep2-th-yn">RESP.</th>
-                    <th class="ep2-th-det">DETALLE</th><th class="ep2-th-yn">RESP.</th>
+                    <th class="ep2-th-det">DETALLE</th>
+                    <th class="ep2-th-yn">RESP.</th>
+                    <th class="ep2-th-det">DETALLE</th>
+                    <th class="ep2-th-yn">RESP.</th>
                     <th class="ep2-th-nombre">NOMBRE RESPONSABLE</th>
                     <th class="ep2-th-firma">FIRMA</th>
                   </tr>
@@ -3557,19 +3633,33 @@
                 <tbody>
                   <tr>
                     <td class="ep2-td-det">Archivos digitales</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('seg_archivos')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('seg_archivos')?.value==='NO'}">{{ formularioPazSalvo.get('seg_archivos')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('seg_archivos')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('seg_archivos')?.value==='NO'}">{{
+                        formularioPazSalvo.get('seg_archivos')?.value || '—' }}</span></td>
                     <td class="ep2-td-det">Entrega copia de informe de actividades</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('seg_entrega_copia')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('seg_entrega_copia')?.value==='NO'}">{{ formularioPazSalvo.get('seg_entrega_copia')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('seg_entrega_copia')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('seg_entrega_copia')?.value==='NO'}">{{
+                        formularioPazSalvo.get('seg_entrega_copia')?.value || '—' }}</span></td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('seg_nombre_resp1')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['seg_r1']" [src]="firmasEC['seg_r1']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['seg_r1']" [src]="firmasEC['seg_r1']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Archivos físicos</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('seg_archivos_fisicos')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('seg_archivos_fisicos')?.value==='NO'}">{{ formularioPazSalvo.get('seg_archivos_fisicos')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('seg_archivos_fisicos')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('seg_archivos_fisicos')?.value==='NO'}">{{
+                        formularioPazSalvo.get('seg_archivos_fisicos')?.value || '—' }}</span></td>
                     <td class="ep2-td-det">Verificación de información institucional</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('seg_verificacion_info')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('seg_verificacion_info')?.value==='NO'}">{{ formularioPazSalvo.get('seg_verificacion_info')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('seg_verificacion_info')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('seg_verificacion_info')?.value==='NO'}">{{
+                        formularioPazSalvo.get('seg_verificacion_info')?.value || '—' }}</span></td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('seg_nombre_resp2')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['seg_r2']" [src]="firmasEC['seg_r2']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['seg_r2']" [src]="firmasEC['seg_r2']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -3577,14 +3667,17 @@
             <div class="ep2-section__footer ep2-section__footer--two">
               <div>
                 <span class="ep2-lbl">OFICIAL DE SEGURIDAD: </span>
-                <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('seg_oficial')?.value || '—' }}</span>
+                <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('seg_oficial')?.value || '—'
+                  }}</span>
               </div>
               <div>
                 <span class="ep2-lbl">RESPONSABLE GENERAL: </span>
-                <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('seg_responsable')?.value || '—' }}</span>
+                <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('seg_responsable')?.value || '—'
+                  }}</span>
               </div>
               <div class="ep2-footer-firma">
-                <div class="ep2-footer-firma-linea"><img *ngIf="firmasEC['seg_oficial']" [src]="firmasEC['seg_oficial']" class="ep2-firma-img-cell" alt="firma oficial"></div>
+                <div class="ep2-footer-firma-linea"><img *ngIf="firmasEC['seg_oficial']" [src]="firmasEC['seg_oficial']"
+                    class="ep2-firma-img-cell" alt="firma oficial"></div>
                 <span class="ep2-footer-firma-lbl">FIRMA OFICIAL SEG.</span>
               </div>
             </div>
@@ -3592,7 +3685,8 @@
 
           <!-- ── RECURSOS HUMANOS ──────────────────────────────── -->
           <div class="ep2-section">
-            <div class="ep2-section__head"><span class="ep2-section__icon">👥</span> DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS</div>
+            <div class="ep2-section__head"><span class="ep2-section__icon">👥</span> DIRECCIÓN DE ADMINISTRACIÓN DE
+              RECURSOS HUMANOS</div>
             <div class="ep2-section__body ep2-p0">
               <table class="ep2-table">
                 <thead>
@@ -3606,71 +3700,125 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <td class="ep2-td-det" colspan="2">Responsable de capacitación certifica que el servidor devengó los cursos recibidos</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_capacitacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_capacitacion')?.value==='NO'}">{{ formularioPazSalvo.get('rrhh_capacitacion')?.value || '—' }}</span></td>
+                    <td class="ep2-td-det" colspan="2">Responsable de capacitación certifica que el servidor devengó los
+                      cursos recibidos</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_capacitacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_capacitacion')?.value==='NO'}">{{
+                        formularioPazSalvo.get('rrhh_capacitacion')?.value || '—' }}</span></td>
                     <td class="ep2-td-valor">{{ formularioPazSalvo.get('rrhh_cursos_eval')?.value || '—' }}</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('rrhh_resp_capacitacion')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r1']" [src]="firmasEC['rrhh_r1']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r1']" [src]="firmasEC['rrhh_r1']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
-                    <td class="ep2-td-det" colspan="2">Responsable de evaluación certifica que se aplicó la evaluación del desempeño del año en curso</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_evaluacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_evaluacion')?.value==='NO'}">{{ formularioPazSalvo.get('rrhh_evaluacion')?.value || '—' }}</span></td>
+                    <td class="ep2-td-det" colspan="2">Responsable de evaluación certifica que se aplicó la evaluación
+                      del desempeño del año en curso</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_evaluacion')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_evaluacion')?.value==='NO'}">{{
+                        formularioPazSalvo.get('rrhh_evaluacion')?.value || '—' }}</span></td>
                     <td class="ep2-td-valor">—</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('rrhh_resp_evaluacion')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r2']" [src]="firmasEC['rrhh_r2']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r2']" [src]="firmasEC['rrhh_r2']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
-                    <td class="ep2-td-det" colspan="2">Responsable de viajes certifica la devengación/capacitación de viajes del último año</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_viajes')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_viajes')?.value==='NO'}">{{ formularioPazSalvo.get('rrhh_viajes')?.value || '—' }}</span></td>
+                    <td class="ep2-td-det" colspan="2">Responsable de viajes certifica la devengación/capacitación de
+                      viajes del último año</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_viajes')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_viajes')?.value==='NO'}">{{
+                        formularioPazSalvo.get('rrhh_viajes')?.value || '—' }}</span></td>
                     <td class="ep2-td-valor">—</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('rrhh_resp_viajes')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r3']" [src]="firmasEC['rrhh_r3']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r3']" [src]="firmasEC['rrhh_r3']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
-                    <td class="ep2-td-det" colspan="2">Responsable SIITH certifica que el servidor fue desvinculado del puesto que renuncia</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_siith')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_siith')?.value==='NO'}">{{ formularioPazSalvo.get('rrhh_siith')?.value || '—' }}</span></td>
+                    <td class="ep2-td-det" colspan="2">Responsable SIITH certifica que el servidor fue desvinculado del
+                      puesto que renuncia</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_siith')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_siith')?.value==='NO'}">{{
+                        formularioPazSalvo.get('rrhh_siith')?.value || '—' }}</span></td>
                     <td class="ep2-td-valor">—</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('rrhh_resp_siith')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r4']" [src]="firmasEC['rrhh_r4']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r4']" [src]="firmasEC['rrhh_r4']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det" colspan="2">Vacaciones acumuladas y número de certificado emitido</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn ep2-yn--neutral">{{ (formularioPazSalvo.get('rrhh_vacaciones')?.value ?? '—') }} días</span></td>
-                    <td class="ep2-td-valor"><span class="ep2-sublbl">N° CERT: </span>{{ formularioPazSalvo.get('rrhh_num_certificado')?.value || '—' }}</td>
+                    <td class="ep2-td-yn"><span class="ep2-yn ep2-yn--neutral">{{
+                        (formularioPazSalvo.get('rrhh_vacaciones')?.value ?? '—') }} días</span></td>
+                    <td class="ep2-td-valor"><span class="ep2-sublbl">N° CERT: </span>{{
+                      formularioPazSalvo.get('rrhh_num_certificado')?.value || '—' }}</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('rrhh_resp_vacaciones')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r5']" [src]="firmasEC['rrhh_r5']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r5']" [src]="firmasEC['rrhh_r5']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
-                    <td class="ep2-td-det" colspan="2">Entrega constancia y declaración juramentada de fin de gestión</td>
-                    <td class="ep2-td-yn"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_juramentada')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_juramentada')?.value==='NO'}">{{ formularioPazSalvo.get('rrhh_juramentada')?.value || '—' }}</span></td>
-                    <td class="ep2-td-valor"><span class="ep2-sublbl">N° DECL: </span>{{ formularioPazSalvo.get('rrhh_num_declaracion')?.value || '—' }}</td>
+                    <td class="ep2-td-det" colspan="2">Entrega constancia y declaración juramentada de fin de gestión
+                    </td>
+                    <td class="ep2-td-yn"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_juramentada')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_juramentada')?.value==='NO'}">{{
+                        formularioPazSalvo.get('rrhh_juramentada')?.value || '—' }}</span></td>
+                    <td class="ep2-td-valor"><span class="ep2-sublbl">N° DECL: </span>{{
+                      formularioPazSalvo.get('rrhh_num_declaracion')?.value || '—' }}</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('rrhh_resp_juramentada')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r6']" [src]="firmasEC['rrhh_r6']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r6']" [src]="firmasEC['rrhh_r6']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Entrega credencial institucional y porta credencial</td>
-                    <td class="ep2-td-yn ep2-td-yn--half"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_credencial')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_credencial')?.value==='NO'}">{{ formularioPazSalvo.get('rrhh_credencial')?.value || '—' }}</span></td>
-                    <td class="ep2-td-yn"><span class="ep2-yn ep2-yn--sm" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_entrega_informe_cd')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_entrega_informe_cd')?.value==='NO'}">{{ formularioPazSalvo.get('rrhh_entrega_informe_cd')?.value || '—' }}</span><span class="ep2-sublbl ep2-block">CD actividades</span></td>
+                    <td class="ep2-td-yn ep2-td-yn--half"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_credencial')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_credencial')?.value==='NO'}">{{
+                        formularioPazSalvo.get('rrhh_credencial')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn ep2-yn--sm"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_entrega_informe_cd')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_entrega_informe_cd')?.value==='NO'}">{{
+                        formularioPazSalvo.get('rrhh_entrega_informe_cd')?.value || '—' }}</span><span
+                        class="ep2-sublbl ep2-block">CD actividades</span></td>
                     <td class="ep2-td-valor">—</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('rrhh_resp_credencial2')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r7']" [src]="firmasEC['rrhh_r7']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r7']" [src]="firmasEC['rrhh_r7']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="ep2-td-det">Acta de bienes del custodio</td>
-                    <td class="ep2-td-yn ep2-td-yn--half"><span class="ep2-yn" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_acta_bienes')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_acta_bienes')?.value==='NO'}">{{ formularioPazSalvo.get('rrhh_acta_bienes')?.value || '—' }}</span></td>
-                    <td class="ep2-td-yn"><span class="ep2-yn ep2-yn--sm" [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_ropa_trabajo')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_ropa_trabajo')?.value==='NO'}">{{ formularioPazSalvo.get('rrhh_ropa_trabajo')?.value || '—' }}</span><span class="ep2-sublbl ep2-block">Ropa trabajo</span></td>
+                    <td class="ep2-td-yn ep2-td-yn--half"><span class="ep2-yn"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_acta_bienes')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_acta_bienes')?.value==='NO'}">{{
+                        formularioPazSalvo.get('rrhh_acta_bienes')?.value || '—' }}</span></td>
+                    <td class="ep2-td-yn"><span class="ep2-yn ep2-yn--sm"
+                        [ngClass]="{'ep2-yn--si': formularioPazSalvo.get('rrhh_ropa_trabajo')?.value==='SI','ep2-yn--no': formularioPazSalvo.get('rrhh_ropa_trabajo')?.value==='NO'}">{{
+                        formularioPazSalvo.get('rrhh_ropa_trabajo')?.value || '—' }}</span><span
+                        class="ep2-sublbl ep2-block">Ropa trabajo</span></td>
                     <td class="ep2-td-valor">—</td>
                     <td class="ep2-td-resp">{{ formularioPazSalvo.get('rrhh_resp_acta')?.value || '—' }}</td>
-                    <td class="ep2-td-firma"><div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r8']" [src]="firmasEC['rrhh_r8']" class="ep2-firma-img-cell" alt="firma"></div></td>
+                    <td class="ep2-td-firma">
+                      <div class="ep2-firma-cell"><img *ngIf="firmasEC['rrhh_r8']" [src]="firmasEC['rrhh_r8']"
+                          class="ep2-firma-img-cell" alt="firma"></div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div class="ep2-section__footer">
               <span class="ep2-lbl">DIRECTOR/A DE RRHH: </span>
-              <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('rrhh_director')?.value || '—' }}</span>
+              <span class="ep2-val ep2-val--highlight">{{ formularioPazSalvo.get('rrhh_director')?.value || '—'
+                }}</span>
               <div class="ep2-footer-firma">
-                <div class="ep2-footer-firma-linea"><img *ngIf="firmasEC['rrhh_dir']" [src]="firmasEC['rrhh_dir']" class="ep2-firma-img-cell" alt="firma dir rrhh"></div>
+                <div class="ep2-footer-firma-linea"><img *ngIf="firmasEC['rrhh_dir']" [src]="firmasEC['rrhh_dir']"
+                    class="ep2-firma-img-cell" alt="firma dir rrhh"></div>
                 <span class="ep2-footer-firma-lbl">FIRMA DIR. RRHH</span>
               </div>
             </div>
@@ -3678,52 +3826,87 @@
 
           <!-- ── RECEPCIÓN DE DOCUMENTOS ─────────────────────── -->
           <div class="ep2-section">
-            <div class="ep2-section__head"><span class="ep2-section__icon">📥</span> RECEPCIÓN DE DOCUMENTOS — DIRECCIÓN DE RRHH</div>
+            <div class="ep2-section__head">
+              <span class="ep2-section__icon">📥</span>
+              RECEPCIÓN DE DOCUMENTOS — DIRECCIÓN DE RRHH
+            </div>
+
             <div class="ep2-section__body">
               <div class="ep2-row">
+
                 <div class="ep2-field">
                   <span class="ep2-lbl">FECHA ENTREGA PAZ Y SALVO</span>
-                  <span class="ep2-val ep2-val--mono">{{ formularioPazSalvo.get('recepcion_fecha')?.value || '—' }}</span>
+                  <span class="ep2-val ep2-val--mono">
+                    {{ formularioPazSalvo.get('recepcion_fecha')?.value || '—' }}
+                  </span>
                 </div>
+
                 <div class="ep2-field">
                   <span class="ep2-lbl">N° HOJAS RECIBIDAS</span>
-                  <span class="ep2-val ep2-val--mono">{{ formularioPazSalvo.get('recepcion_hojas')?.value ?? '—' }}</span>
+                  <span class="ep2-val ep2-val--mono">
+                    {{ formularioPazSalvo.get('recepcion_hojas')?.value ?? '—' }}
+                  </span>
                 </div>
+
                 <div class="ep2-field ep2-field--md">
                   <span class="ep2-lbl">SERVIDOR/A QUE RECIBE</span>
-                  <span class="ep2-val">{{ formularioPazSalvo.get('recepcion_servidor')?.value || '—' }}</span>
+                  <span class="ep2-val">
+                    {{ formularioPazSalvo.get('recepcion_servidor')?.value || '—' }}
+                  </span>
                 </div>
+
                 <div class="ep2-field ep2-field--md">
                   <span class="ep2-lbl">CARGO DE QUIEN RECIBE</span>
-                  <span class="ep2-val">{{ formularioPazSalvo.get('recepcion_cargo')?.value || '—' }}</span>
+                  <span class="ep2-val">
+                    {{ formularioPazSalvo.get('recepcion_cargo')?.value || '—' }}
+                  </span>
                 </div>
+
+                <div class="ep2-field ep2-field--firma">
+                  <span class="ep2-lbl">FIRMA RECEPCIÓN RRHH</span>
+
+                  <span class="ep2-val ep2-val--firma">
+                    <img *ngIf="firmasEC['recepcion_r1']" [src]="firmasEC['recepcion_r1']" class="ep2-firma-mini"
+                      alt="Firma recepción RRHH">
+
+                    <span *ngIf="!firmasEC['recepcion_r1']">—</span>
+                  </span>
+                </div>
+
               </div>
             </div>
           </div>
 
           <!-- ── AUTORIZACIÓN ────────────────────────────────── -->
           <div class="ep2-section ep2-section--auth">
-            <div class="ep2-section__head ep2-section__head--auth"><span class="ep2-section__icon">✍</span> AUTORIZACIÓN — SERVIDOR SALIENTE</div>
+            <div class="ep2-section__head ep2-section__head--auth"><span class="ep2-section__icon">✍</span> AUTORIZACIÓN
+              — SERVIDOR SALIENTE</div>
             <div class="ep2-section__body">
               <p class="ep2-auth-text">
-                Conforme lo establecido en el artículo 110 del Reglamento a la Ley Orgánica de Servicio Público (LOSEP), quien suscribe el presente
+                Conforme lo establecido en el artículo 110 del Reglamento a la Ley Orgánica de Servicio Público (LOSEP),
+                quien suscribe el presente
                 formulario <strong>"PAZ Y SALVO"</strong> para la liquidación de haberes, <strong>AUTORIZA</strong> a la
-                <strong>DIRECCIÓN ADMINISTRATIVA FINANCIERA</strong> del INAMHI para efectuar los descuentos detallados en este documento por reintegro
-                y/o recuperación de valores, bienes y/o especies que se hayan encontrado a su cargo, los mismos que serán
+                <strong>DIRECCIÓN ADMINISTRATIVA FINANCIERA</strong> del INAMHI para efectuar los descuentos detallados
+                en este documento por reintegro
+                y/o recuperación de valores, bienes y/o especies que se hayan encontrado a su cargo, los mismos que
+                serán
                 <strong>DESCONTADOS a través del rol de pagos y/o liquidación de haberes.</strong>
               </p>
               <div class="ep2-auth-firma">
                 <div class="ep2-firma-box">
+                  <img *ngIf="firmaImagePreview" [src]="firmaImagePreview" class="ep2-firma-img" alt="Firma">
                   <div class="ep2-firma-linea"></div>
                   <span class="ep2-firma-label">FIRMA DEL SERVIDOR SALIENTE</span>
                   <div class="ep2-firma-datos">
                     <div class="ep2-field ep2-field--center">
                       <span class="ep2-lbl">CÉDULA</span>
-                      <span class="ep2-val ep2-val--mono ep2-val--lg">{{ formularioPazSalvo.get('cedula_firmante')?.value || '—' }}</span>
+                      <span class="ep2-val ep2-val--mono ep2-val--lg">{{
+                        formularioPazSalvo.get('cedula_firmante')?.value || '—' }}</span>
                     </div>
                     <div class="ep2-field ep2-field--center">
                       <span class="ep2-lbl">FECHA DE FIRMA</span>
-                      <span class="ep2-val ep2-val--mono">{{ formularioPazSalvo.get('fecha_firma')?.value || '—' }}</span>
+                      <span class="ep2-val ep2-val--mono">{{ formularioPazSalvo.get('fecha_firma')?.value || '—'
+                        }}</span>
                     </div>
                   </div>
                 </div>

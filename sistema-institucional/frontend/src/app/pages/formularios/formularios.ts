@@ -823,6 +823,10 @@ export class Formularios implements OnInit, OnDestroy {
     return String(texto ?? '').trim().replace(/\s+/g, ' ');
   }
 
+  formatearCedula(valor: any): string {
+    return String(valor || '').replace(/\D/g, '') || '—';
+  }
+
   // ─────────────────────────────────────────────────────────────
   //  NAVEGACIÓN POR STEPS
   // ─────────────────────────────────────────────────────────────
@@ -929,6 +933,8 @@ export class Formularios implements OnInit, OnDestroy {
       }
     });
   }
+
+
 
   // ─────────────────────────────────────────────────────────────
   //  BORRADOR
@@ -1065,7 +1071,7 @@ export class Formularios implements OnInit, OnDestroy {
         const MAX_W = 500, MAX_H = 200;
         const ratio = Math.min(MAX_W / img.width, MAX_H / img.height, 1);
         const cvs = document.createElement('canvas');
-        cvs.width  = Math.round(img.width  * ratio);
+        cvs.width = Math.round(img.width * ratio);
         cvs.height = Math.round(img.height * ratio);
         cvs.getContext('2d')!.drawImage(img, 0, 0, cvs.width, cvs.height);
         this.firmasEC[seccion] = cvs.toDataURL('image/jpeg', 0.80);
@@ -1368,6 +1374,12 @@ export class Formularios implements OnInit, OnDestroy {
   cargarDetalleFormulario(f: any): void {
     this.cargando = true;
     this.formularioPazSalvo.reset();
+
+    Object.keys(this.firmasEC).forEach(key => {
+      this.firmasEC[key] = null;
+      this.firmasECRequired[key] = false;
+    });
+
     this.camposAsignadosUsuario = [];
     this.camposBloqueados = [];
     this.camposYaDesignados = [];
@@ -1525,6 +1537,23 @@ export class Formularios implements OnInit, OnDestroy {
   get totalSinLeer(): number {
     return this.notificaciones.filter(n => !n.leido).length;
   }
+
+  get camposPendientesUsuario(): string[] {
+    return this.camposAsignadosUsuario.filter(campo =>
+      !this.camposBloqueados.includes(campo)
+    );
+  }
+
+  get formularioTerminado(): boolean {
+    return !this.esAdmin()
+      && this.camposAsignadosUsuario.length > 0
+      && this.camposPendientesUsuario.length === 0;
+  }
+
+  get notificacionesPendientes(): any[] {
+    return this.notificaciones.filter(n => !n.leido);
+  }
+
 
   // ─────────────────────────────────────────────────────────────
   //  DESIGNACIÓN DE CAMPOS (panel admin)

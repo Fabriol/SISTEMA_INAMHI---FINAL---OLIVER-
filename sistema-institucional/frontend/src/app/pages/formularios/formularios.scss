@@ -2347,6 +2347,92 @@ button {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// AVISOS Y NOTIFICACIONES — diseño limpio institucional (sin naranja)
+// ══════════════════════════════════════════════════════════════════════════════
+.aviso-asignacion {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--blue-50), #ffffff);
+  border: 1.5px solid var(--blue-200);
+  border-left: 4px solid var(--blue-600);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: background .18s, box-shadow .18s;
+
+  &:hover {
+    background: var(--blue-50);
+    box-shadow: var(--shadow-blue-sm);
+  }
+
+  &__icon { font-size: 22px; flex-shrink: 0; }
+
+  &__texto {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    strong { font-size: 14px; font-weight: 700; color: var(--blue-900); }
+    span   { font-size: 12.5px; color: var(--slate-500); }
+  }
+
+  &__btn {
+    padding: 8px 18px;
+    background: var(--grad-blue);
+    color: #fff;
+    border: none;
+    border-radius: var(--r-full);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity .15s;
+    &:hover { opacity: .88; }
+  }
+}
+
+.notif-simple {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  margin-bottom: 16px;
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-left: 4px solid var(--green-600);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+
+  &__icon { font-size: 20px; flex-shrink: 0; }
+
+  &__texto {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    strong { font-size: 13.5px; font-weight: 700; color: var(--green-700); }
+    span   { font-size: 12px; color: var(--slate-500); }
+  }
+
+  &__marcar {
+    padding: 7px 16px;
+    background: var(--grad-green);
+    color: #fff;
+    border: none;
+    border-radius: var(--r-full);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity .15s;
+    &:hover { opacity: .88; }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // SELECTOR DE USUARIO
 // ══════════════════════════════════════════════════════════════════════════════
 .asignar-usuario-wrapper {
@@ -2570,116 +2656,167 @@ button {
 // PRINT
 // ══════════════════════════════════════════════════════════════════════════════
 @media print {
-  @page { size: A4 portrait; margin: 10mm 12mm; }
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
 
-  // Ocultar todo el UI — solo mostrar el espejo
-  .no-print,
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-sizing: border-box !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+
   .page-header,
   .card,
   .notif-banner-alerta,
   .notif-card,
-  .notif-banner-alerta__acciones,
   .alerta-asignacion,
+  .aviso-asignacion,
+  .notif-simple,
   .empty,
   .formulario-ingreso,
   .espejo-header-actions,
   .espejo-live-badge,
-  .espejo-actions { display: none !important; }
-
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-  html, body { margin: 0; padding: 0; background: #fff; }
-
-  .page {
-    background: #fff !important;
-    padding: 0 !important;
-    animation: none !important;
-    min-height: unset;
+  .espejo-actions,
+  .no-print,
+  button {
+    display: none !important;
   }
 
-  h1 {
-    -webkit-text-fill-color: unset !important;
-    background: none !important;
-    color: #000 !important;
-  }
-
-  .paz-salvo-container {
+  .page,
+  .paz-salvo-container,
+  .hoja-espejo-preview,
+  #hojaEspejo {
     display: block !important;
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    grid-template-columns: 1fr !important;
-  }
-
-  .hoja-espejo-preview {
-    display: block !important;
-    padding: 0 !important;
-    background: transparent !important;
+    background: #fff !important;
+    box-shadow: none !important;
     overflow: visible !important;
-    border-radius: 0 !important;
-  }
-
-  #hojaEspejo {
-    gap: 0 !important;
-    display: block !important;
   }
 
   .a4-page {
-    display: block !important;
-    width: 100% !important;
-    min-height: auto !important;
-    height: auto !important;
-    overflow: visible !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    margin: 0 auto !important;
+    padding: 7mm 8mm !important;
+    background: #fff !important;
     box-shadow: none !important;
-    margin: 0 !important;
     border: none !important;
-    padding: 8mm 10mm !important;
-    font-size: 9.5px !important;
+    overflow: hidden !important;
     page-break-after: always !important;
     break-after: page !important;
-    page-break-inside: avoid;
-
-    &:last-child {
-      page-break-after: avoid !important;
-      break-after: avoid !important;
-    }
-
-    td, th { padding: 3px 4px !important; font-size: 9px !important; }
-
-    // Radio buttons al imprimir — pequeños y nítidos
-    input[type="radio"],
-    input[type="checkbox"] {
-      display: inline-block !important;
-      width: 10px !important;
-      height: 10px !important;
-      min-height: 10px !important;
-      max-height: 10px !important;
-      padding: 0 !important;
-      margin: 0 2px !important;
-      border: 1px solid #333 !important;
-      border-radius: 50% !important;
-      background: #fff !important;
-      box-shadow: none !important;
-      transform: none !important;
-      vertical-align: middle !important;
-      appearance: auto !important;
-      -webkit-appearance: radio !important;
-    }
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    transform: none !important;
+    zoom: 1 !important;
+    font-size: 7.6px !important;
   }
 
+  .a4-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .a4-page * {
+    font-size: inherit !important;
+    line-height: 1.1 !important;
+  }
+
+  table,
   .tabla-pdf,
-  .tabla-encabezado {
-    font-size: 9px !important;
+  .tabla-encabezado,
+  .ep2-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+  }
+
+  th,
+  td {
+    padding: 2px 3px !important;
+    font-size: 6.8px !important;
+    line-height: 1.08 !important;
+    vertical-align: middle !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+  }
+
+  .ep2-section {
+    margin-bottom: 2px !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    width: 100% !important;
   }
 
+  .ep2-section__head {
+    font-size: 7px !important;
+    padding: 2px 4px !important;
+  }
+
+  .ep2-section__body {
+    padding: 2px !important;
+  }
+
+  .ep2-auth-text,
   .texto-legal {
-    font-size: 8px !important;
+    font-size: 6.7px !important;
+    line-height: 1.18 !important;
+  }
+
+  .ep2-val,
+  .ep2-val--mono,
+  .ep2-val--lg {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+  }
+
+  .ep2-firma-mini {
+    width: 48px !important;
+    max-width: 48px !important;
+    height: 18px !important;
+    max-height: 18px !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin: 0 auto !important;
+  }
+
+  .ep2-firma-img {
+    max-width: 80px !important;
+    max-height: 30px !important;
+    object-fit: contain !important;
+    margin: 0 auto 2px !important;
   }
 
   .caja-firma {
-    height: 60px !important;
+    height: 28px !important;
+  }
+
+  input[type="radio"],
+  input[type="checkbox"] {
+    width: 7px !important;
+    height: 7px !important;
+    min-height: 7px !important;
+    max-height: 7px !important;
+    margin: 0 1px !important;
+    padding: 0 !important;
+    transform: none !important;
+    appearance: auto !important;
+    -webkit-appearance: radio !important;
   }
 }
 
@@ -3210,40 +3347,50 @@ button {
 
 // ── Print: espejo-page ────────────────────────────────────────────────────────
 @media print {
+  // Primera página: flujo natural, sin page-break-after forzado
   .espejo-page {
     display: block !important;
-    width: 100% !important;
+    width: 210mm !important;
     min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
     box-shadow: none !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     border: none !important;
     border-top: 2px solid #1e3a5f !important;
-    padding: 8mm 10mm !important;
-    font-size: 9px !important;
-    page-break-after: always !important;
-    break-after: page !important;
-
-    &:last-child {
-      page-break-after: avoid !important;
-      break-after: avoid !important;
-    }
+    padding: 4mm 6mm !important;
+    background: #fff !important;
+    font-size: 6.8px !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    color: #111 !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
 
     input, textarea {
       border-bottom-color: #555 !important;
       background: transparent !important;
-      font-size: 8px !important;
+      font-size: 6.5px !important;
     }
 
     input[type="radio"],
     input[type="checkbox"] {
       display: inline-block !important;
-      width: 10px !important;
-      height: 10px !important;
+      width: 7px !important;
+      height: 7px !important;
       padding: 0 !important;
-      margin: 0 2px !important;
+      margin: 0 1px !important;
       appearance: auto !important;
       -webkit-appearance: auto !important;
     }
+  }
+
+  // Segunda página: forzar nueva página física antes de ella
+  .espejo-page.ep-page-break {
+    page-break-before: always !important;
+    break-before: page !important;
+    margin-top: 0 !important;
   }
 
   .ep-tabla,
@@ -3251,17 +3398,48 @@ button {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     width: 100% !important;
-    font-size: 8px !important;
+    font-size: 6.5px !important;
   }
 
   .ep-acciones,
   .ep2-actions,
   .espejo-header-actions { display: none !important; }
 
-  .ep2-table { font-size: 8.5px !important; }
-  .ep2-section__head { font-size: 8.5px !important; }
-  .ep2-val { font-size: 9.5px !important; }
-  .ep2-lbl { font-size: 7.5px !important; }
+  .ep2-table {
+    font-size: 6.8px !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+  }
+  .ep2-section__head { font-size: 6.5px !important; padding: 1px 3px !important; min-height: unset !important; }
+  .ep2-section__body { padding: 1px !important; }
+  .ep2-section { margin-bottom: 1px !important; page-break-inside: avoid !important; }
+  .ep2-val { font-size: 7px !important; }
+  .ep2-lbl { font-size: 6.2px !important; }
+
+  th, td {
+    padding: 1px 2px !important;
+    font-size: 6.5px !important;
+    line-height: 1.04 !important;
+    vertical-align: middle !important;
+  }
+
+  .ep2-firma-mini {
+    width: 44px !important;
+    max-width: 44px !important;
+    height: 14px !important;
+    max-height: 14px !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin: 0 auto !important;
+  }
+
+  .ep2-firma-img {
+    max-width: 60px !important;
+    max-height: 22px !important;
+    object-fit: contain !important;
+    margin: 0 auto 1px !important;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3926,4 +4104,621 @@ button {
   }
 
   .btn-firma-mini { font-size: 11px; padding: 6px 10px; min-height: 44px; }
+}
+
+.ep2-firma-img{
+  display:block;
+  max-width:170px;
+  max-height:50px;
+  object-fit:contain;
+  margin:0 auto 2px auto;
+}
+
+.ep2-val--lg{
+  white-space:nowrap;
+}
+
+///---
+/* ARREGLO FIRMA RECEPCIÓN RRHH EN ESPEJO A4 */
+.ep2-field--firma {
+  width: 95px !important;
+  min-width: 95px !important;
+  max-width: 95px !important;
+  text-align: center;
+  overflow: hidden;
+}
+
+.ep2-val--firma {
+  width: 95px !important;
+  height: 22px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.ep2-firma-mini {
+  width: 82px !important;
+  max-width: 82px !important;
+  height: 20px !important;
+  max-height: 20px !important;
+
+  object-fit: contain !important;
+  display: block !important;
+  margin: 0 auto !important;
+}
+
+.ep2-row {
+  overflow: hidden !important;
+}
+
+.ep2-section {
+  overflow: hidden !important;
+}
+
+/* CAMPO ASIGNADO AL USUARIO */
+.input-group:has(.dark-input:not([readonly])) {
+  border: 2px solid #2563eb;
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+  border-radius: 18px;
+  padding: 12px;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, .14);
+  position: relative;
+}
+
+.input-group:has(.dark-input:not([readonly]))::before {
+  content: 'CAMPO ASIGNADO';
+  position: absolute;
+  top: -11px;
+  right: 14px;
+  background: #2563eb;
+  color: white;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.dark-input:not([readonly]):not(:disabled) {
+  background: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, .12);
+}
+
+/* CAMPOS BLOQUEADOS */
+.dark-input[readonly],
+.dark-input:disabled {
+  background: #e5e7eb !important;
+  color: #64748b !important;
+  cursor: not-allowed;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AJUSTES FINALES — UX, CAMPOS ASIGNADOS, GUARDADO Y PDF/IMPRESIÓN
+// Agregado para corregir:
+// 1) quitar franja naranja innecesaria
+// 2) resaltar campos asignados
+// 3) evitar sensación de lag al guardar
+// 4) corregir impresión/PDF A4
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. OCULTAR BARRA NARANJA SUPERIOR
+// ─────────────────────────────────────────────────────────────────────────────
+.notif-banner-alerta,
+.notif-banner-alerta__acciones {
+  display: none !important;
+}
+
+// Mantener notificaciones normales con diseño institucional azul/blanco
+.notif-card {
+  border-top: 4px solid var(--blue-600) !important;
+
+  &::before {
+    background: var(--grad-header) !important;
+  }
+}
+
+.notif-item--nueva {
+  background: linear-gradient(135deg, #eff6ff, #ffffff) !important;
+  border-color: var(--blue-200) !important;
+  box-shadow: 0 8px 26px rgba(37, 99, 235, .10) !important;
+
+  .notif-item__barra {
+    background: var(--blue-600) !important;
+  }
+
+  .notif-item__icono {
+    background: var(--blue-100) !important;
+  }
+
+  .notif-item__cuerpo h3 {
+    color: var(--blue-900) !important;
+  }
+
+  .notif-item__accion {
+    color: var(--blue-700) !important;
+  }
+
+  &:hover {
+    transform: translateX(5px);
+    box-shadow: 0 12px 32px rgba(37, 99, 235, .16) !important;
+  }
+}
+
+.notif-tag--nueva {
+  background: var(--grad-blue) !important;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. CAMPOS ASIGNADOS AL USUARIO — MÁS VISIBLES (solo modo usuario, no admin)
+// ─────────────────────────────────────────────────────────────────────────────
+.modo-usuario .input-group:has(.dark-input:not([readonly]):not(:disabled)),
+.modo-usuario .field:has(.dark-input:not([readonly]):not(:disabled)) {
+  position: relative;
+  padding: 12px;
+  border: 2px solid rgba(37, 99, 235, .72);
+  border-radius: 18px;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 65%);
+  box-shadow:
+    0 10px 24px rgba(37, 99, 235, .14),
+    inset 0 0 0 1px rgba(255, 255, 255, .85);
+  animation: campoAsignadoGlow 2.8s ease-in-out infinite;
+}
+
+.modo-usuario .input-group:has(.dark-input:not([readonly]):not(:disabled))::before,
+.modo-usuario .field:has(.dark-input:not([readonly]):not(:disabled))::before {
+  content: 'CAMPO ASIGNADO';
+  position: absolute;
+  top: -12px;
+  right: 14px;
+  z-index: 3;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--grad-blue);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .05em;
+  box-shadow: var(--shadow-blue-sm);
+}
+
+.dark-input:not([readonly]):not(:disabled),
+select.dark-input:not(:disabled),
+textarea.dark-input:not([readonly]):not(:disabled) {
+  background: #ffffff !important;
+  border-color: var(--blue-600) !important;
+  color: var(--slate-900) !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, .12) !important;
+}
+
+.dark-input[readonly],
+.dark-input:disabled,
+select.dark-input:disabled,
+textarea.dark-input[readonly],
+textarea.dark-input:disabled {
+  background: #e5e7eb !important;
+  color: #64748b !important;
+  border-color: #cbd5e1 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+
+@keyframes campoAsignadoGlow {
+  0%, 100% {
+    box-shadow:
+      0 10px 24px rgba(37, 99, 235, .12),
+      inset 0 0 0 1px rgba(255, 255, 255, .85);
+  }
+
+  50% {
+    box-shadow:
+      0 14px 32px rgba(37, 99, 235, .22),
+      0 0 0 4px rgba(37, 99, 235, .06),
+      inset 0 0 0 1px rgba(255, 255, 255, .95);
+  }
+}
+
+// FirmaEC asignada
+.firma-ec-section:has(.firma-ec-upload-area:not(.firma-ec-ok)) {
+  border-color: var(--blue-600) !important;
+  background: linear-gradient(135deg, #eff6ff, #ffffff) !important;
+  box-shadow: 0 12px 30px rgba(37, 99, 235, .13);
+}
+
+.firma-ec-section:has(.firma-ec-upload-area:not(.firma-ec-ok))::after {
+  content: 'RESPONDER ESTA FIRMA';
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 10px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--grad-blue);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .05em;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. ESTADO VISUAL DE GUARDADO — EVITA SENSACIÓN DE LAG
+// ─────────────────────────────────────────────────────────────────────────────
+.btn-guardar-principal:disabled,
+.btn-success:disabled,
+.guardar:disabled,
+.btn-submit-dark:disabled {
+  position: relative;
+  overflow: hidden;
+  opacity: .92 !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #16a34a, #0f766e) !important;
+  cursor: wait !important;
+}
+
+.btn-guardar-principal:disabled::after,
+.btn-success:disabled::after,
+.guardar:disabled::after,
+.btn-submit-dark:disabled::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.28),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: savingShimmer 1.2s linear infinite;
+}
+
+@keyframes savingShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.form-save-bar {
+  position: relative;
+}
+
+.form-save-bar:has(button:disabled)::before {
+  content: 'Guardando cambios, por favor espera...';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  min-height: 34px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ecfdf5, #eff6ff);
+  color: var(--green-700);
+  border: 1px solid #bbf7d0;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. AJUSTES FIRMA MINI Y CÉDULA EN ESPEJO
+// ─────────────────────────────────────────────────────────────────────────────
+.ep2-field--firma {
+  width: 96px !important;
+  min-width: 96px !important;
+  max-width: 96px !important;
+  text-align: center !important;
+  overflow: hidden !important;
+}
+
+.ep2-val--firma {
+  width: 96px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+}
+
+.ep2-firma-mini {
+  display: block !important;
+  width: 72px !important;
+  max-width: 72px !important;
+  height: 22px !important;
+  max-height: 22px !important;
+  object-fit: contain !important;
+  margin: 0 auto !important;
+}
+
+.ep2-firma-img {
+  display: block !important;
+  max-width: 120px !important;
+  max-height: 42px !important;
+  object-fit: contain !important;
+  margin: 0 auto 2px auto !important;
+}
+
+.ep2-val--lg,
+.ep2-val--mono {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. IMPRESIÓN / PDF A4 CORREGIDO
+// ─────────────────────────────────────────────────────────────────────────────
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-sizing: border-box !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  html,
+  body {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+
+  // Ocultar toda la interfaz
+  .no-print,
+  .page-header,
+  .card,
+  .notif-banner-alerta,
+  .notif-card,
+  .notif-banner-alerta__acciones,
+  .alerta-asignacion,
+  .aviso-asignacion,
+  .notif-simple,
+  .empty,
+  .formulario-ingreso,
+  .espejo-header-actions,
+  .espejo-live-badge,
+  .espejo-actions,
+  .lista,
+  button {
+    display: none !important;
+  }
+
+  .page {
+    width: 210mm !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .paz-salvo-container {
+    display: block !important;
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .hoja-espejo-preview {
+    display: block !important;
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  #hojaEspejo {
+    display: block !important;
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  // Override final para espejo-page — contenido completo sin cortes
+  .espejo-page {
+    display: block !important;
+    width: 210mm !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    padding: 4mm 6mm !important;
+    background: #fff !important;
+    border: none !important;
+    border-top: 2px solid #1e3a5f !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 6.8px !important;
+    line-height: 1.06 !important;
+    color: #111 !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+
+    &.ep-page-break {
+      page-break-before: always !important;
+      break-before: page !important;
+      margin-top: 0 !important;
+    }
+
+    * {
+      font-size: inherit !important;
+      line-height: inherit !important;
+    }
+  }
+
+  .tabla-pdf,
+  .tabla-encabezado,
+  .ep2-table,
+  table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th,
+  td {
+    padding: 1.8px 2.4px !important;
+    font-size: 6.8px !important;
+    line-height: 1.06 !important;
+    vertical-align: middle !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+  }
+
+  .ep2-section {
+    margin-bottom: 2px !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .ep2-section__head {
+    font-size: 7px !important;
+    padding: 2px 4px !important;
+    min-height: unset !important;
+  }
+
+  .ep2-section__body {
+    padding: 2px !important;
+  }
+
+  .ep2-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1.35fr 1.35fr .8fr !important;
+    gap: 2px !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .ep2-field {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .ep2-lbl {
+    font-size: 5.8px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .ep2-val {
+    font-size: 6.6px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+  }
+
+  .ep2-val--mono,
+  .ep2-val--lg {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    letter-spacing: .15px !important;
+  }
+
+  .ep2-auth-text,
+  .texto-legal {
+    font-size: 6.6px !important;
+    line-height: 1.17 !important;
+    text-align: justify !important;
+  }
+
+  .ep2-auth-firma {
+    margin-top: 4px !important;
+  }
+
+  .ep2-firma-img {
+    max-width: 80px !important;
+    max-height: 28px !important;
+    object-fit: contain !important;
+    margin: 0 auto 1px !important;
+  }
+
+  .ep2-firma-mini {
+    width: 44px !important;
+    max-width: 44px !important;
+    height: 15px !important;
+    max-height: 15px !important;
+    object-fit: contain !important;
+    margin: 0 auto !important;
+  }
+
+  .ep2-firma-linea {
+    width: 125px !important;
+    margin: 0 auto 1px !important;
+  }
+
+  .ep2-firma-label {
+    font-size: 5.8px !important;
+  }
+
+  .ep2-firma-datos {
+    gap: 14px !important;
+  }
+
+  .caja-firma {
+    height: 28px !important;
+    padding-bottom: 2px !important;
+  }
+
+  .logo {
+    max-width: 70px !important;
+  }
+
+  .logo-cell {
+    width: 92px !important;
+  }
+
+  .titulo-principal {
+    font-size: 8px !important;
+  }
+
+  .subtitulo,
+  .titulo-documento {
+    font-size: 6.8px !important;
+  }
+
+  .texto-corto {
+    max-height: none !important;
+    overflow: visible !important;
+    line-height: 1.06 !important;
+  }
+
+  input[type="radio"],
+  input[type="checkbox"] {
+    display: inline-block !important;
+    width: 7px !important;
+    height: 7px !important;
+    min-height: 7px !important;
+    max-height: 7px !important;
+    padding: 0 !important;
+    margin: 0 1px !important;
+    border: 1px solid #333 !important;
+    border-radius: 50% !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    transform: none !important;
+    vertical-align: middle !important;
+    appearance: auto !important;
+    -webkit-appearance: radio !important;
+  }
 }
