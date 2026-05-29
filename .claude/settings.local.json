@@ -3,7 +3,12 @@
     "allow": [
       "PowerShell($file = \"c:\\\\Users\\\\hp\\\\OneDrive\\\\Escritorio\\\\SISTEMA_INAMHI---FINAL---OLIVER-\\\\sistema-institucional\\\\frontend\\\\src\\\\app\\\\pages\\\\formularios\\\\formularios.html\"; \\(Get-Content $file\\).Count)",
       "Bash(Get-Content \"c:\\\\Users\\\\dominio\\\\Desktop\\\\FINAL\\\\sistema-institucional\\\\frontend\\\\src\\\\app\\\\pages\\\\formularios\\\\formularios.scss\")",
-      "Bash(Measure-Object -Line)"
+      "Bash(Measure-Object -Line)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\dominio\\\\Desktop\\\\FINAL\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(pip install *)",
+      "Bash(Get-Content \"c:\\\\Users\\\\dominio\\\\Desktop\\\\FINAL\\\\sistema-institucional\\\\backend\\\\requirements.txt\" -Encoding UTF8)",
+      "Bash(Out-String)"
     ]
   }
 }

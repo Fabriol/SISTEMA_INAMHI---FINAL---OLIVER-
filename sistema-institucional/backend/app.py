@@ -1523,76 +1523,417 @@ def responder_formulario():
         close_db(cursor, conn)
 
 
+# ═══════════════════════════════════════════════════════════════
+#  CONSTANTES DE MAQUETADO DEL PDF PAZ Y SALVO
+# ═══════════════════════════════════════════════════════════════
+
+# A4 = 595.28 × 841.89 pts. Origen (0,0) = esquina inferior-izquierda.
+_ML   = 40      # margen izquierdo
+_MR   = 555     # margen derecho  (595 - 40)
+_MT   = 800     # Y inicial del contenido (desde arriba hacia abajo)
+_MB   = 55      # Y mínima antes de salto de página
+
+# Anchos de las 3 columnas de la tabla de firmas (suma = 515 pts)
+_CW   = [210, 145, 160]            # Ítem | Nombre Responsable | FirmaEC
+_CX   = [_ML, _ML+210, _ML+355]   # X de inicio de cada columna: 40 | 250 | 395
+
+_RH   = 80   # Altura UNIFORME de cada fila FirmaEC (80 pts ≈ 2.8 cm)
+_HH   = 18   # Altura cabecera de sección
+_CH   = 14   # Altura cabecera de columnas
+_FH   = 15   # Altura fila de datos personales
+
+# Colores (R, G, B  en 0-1)
+_C_HEAD  = (0.07, 0.17, 0.37)   # azul oscuro — cabecera sección
+_C_COLS  = (0.18, 0.34, 0.61)   # azul medio — cabecera columnas
+_C_OK    = (0.08, 0.45, 0.08)   # verde — celda firmada
+_C_PEND  = (0.50, 0.50, 0.50)   # gris  — pendiente
+_C_GRAY  = (0.96, 0.96, 0.96)   # gris claro — fondo cabeceras
+_C_WHITE = (1.0,  1.0,  1.0 )
+_C_BLACK = (0.0,  0.0,  0.0 )
+
+# Estructura completa: 7 secciones → 31 celdas FirmaEC
+# Cada fila: (texto_ítem, campo_nombre, campo_firma)
+_FIRMAEC_SECTIONS = [
+    {
+        "titulo": "1. TRÁMITES Y UNIDAD",
+        "rows": [
+            ("Informe fin de gestión / QUIPUX bandeja en cero",
+             "tramites_nombre_resp1", "tramites_r1"),
+            ("Fe de presentación / Claves de acceso asignadas",
+             "tramites_nombre_resp2", "tramites_r2"),
+            ("Entrega archivo físico y digital (LOSEP) / Acta entrega claves",
+             "tramites_nombre_resp3", "tramites_r3"),
+            ("Firma del Jefe Inmediato",
+             "tramites_jefe_inmediato", "tramites_jefe"),
+        ],
+    },
+    {
+        "titulo": "2. GESTIÓN ADMINISTRATIVA",
+        "rows": [
+            ("Entrega de Informe de Actividades",
+             "admin_nombre_resp1", "admin_r1"),
+            ("Entrega Bienes Institucionales / Acta de Entrega-Recepción",
+             "admin_nombre_resp2", "admin_r2"),
+            ("Deducibles / Pasajes aéreos por justificar",
+             "admin_nombre_resp3", "admin_r3"),
+            ("Verificación Valor Bienes / Responsable Administrativo",
+             "admin_nombre_resp4", "admin_r4"),
+            ("Director/a Administrativo/a Financiero/a",
+             "admin_responsable", "admin_dir"),
+        ],
+    },
+    {
+        "titulo": "3. GESTIÓN TIC",
+        "rows": [
+            ("Verificación Equipo / IP Fija / Liberación de accesos",
+             "tic_nombre_resp1", "tic_r1"),
+            ("Backup de información / Ruta de backup",
+             "tic_nombre_resp2", "tic_r2"),
+            ("Cierre correo institucional / eSigef / SPRYN / eSByE",
+             "tic_nombre_resp3", "tic_r3"),
+            ("QUIPUX / Tarjeta de Cuentas",
+             "tic_nombre_resp4", "tic_r4"),
+            ("Responsable TIC",
+             "tic_responsable", "tic_r5"),
+        ],
+    },
+    {
+        "titulo": "4. GESTIÓN FINANCIERA",
+        "rows": [
+            ("Saldos contables (viáticos, caja chica, pasajes)",
+             "fin_nombre_resp1", "fin_r1"),
+            ("Anticipo de remuneraciones / Fondos a rendir",
+             "fin_nombre_resp2", "fin_r2"),
+            ("Recuperación / Devolución de valores",
+             "fin_nombre_resp3", "fin_r3"),
+            ("Verificación contable / Responsable Financiero",
+             "fin_nombre_resp4", "fin_r4"),
+            ("Director/a Administrativo/a Financiero/a",
+             "fin_director", "fin_dir"),
+        ],
+    },
+    {
+        "titulo": "5. SEGURIDAD DE LA INFORMACIÓN",
+        "rows": [
+            ("Archivos digitales / Verificación información digital (AM 166 EGSI)",
+             "seg_nombre_resp1", "seg_r1"),
+            ("Archivos físicos / Entrega copia de seguridad",
+             "seg_nombre_resp2", "seg_r2"),
+            ("Oficial de Seguridad Institucional",
+             "seg_oficial", "seg_oficial"),
+        ],
+    },
+    {
+        "titulo": "6. RECURSOS HUMANOS",
+        "rows": [
+            ("Capacitación — devengó cursos recibidos",
+             "rrhh_resp_capacitacion", "rrhh_r1"),
+            ("Evaluación del Desempeño aplicada",
+             "rrhh_resp_evaluacion", "rrhh_r2"),
+            ("Viajes al exterior / Informe de cumplimiento",
+             "rrhh_resp_viajes", "rrhh_r3"),
+            ("SIITH — actualización de datos",
+             "rrhh_resp_siith", "rrhh_r4"),
+            ("Vacaciones no gozadas — certificado",
+             "rrhh_resp_vacaciones", "rrhh_r5"),
+            ("Declaración juramentada de bienes",
+             "rrhh_resp_juramentada", "rrhh_r6"),
+            ("Credencial institucional / Porta credencial",
+             "rrhh_resp_credencial2", "rrhh_r7"),
+            ("Acta entrega-recepción bienes / Informe CD / Ropa de trabajo",
+             "rrhh_resp_acta", "rrhh_r8"),
+            ("Director/a de Administración de RRHH",
+             "rrhh_director", "rrhh_dir"),
+        ],
+    },
+    {
+        "titulo": "7. RECEPCIÓN DE DOCUMENTOS",
+        "rows": [
+            ("Servidor/a que recibe el Paz y Salvo — RRHH",
+             "recepcion_servidor", "recepcion_r1"),
+        ],
+    },
+]
+
+
+def _split_text(text: str, max_chars: int) -> list:
+    """Divide texto en líneas que no superen max_chars, respetando palabras."""
+    words = text.split()
+    lines, cur = [], ""
+    for w in words:
+        candidate = (cur + " " + w).strip()
+        if len(candidate) <= max_chars:
+            cur = candidate
+        else:
+            if cur:
+                lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    return lines or [""]
+
+
+def _draw_page_header(c, formulario: dict, page_num: int) -> None:
+    """Encabezado institucional en cada página."""
+    W = 595.28
+    c.setFillColorRGB(*_C_HEAD)
+    c.rect(_ML, 808, W - 2 * _ML, 22, fill=1, stroke=0)
+    c.setFillColorRGB(*_C_WHITE)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawCentredString(W / 2, 814, "INAMHI — FORMULARIO PAZ Y SALVO")
+    c.setFillColorRGB(*_C_BLACK)
+    c.setFont("Helvetica", 7)
+    titulo_corto = (formulario.get("titulo") or "")[:70]
+    c.drawString(_ML, 804, titulo_corto)
+    c.drawRightString(W - _ML, 804, f"Pág. {page_num + 1}")
+    # línea separadora
+    c.setStrokeColorRGB(*_C_HEAD)
+    c.setLineWidth(0.5)
+    c.line(_ML, 802, W - _ML, 802)
+    c.setStrokeColorRGB(*_C_BLACK)
+    c.setLineWidth(0.5)
+
+
+def _draw_section_header(c, titulo: str, y: float) -> None:
+    """Cabecera azul que ocupa todo el ancho de la tabla."""
+    c.setFillColorRGB(*_C_HEAD)
+    c.rect(_ML, y - _HH, _MR - _ML, _HH, fill=1, stroke=0)
+    c.setFillColorRGB(*_C_WHITE)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(_ML + 4, y - _HH + 5, titulo)
+    c.setFillColorRGB(*_C_BLACK)
+
+
+def _draw_col_labels(c, y: float) -> None:
+    """Fila de cabeceras de columnas."""
+    labels = ["ÍTEM", "NOMBRE RESPONSABLE", "FIRMA RESPONSABLE (FirmaEC)"]
+    c.setFillColorRGB(*_C_COLS)
+    for i in range(3):
+        c.rect(_CX[i], y - _CH, _CW[i], _CH, fill=1, stroke=1)
+    c.setFillColorRGB(*_C_WHITE)
+    c.setFont("Helvetica-Bold", 7)
+    offsets = [4, 4, 4]
+    for i, lbl in enumerate(labels):
+        c.drawString(_CX[i] + offsets[i], y - _CH + 4, lbl)
+    c.setFillColorRGB(*_C_BLACK)
+
+
+def _draw_firma_row(c, y: float, item: str, nombre: str, firma_val: str,
+                    campo_firma: str, sig_coords: dict, page_num: int) -> None:
+    """
+    Dibuja una fila de firma con altura uniforme _RH.
+    Registra las coordenadas de la celda FirmaEC en sig_coords.
+    """
+    y_top = y
+    y_bot = y - _RH
+
+    c.setLineWidth(0.4)
+
+    # ── Col 0: Ítem ─────────────────────────────────────────────
+    c.setFillColorRGB(*_C_WHITE)
+    c.rect(_CX[0], y_bot, _CW[0], _RH, fill=1, stroke=1)
+    c.setFillColorRGB(*_C_BLACK)
+    c.setFont("Helvetica", 7.5)
+    lines = _split_text(item, 36)
+    ty = y_top - 11
+    for ln in lines[:5]:
+        c.drawString(_CX[0] + 4, ty, ln)
+        ty -= 10
+
+    # ── Col 1: Nombre Responsable ────────────────────────────────
+    c.setFillColorRGB(*_C_WHITE)
+    c.rect(_CX[1], y_bot, _CW[1], _RH, fill=1, stroke=1)
+    c.setFillColorRGB(*_C_BLACK)
+    c.setFont("Helvetica", 7)
+    if nombre and not nombre.startswith("data:") and not nombre.startswith("FIRMADO_EC:"):
+        nlines = _split_text(nombre, 24)
+        ny = y_top - 11
+        for nl in nlines[:5]:
+            c.drawString(_CX[1] + 4, ny, nl)
+            ny -= 10
+
+    # ── Col 2: FirmaEC (80 pts = uniforme) ──────────────────────
+    c.setFillColorRGB(*_C_WHITE)
+    c.rect(_CX[2], y_bot, _CW[2], _RH, fill=1, stroke=1)
+
+    if firma_val and firma_val.startswith("FIRMADO_EC:"):
+        parts = firma_val.split(":")
+        firmante = parts[1] if len(parts) > 1 else "Firmado"
+        fecha_f  = parts[2][:10] if len(parts) > 2 else ""
+        # Fondo verde muy tenue
+        c.setFillColorRGB(0.90, 0.97, 0.90)
+        c.rect(_CX[2] + 1, y_bot + 1, _CW[2] - 2, _RH - 2, fill=1, stroke=0)
+        c.setFillColorRGB(*_C_OK)
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(_CX[2] + 5, y_top - 13, "FIRMADO ELECTRÓNICAMENTE")
+        c.setFont("Helvetica", 6.5)
+        c.setFillColorRGB(*_C_BLACK)
+        flines = _split_text(firmante, 26)
+        fy = y_top - 26
+        for fl in flines[:4]:
+            c.drawString(_CX[2] + 5, fy, fl)
+            fy -= 9
+        c.setFont("Helvetica", 6)
+        c.setFillColorRGB(*_C_PEND)
+        c.drawString(_CX[2] + 5, y_bot + 6, fecha_f)
+    else:
+        # Zona reservada para pyHanko — líneas guía internas
+        c.setStrokeColorRGB(0.80, 0.80, 0.80)
+        c.setLineWidth(0.3)
+        # línea vertical interna a 40 pts (separa QR del texto)
+        c.line(_CX[2] + 40, y_bot + 4, _CX[2] + 40, y_top - 4)
+        c.setFillColorRGB(*_C_PEND)
+        c.setFont("Helvetica-Oblique", 6)
+        c.drawString(_CX[2] + 44, y_top - 18, "Validar únicamente en FirmaEC.")
+        c.drawString(_CX[2] + 44, y_top - 30, "Firmado electrónicamente por:")
+        c.setLineWidth(0.4)
+        c.setStrokeColorRGB(*_C_BLACK)
+
+    c.setFillColorRGB(*_C_BLACK)
+
+    # ── Registrar coordenadas para pyHanko ───────────────────────
+    sig_coords[campo_firma] = (
+        int(_CX[2]),               # x1
+        int(y_bot),                # y1 (bottom)
+        int(_CX[2] + _CW[2]),     # x2
+        int(y_top),                # y2 (top)
+        page_num,                  # página (0-indexed)
+    )
+
+
 @app.route("/api/formularios/<int:formulario_id>/pdf", methods=["GET"])
 def generar_pdf(formulario_id):
-    conn = None
-    cursor = None
-
+    conn = cursor = None
     try:
         user, error = validar_login()
         if error:
             return error
 
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+        conn    = get_connection()
+        cursor  = conn.cursor(dictionary=True)
 
-        cursor.execute("""
-            SELECT *
-            FROM formularios
-            WHERE id = %s
-        """, (formulario_id,))
+        cursor.execute("SELECT * FROM formularios WHERE id = %s", (formulario_id,))
         formulario = cursor.fetchone()
-
         if not formulario:
             return jsonify({"mensaje": "Formulario no encontrado"}), 404
 
-        if formulario["estado"] != "COMPLETADO":
-            return jsonify({"mensaje": "Formulario aún no está completo"}), 400
+        # Solo bloquear si NO es admin y el formulario no está lo suficientemente avanzado
+        if user["rol"] != "Administrador" and formulario["estado"] == "BORRADOR":
+            return jsonify({"mensaje": "El formulario aún está en borrador"}), 400
 
+        # Obtener todas las respuestas indexadas por código de campo
         cursor.execute("""
-            SELECT p.pregunta, r.respuesta
-            FROM formulario_preguntas p
-            LEFT JOIN formulario_asignaciones a ON p.id = a.pregunta_id
-            LEFT JOIN formulario_respuestas r ON a.id = r.asignacion_id
-            WHERE p.formulario_id = %s
-            ORDER BY p.orden ASC, p.id ASC
+            SELECT p.codigo, r.respuesta
+              FROM formulario_preguntas p
+              LEFT JOIN formulario_respuestas r ON p.id = r.pregunta_id
+             WHERE p.formulario_id = %s
         """, (formulario_id,))
+        resp_rows = cursor.fetchall()
+        resp = {row["codigo"]: (row["respuesta"] or "") for row in resp_rows if row["codigo"]}
 
-        data = cursor.fetchall()
+        # ── Construir el PDF ─────────────────────────────────────
+        filename  = f"formulario_{formulario_id}.pdf"
+        filepath  = os.path.join(UPLOAD_FOLDER, filename)
+        json_path = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_sigfields.json")
 
-        filename = f"formulario_{formulario_id}.pdf"
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        c        = canvas.Canvas(filepath, pagesize=A4)
+        W, H     = A4
+        y        = _MT
+        page_num = 0
+        sig_coords = {}
 
-        c = canvas.Canvas(filepath, pagesize=A4)
-        width, height = A4
+        _draw_page_header(c, formulario, page_num)
 
-        y = height - 40
-
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(40, y, formulario["titulo"])
-        y -= 20
-
-        c.setFont("Helvetica", 10)
-        c.drawString(40, y, formulario.get("descripcion") or "")
-        y -= 30
-
-        for item in data:
-            pregunta = item.get("pregunta", "")
-            respuesta = item.get("respuesta") or "Sin respuesta"
-
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(40, y, f"P: {pregunta[:80]}")
-            y -= 15
-
-            c.setFont("Helvetica", 10)
-            c.drawString(60, y, f"R: {respuesta[:90]}")
-            y -= 20
-
-            if y < 50:
+        def salto_si_necesario(needed: float) -> None:
+            nonlocal y, page_num
+            if y - needed < _MB:
                 c.showPage()
-                y = height - 40
+                page_num += 1
+                y = _MT
+                _draw_page_header(c, formulario, page_num)
+
+        # ── Encabezado del documento ─────────────────────────────
+        salto_si_necesario(40)
+        c.setFont("Helvetica-Bold", 13)
+        c.drawCentredString(W / 2, y - 14, "PAZ Y SALVO INSTITUCIONAL")
+        y -= 22
+        estado_texto = formulario.get("estado") or ""
+        c.setFont("Helvetica", 8)
+        c.setFillColorRGB(*_C_PEND)
+        c.drawCentredString(W / 2, y - 8, f"Estado: {estado_texto}  |  Progreso: {formulario.get('porcentaje', 0)}%")
+        c.setFillColorRGB(*_C_BLACK)
+        y -= 18
+
+        # ── Datos personales ─────────────────────────────────────
+        salto_si_necesario(_HH + 12)
+        _draw_section_header(c, "DATOS PERSONALES Y LABORALES", y)
+        y -= _HH
+
+        campos_personales = [
+            ("Nombres y Apellidos", "nombres_apellidos"),
+            ("Cédula / Pasaporte",  "cedula"),
+            ("Modalidad Laboral",   "modalidad"),
+            ("Fecha de Ingreso",    "fecha_ingreso"),
+            ("Fecha de Salida",     "fecha_salida"),
+            ("Dirección / Unidad",  "unidad"),
+            ("Cargo",               "cargo"),
+            ("Grupo Ocupacional",   "grupo_ocupacional"),
+            ("Lugar de Trabajo",    "lugar_trabajo"),
+            ("Celular",             "celular"),
+            ("Email Principal",     "email1"),
+        ]
+        col1_w, col2_w = 160, _MR - _ML - 160
+        for label, campo in campos_personales:
+            salto_si_necesario(_FH + 1)
+            valor = resp.get(campo) or "—"
+            if valor.startswith("data:"):
+                valor = "[imagen]"
+            c.setFillColorRGB(*_C_GRAY)
+            c.rect(_ML, y - _FH, col1_w, _FH, fill=1, stroke=1)
+            c.setFillColorRGB(*_C_WHITE)
+            c.rect(_ML + col1_w, y - _FH, col2_w, _FH, fill=1, stroke=1)
+            c.setFillColorRGB(*_C_BLACK)
+            c.setFont("Helvetica-Bold", 7.5)
+            c.drawString(_ML + 3, y - _FH + 4, label)
+            c.setFont("Helvetica", 7.5)
+            c.drawString(_ML + col1_w + 4, y - _FH + 4, str(valor)[:75])
+            y -= _FH
+
+        y -= 10  # espacio entre secciones
+
+        # ── Secciones FirmaEC ────────────────────────────────────
+        for sec in _FIRMAEC_SECTIONS:
+            n_rows    = len(sec["rows"])
+            # Intentar mantener encabezado + al menos 1 fila en la misma página
+            salto_si_necesario(_HH + _CH + _RH)
+
+            _draw_section_header(c, sec["titulo"], y)
+            y -= _HH
+            _draw_col_labels(c, y)
+            y -= _CH
+
+            for (item_text, nombre_campo, firma_campo) in sec["rows"]:
+                salto_si_necesario(_RH)
+                nombre_val = resp.get(nombre_campo) or ""
+                firma_val  = resp.get(firma_campo)  or ""
+                _draw_firma_row(
+                    c, y, item_text, nombre_val, firma_val,
+                    firma_campo, sig_coords, page_num
+                )
+                y -= _RH
+
+            y -= 8  # espacio entre secciones
 
         c.save()
+
+        # ── Guardar mapa de coordenadas ──────────────────────────
+        with open(json_path, "w", encoding="utf-8") as jf:
+            json.dump(sig_coords, jf)
+
+        # Si existe un PDF firmado previo, borrarlo para evitar desincronía
+        signed_path = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
+        if os.path.exists(signed_path):
+            os.remove(signed_path)
 
         return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
@@ -1601,5 +1942,363 @@ def generar_pdf(formulario_id):
     finally:
         close_db(cursor, conn)
         
+# ═══════════════════════════════════════════════════════════════
+#  FIRMA DIGITAL EC  (pyHanko + PAdES)
+# ═══════════════════════════════════════════════════════════════
+
+@app.route("/api/formularios/<int:formulario_id>/firmar-ec", methods=["POST"])
+def firmar_ec_pdf(formulario_id):
+    """
+    Firma digitalmente el PDF del formulario usando un certificado .p12 (FirmaEC/PKCS#12).
+    Solo puede firmar el usuario que el Admin asignó a esa celda específica.
+
+    Form-data esperado:
+        campo_firma : str   – clave de la celda (ej: 'tic_r1', 'rrhh_dir')
+        password    : str   – contraseña del .p12
+        p12_file    : file  – archivo .p12 / .pfx
+    """
+    conn = cursor = None
+    try:
+        user, error = validar_login()
+        if error:
+            return error
+
+        # ── Validar entradas ─────────────────────────────────────
+        campo_firma  = (request.form.get("campo_firma") or "").strip()
+        password_raw = request.form.get("password") or ""
+        p12_file     = request.files.get("p12_file")
+
+        if not campo_firma or not password_raw or not p12_file:
+            return jsonify({"mensaje": "Faltan datos: campo_firma, password y p12_file son requeridos"}), 400
+
+        ext = os.path.splitext(p12_file.filename.lower())[1]
+        if ext not in (".p12", ".pfx"):
+            return jsonify({"mensaje": "Solo se aceptan archivos .p12 o .pfx"}), 400
+
+        p12_bytes = p12_file.read()
+        if not p12_bytes:
+            return jsonify({"mensaje": "El archivo .p12 está vacío"}), 400
+
+        # ── Cargar y validar el certificado ANTES de tocar la BD ─
+        try:
+            from cryptography.hazmat.primitives.serialization.pkcs12 import (
+                load_key_and_certificates,
+            )
+            _, certificate, _ = load_key_and_certificates(
+                p12_bytes, password_raw.encode("utf-8")
+            )
+        except (ValueError, TypeError):
+            return jsonify({"mensaje": "Contraseña incorrecta o archivo .p12 inválido/corrupto"}), 400
+        except Exception as exc:
+            return jsonify({"mensaje": f"No se pudo leer el certificado: {exc}"}), 400
+
+        if certificate is None:
+            return jsonify({"mensaje": "El archivo .p12 no contiene un certificado válido"}), 400
+
+        # ── Extraer nombre del firmante del Subject del certificado ─
+        from cryptography import x509
+        try:
+            signer_name = certificate.subject.get_attributes_for_oid(
+                x509.NameOID.COMMON_NAME
+            )[0].value.upper()
+        except (IndexError, Exception):
+            signer_name = user.get("usuario", "FIRMANTE DESCONOCIDO").upper()
+
+        # ── Consultas a la BD ────────────────────────────────────
+        conn    = get_connection()
+        cursor  = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT id, estado FROM formularios WHERE id = %s", (formulario_id,))
+        formulario = cursor.fetchone()
+        if not formulario:
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        cursor.execute("""
+            SELECT p.id AS pregunta_id,
+                   a.id AS asignacion_id,
+                   a.asignado_usuario_id
+            FROM   formulario_preguntas p
+            INNER JOIN formulario_asignaciones a ON p.id = a.pregunta_id
+            WHERE  p.formulario_id = %s
+              AND  p.codigo        = %s
+            LIMIT  1
+        """, (formulario_id, campo_firma))
+        fila = cursor.fetchone()
+
+        if not fila:
+            return jsonify({"mensaje": f"La celda '{campo_firma}' no está configurada en este formulario"}), 404
+
+        # Solo el usuario designado (o el Administrador) puede firmar
+        if user["rol"] != "Administrador" and fila["asignado_usuario_id"] != user["id"]:
+            return jsonify({
+                "mensaje": (
+                    "No tiene autorización para firmar esta celda. "
+                    "Solo el usuario designado por el Administrador puede hacerlo."
+                )
+            }), 403
+
+        # Verificar que no esté ya firmada
+        cursor.execute("""
+            SELECT id FROM formulario_respuestas
+            WHERE  formulario_id = %s AND pregunta_id = %s
+            LIMIT  1
+        """, (formulario_id, fila["pregunta_id"]))
+        if cursor.fetchone():
+            return jsonify({"mensaje": "Esta celda ya fue firmada y no puede modificarse"}), 400
+
+        # ── PDF debe existir (original o con firmas previas) ────────
+        # Cadena: original → signed (acumulación incremental de firmas)
+        pdf_orig   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}.pdf")
+        pdf_signed = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
+        json_path  = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_sigfields.json")
+
+        pdf_src = pdf_signed if os.path.exists(pdf_signed) else pdf_orig
+        if not os.path.exists(pdf_src):
+            return jsonify({
+                "mensaje": (
+                    "El PDF aún no existe. Genere el documento primero "
+                    "usando el botón 'Descargar PDF' del formulario."
+                )
+            }), 400
+
+        if not os.path.exists(json_path):
+            return jsonify({
+                "mensaje": (
+                    "El mapa de coordenadas no existe. "
+                    "Regenere el PDF con el botón 'Descargar PDF' para actualizarlo."
+                )
+            }), 400
+
+        # ── Firmar con pyHanko ───────────────────────────────────
+        # Destino siempre es _signed.pdf (se sobreescribe incrementalmente)
+        pdf_firmado = pdf_signed
+        try:
+            _pyhanko_firmar(
+                src_path     = pdf_src,
+                dst_path     = pdf_firmado,
+                p12_bytes    = p12_bytes,
+                password     = password_raw,
+                signer_name  = signer_name,
+                campo_firma  = campo_firma,
+                formulario_id= formulario_id,
+                json_path    = json_path,
+            )
+        except RuntimeError as exc:
+            return jsonify({"mensaje": str(exc)}), 400
+
+        # ── Guardar resultado en BD ──────────────────────────────
+        marca = f"FIRMADO_EC:{signer_name}:{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        cursor.execute("""
+            INSERT INTO formulario_respuestas
+                   (formulario_id, pregunta_id, asignacion_id, respondido_por, respuesta)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (formulario_id, fila["pregunta_id"], fila["asignacion_id"], user["id"], marca))
+
+        cursor.execute("""
+            UPDATE formulario_asignaciones
+               SET estado = 'CULMINADO', fecha_culminado = NOW()
+             WHERE id = %s
+        """, (fila["asignacion_id"],))
+
+        # Recalcular porcentaje
+        cursor.execute("""
+            SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN estado = 'CULMINADO' THEN 1 ELSE 0 END) AS completados
+              FROM formulario_asignaciones
+             WHERE formulario_id = %s
+        """, (formulario_id,))
+        prog        = cursor.fetchone()
+        total_asig  = prog["total"]       or 0
+        completados = prog["completados"] or 0
+        porcentaje  = round((completados / total_asig) * 100) if total_asig > 0 else 0
+        estado_form = "COMPLETADO" if porcentaje == 100 else "EN_PROCESO"
+
+        cursor.execute(
+            "UPDATE formularios SET porcentaje = %s, estado = %s WHERE id = %s",
+            (porcentaje, estado_form, formulario_id)
+        )
+        conn.commit()
+
+        registrar_auditoria(
+            user["usuario"], user["rol"], "Formularios",
+            "Firma digital EC",
+            f"Firmó celda '{campo_firma}' del formulario {formulario_id} como '{signer_name}'"
+        )
+
+        return jsonify({
+            "mensaje"    : "PDF firmado correctamente con su certificado FirmaEC.",
+            "firmado_por": signer_name,
+            "porcentaje" : porcentaje,
+            "estado"     : estado_form,
+        }), 200
+
+    except Exception as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"mensaje": "Error inesperado al firmar", "error": str(exc)}), 500
+    finally:
+        close_db(cursor, conn)
+
+
+def _pyhanko_firmar(
+    src_path: str,
+    dst_path: str,
+    p12_bytes: bytes,
+    password: str,
+    signer_name: str,
+    campo_firma: str,
+    formulario_id: int,
+    json_path: str,
+) -> None:
+    """
+    Firma digitalmente la celda `campo_firma` del PDF con pyHanko (PAdES).
+
+    El sello visual ocupa EXACTAMENTE la celda de la tabla tal como la generó
+    `generar_pdf` — las coordenadas se leen del archivo JSON de coordenadas.
+    Todas las celdas miden 160 × 80 pts (ratio 2:1), por lo que el stamp
+    PIL se genera con ratio 2:1 (320 × 160 px) para que no haya distorsión.
+
+    Layout del sello (320 × 160 px → escala a 160 × 80 pts):
+    ┌──────────────────────────────────────────────────────────────┐
+    │  [QR 130×130]  │  Validar únicamente en FirmaEC.            │
+    │                │  Firmado electrónicamente por:             │
+    │                │  NOMBRE COMPLETO DEL FIRMANTE              │
+    └──────────────────────────────────────────────────────────────┘
+    """
+    import io as _io
+
+    # ── Dependencias opcionales ──────────────────────────────────
+    try:
+        import qrcode
+        from PIL import Image, ImageDraw
+    except ImportError:
+        raise RuntimeError("pip install qrcode[pil] Pillow")
+
+    try:
+        from pyhanko.sign import signers, fields as sign_fields
+        from pyhanko.sign.signers.pdf_signer import PdfSignatureMetadata
+        from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+    except ImportError:
+        raise RuntimeError("pip install pyhanko pyhanko-certvalidator")
+
+    # ── Cargar firmante desde PKCS#12 ────────────────────────────
+    try:
+        signer = signers.SimpleSigner.load_pkcs12(
+            pfx_file   = _io.BytesIO(p12_bytes),
+            passphrase = password.encode("utf-8"),
+        )
+    except Exception:
+        raise RuntimeError("Contraseña del .p12 incorrecta o certificado dañado.")
+
+    # ── Leer coordenadas del JSON generado por generar_pdf ───────
+    try:
+        with open(json_path, "r", encoding="utf-8") as jf:
+            sig_map = json.load(jf)
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"No se pudo leer el mapa de coordenadas: {exc}")
+
+    if campo_firma not in sig_map:
+        raise RuntimeError(
+            f"La celda '{campo_firma}' no tiene coordenadas registradas. "
+            "Regenere el PDF para actualizar el mapa."
+        )
+
+    coords   = sig_map[campo_firma]          # [x1, y1, x2, y2, page]
+    SIG_BOX  = (coords[0], coords[1], coords[2], coords[3])
+    SIG_PAGE = int(coords[4])                # 0-indexed
+
+    # ── Construir imagen del sello FirmaEC  (ratio 2:1 fijo) ─────
+    # 320 × 160 px → pyHanko escala al box → sin distorsión
+    IMG_W, IMG_H = 320, 160
+    QR_SIZE      = 130    # QR cuadrado, centrado verticalmente
+    DIV_X        = QR_SIZE + 10   # x de la línea divisoria
+    TX           = DIV_X + 8      # x del texto
+
+    stamp = Image.new("RGB", (IMG_W, IMG_H), "white")
+    draw  = ImageDraw.Draw(stamp)
+
+    # QR con URL de validación FirmaEC
+    qr_url = (
+        f"https://validar.firmaec.ec/"
+        f"?id={formulario_id}&campo={campo_firma}"
+    )
+    qr = qrcode.QRCode(
+        version          = 2,
+        box_size         = 4,
+        border           = 1,
+        error_correction = qrcode.constants.ERROR_CORRECT_M,
+    )
+    qr.add_data(qr_url)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    qr_img = qr_img.resize((QR_SIZE, QR_SIZE), Image.LANCZOS)
+    stamp.paste(qr_img, (6, (IMG_H - QR_SIZE) // 2))
+
+    # Línea divisoria vertical
+    draw.line([(DIV_X, 8), (DIV_X, IMG_H - 8)], fill="#666666", width=1)
+
+    # Texto — tres líneas alineadas a la izquierda del área de texto
+    draw.text((TX, 18),  "Validar únicamente en FirmaEC.", fill="#003087")
+    draw.text((TX, 68),  "Firmado electrónicamente por:",  fill="#444444")
+    # Nombre del firmante: truncar si supera el ancho disponible
+    nombre_disp = signer_name[:30] if len(signer_name) > 30 else signer_name
+    draw.text((TX, 112), nombre_disp,                      fill="#000000")
+
+    # Borde exterior
+    draw.rectangle([1, 1, IMG_W - 2, IMG_H - 2], outline="#AAAAAA", width=1)
+
+    stamp_buf = _io.BytesIO()
+    stamp.save(stamp_buf, format="PNG")
+    stamp_buf.seek(0)
+
+    # ── Escribir PDF firmado (incremental) ───────────────────────
+    # Si src == dst (firma sobre firmado previo), usar buffer intermedio
+    use_tmp = (src_path == dst_path)
+    if use_tmp:
+        with open(src_path, "rb") as f_in:
+            src_bytes = f_in.read()
+        in_stream = _io.BytesIO(src_bytes)
+    else:
+        in_stream = open(src_path, "rb")
+
+    FIELD_NAME = f"Sig_{campo_firma}"
+
+    try:
+        writer = IncrementalPdfFileWriter(in_stream)
+
+        sign_fields.append_signature_field(
+            writer,
+            sig_field_spec=sign_fields.SigFieldSpec(
+                sig_field_name = FIELD_NAME,
+                box            = SIG_BOX,
+                on_page        = SIG_PAGE,
+            ),
+        )
+
+        meta = PdfSignatureMetadata(
+            field_name = FIELD_NAME,
+            reason     = f"Paz y Salvo INAMHI — {campo_firma}",
+            location   = "Ecuador",
+            name       = signer_name,
+            certify    = False,
+        )
+
+        out_buf = _io.BytesIO()
+        signers.sign_pdf(
+            writer,
+            signature_meta     = meta,
+            signer             = signer,
+            output             = out_buf,
+            existing_fields_only = False,
+        )
+    finally:
+        if not use_tmp:
+            in_stream.close()
+
+    # Escribir resultado
+    with open(dst_path, "wb") as f_out:
+        f_out.write(out_buf.getvalue())
+
+
 if __name__ == "__main__":
     app.run(debug=False, port=5000, threaded=True, use_reloader=False)

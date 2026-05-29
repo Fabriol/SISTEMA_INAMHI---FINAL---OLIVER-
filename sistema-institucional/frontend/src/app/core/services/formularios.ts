@@ -120,4 +120,22 @@ export class FormulariosService {
   eliminar(id: number): Observable<any> {
     return this.http.delete(`${this.api}/formularios/${id}`);
   }
+
+  // ===============================
+  // 🔹 FIRMA DIGITAL (pyHanko)
+  // ===============================
+
+  /**
+   * Envía el archivo .p12 + contraseña al backend para firmar la celda FirmaEC con pyHanko.
+   * Se usa FormData (multipart); NO se establece Content-Type manualmente para que el
+   * navegador incluya automáticamente el boundary del multipart.
+   */
+  firmarEC(formularioId: number, formData: FormData): Observable<any> {
+    const token = localStorage.getItem('token') || '';
+    return this.http.post(
+      `${this.api}/formularios/${formularioId}/firmar-ec`,
+      formData,
+      { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) }
+    );
+  }
 }

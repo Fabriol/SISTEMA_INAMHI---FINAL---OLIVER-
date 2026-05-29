@@ -119,6 +119,34 @@ export function emailsDiferentesValidator(): ValidatorFn {
   };
 }
 
+// ── Provincias y cantones de Ecuador ────────────────────────────────────────
+export const PROVINCIAS_CANTONES: Record<string, string[]> = {
+  'Azuay': ['Cuenca','Chordeleg','El Pan','Girón','Guachapala','Gualaceo','Nabón','Oña','Paute','Pucará','San Fernando','Santa Isabel','Sevilla de Oro','Sígsig'],
+  'Bolívar': ['Guaranda','Caluma','Chillanes','Chimbo','Echeandía','Las Naves','San Miguel'],
+  'Cañar': ['Azogues','Biblián','Cañar','Déleg','El Tambo','La Troncal','Suscal'],
+  'Carchi': ['Tulcán','Bolívar','Espejo','Mira','Montúfar','San Pedro de Huaca'],
+  'Chimborazo': ['Riobamba','Alausí','Chambo','Chunchi','Colta','Cumandá','Guamote','Guano','Pallatanga','Penipe'],
+  'Cotopaxi': ['Latacunga','La Maná','Pangua','Pujilí','Salcedo','Saquisilí','Sigchos'],
+  'El Oro': ['Machala','Arenillas','Atahualpa','Balsas','Chilla','El Guabo','Huaquillas','Las Lajas','Marcabelí','Pasaje','Piñas','Portovelo','Santa Rosa','Zaruma'],
+  'Esmeraldas': ['Esmeraldas','Atacames','Eloy Alfaro','Muisne','Quinindé','Río Verde','San Lorenzo'],
+  'Galápagos': ['Puerto Baquerizo Moreno','Isabela','Santa Cruz'],
+  'Guayas': ['Guayaquil','Alfredo Baquerizo Moreno','Balzar','Colimes','Daule','Durán','El Empalme','El Triunfo','General Antonio Elizalde','Isidro Ayora','Lomas de Sargentillo','Milagro','Naranjal','Naranjito','Nobol','Palestina','Pedro Carbo','Playas','Salitre','Samborondón','Santa Lucía','Simón Bolívar','Yaguachi'],
+  'Imbabura': ['Ibarra','Antonio Ante','Cotacachi','Otavalo','Pimampiro','San Miguel de Urcuquí'],
+  'Loja': ['Loja','Calvas','Catamayo','Célica','Chaguarpamba','Espíndola','Gonzanamá','Macará','Olmedo','Paltas','Pindal','Puyango','Quilanga','Saraguro','Sozoranga','Zapotillo'],
+  'Los Ríos': ['Babahoyo','Baba','Buena Fé','Montalvo','Mocache','Palenque','Puebloviejo','Quevedo','Quinsaloma','Urdaneta','Valencia','Ventanas','Vinces'],
+  'Manabí': ['Portoviejo','Bolívar','Chone','El Carmen','Flavio Alfaro','Jama','Jaramijó','Jipijapa','Junín','Manta','Montecristi','Olmedo','Paján','Pedernales','Pichincha','Puerto López','Rocafuerte','San Vicente','Santa Ana','Sucre','Tosagua','24 de Mayo'],
+  'Morona Santiago': ['Macas','Gualaquiza','Huamboya','Limón Indanza','Logroño','Palora','San Juan Bosco','Santiago','Sucúa','Taisha','Tiwintza'],
+  'Napo': ['Tena','Archidona','Carlos Julio Arosemena Tola','El Chaco','Quijos'],
+  'Orellana': ['Francisco de Orellana','Aguarico','La Joya de los Sachas','Loreto'],
+  'Pastaza': ['Puyo','Arajuno','Mera','Pastaza','Santa Clara','Simón Bolívar'],
+  'Pichincha': ['Quito','Cayambe','Mejía','Pedro Moncayo','Pedro Vicente Maldonado','Puerto Quito','Rumiñahui','San Miguel de los Bancos'],
+  'Santa Elena': ['Santa Elena','La Libertad','Salinas'],
+  'Santo Domingo de los Tsáchilas': ['Santo Domingo','La Concordia'],
+  'Sucumbíos': ['Nueva Loja','Cascales','Cuyabeno','Gonzalo Pizarro','Putumayo','Shushufindi','Sucumbíos'],
+  'Tungurahua': ['Ambato','Baños de Agua Santa','Cevallos','Mocha','Patate','Quero','San Pedro de Pelileo','Santiago de Píllaro','Tisaleo'],
+  'Zamora Chinchipe': ['Zamora','Centinela del Cóndor','Chinchipe','El Pangui','Nangaritza','Palanda','Paquisha','Yacuambi','Yantzaza'],
+};
+
 // ═══════════════════════════════════════════════════════════════
 //  COMPONENTE
 // ═══════════════════════════════════════════════════════════════
@@ -159,6 +187,14 @@ export class Formularios implements OnInit, OnDestroy {
   hasFirma = false;
   firmaRequired = false;
 
+  // ── Firma FirmaEC con .p12 ──────────────────────────────────
+  /** Contraseña del .p12 para cada campo de firma (índice = campo). */
+  p12Passwords: Record<string, string> = {};
+  /** Estado de carga por campo para evitar doble envío. */
+  p12Cargando: Record<string, boolean> = {};
+  /** Nombre del firmante extraído del certificado (por campo). */
+  p12NombreFirmante: Record<string, string> = {};
+
   // ── FirmaEC por fila (responsable de cada ítem del formulario) ─
   firmasEC: Record<string, string | null> = {
     // Trámites y Unidad
@@ -193,6 +229,7 @@ export class Formularios implements OnInit, OnDestroy {
   formularioSeleccionado: any = null;
   usuariosDisponibles: any[] = [];
   notificaciones: NotificacionItem[] = [];
+  cantonesFiltrados: string[] = [];
   usuario: any = {};
   asignacion = { usuario_id: '' };
 
@@ -543,14 +580,8 @@ export class Formularios implements OnInit, OnDestroy {
         emergencia: ['', Validators.pattern(/^09\d{8}$/)],
         email1: ['', [Validators.required, Validators.email]],
         email2: ['', Validators.email],
-        provincia: [
-          '',
-          [Validators.required, Validators.minLength(3), Validators.pattern(/^[a-zA-ZÀ-ÿ\s]+$/)],
-        ],
-        canton: [
-          '',
-          [Validators.required, Validators.minLength(3), Validators.pattern(/^[a-zA-ZÀ-ÿ\s]+$/)],
-        ],
+        provincia: ['', Validators.required],
+        canton: ['', Validators.required],
 
         // ── Step 0: Dirección / Unidad ──────────────────────
         lugar_trabajo: ['', Validators.required],
@@ -796,6 +827,70 @@ export class Formularios implements OnInit, OnDestroy {
         this.formularioPazSalvo.get('fecha_salida')!
           .updateValueAndValidity({ emitEvent: false });
       });
+
+    // provincia → canton
+    this.formularioPazSalvo.get('provincia')!
+      .valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((prov: string) => {
+        this.cantonesFiltrados = PROVINCIAS_CANTONES[prov] ?? [];
+        const canton = this.formularioPazSalvo.get('canton');
+        if (canton && !this.cantonesFiltrados.includes(canton.value ?? '')) {
+          canton.setValue('', { emitEvent: false });
+        }
+        this.cdr.markForCheck();
+      });
+  }
+
+  /**
+   * Re-aplica los validadores condicionales en función de los valores actuales del formulario.
+   * Necesario tras patchValue({ emitEvent: false }) porque ese flag suprime valueChanges,
+   * dejando los validadores dependientes sin actualizar.
+   */
+  private sincronizarValidadoresCondicionales(): void {
+    const fg = this.formularioPazSalvo;
+
+    const aplicar = (
+      triggerKey: string,
+      depKey: string,
+      condicion: (v: string) => boolean,
+      validadoresSi: any[],
+      validadoresNo: any[] = []
+    ) => {
+      const val: string = fg.get(triggerKey)?.value ?? '';
+      const ctrl = fg.get(depKey);
+      if (!ctrl) return;
+      ctrl.setValidators(condicion(val) ? validadoresSi : validadoresNo);
+      ctrl.updateValueAndValidity({ emitEvent: false });
+    };
+
+    const esSI = (v: string) => v === 'SI';
+
+    aplicar('tramites_admin_contrato', 'tramites_desc_contrato', esSI,
+      [Validators.required, Validators.minLength(3)]);
+    aplicar('tramites_admin_contrato', 'tramites_memo', esSI,
+      [Validators.required, Validators.minLength(3)]);
+
+    aplicar('admin_deducibles', 'admin_deducibles_valor', esSI,
+      [Validators.required, Validators.min(0.01)]);
+
+    aplicar('tic_backup', 'tic_ruta_backup', esSI,
+      [Validators.required, Validators.minLength(5)]);
+
+    aplicar('tic_ip_fija', 'tic_liberacion', esSI,
+      [Validators.required]);
+
+    aplicar('fin_saldos', 'fin_saldos_valor', esSI,
+      [Validators.required, Validators.min(0.01)], [Validators.min(0)]);
+    aplicar('fin_anticipo', 'fin_anticipo_valor', esSI,
+      [Validators.required, Validators.min(0.01)], [Validators.min(0)]);
+    aplicar('fin_recuperacion', 'fin_recuperacion_valor', esSI,
+      [Validators.required, Validators.min(0.01)], [Validators.min(0)]);
+    aplicar('fin_devolucion', 'fin_devolucion_valor', esSI,
+      [Validators.required, Validators.min(0.01)], [Validators.min(0)]);
+
+    // Sincronizar lista de cantones según provincia actual
+    const provActual: string = fg.get('provincia')?.value ?? '';
+    this.cantonesFiltrados = PROVINCIAS_CANTONES[provActual] ?? [];
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -806,17 +901,24 @@ export class Formularios implements OnInit, OnDestroy {
     return this.usuario?.rol === 'Administrador';
   }
 
+  get provincias(): string[] {
+    return Object.keys(PROVINCIAS_CANTONES).sort();
+  }
+
   /**
    * Devuelve true si el usuario actual puede editar el campo.
-   * - Administrador: puede editar todo.
-   * - Usuario normal: solo campos asignados que no estén bloqueados.
+   * - Campos ya guardados (camposBloqueados): nadie puede editarlos, ni el admin.
+   * - Administrador: puede editar cualquier campo no guardado.
+   * - Usuario normal: solo sus campos asignados no guardados.
    */
   puedeEditarCampo(campo: string): boolean {
+    if (this.camposBloqueados.includes(campo)) return false;
     if (this.esAdmin()) return true;
-    return (
-      this.camposAsignadosUsuario.includes(campo) &&
-      !this.camposBloqueados.includes(campo)
-    );
+    return this.camposAsignadosUsuario.includes(campo);
+  }
+
+  esCampoGuardado(campo: string): boolean {
+    return this.camposBloqueados.includes(campo);
   }
 
   private limpiarTexto(texto: unknown): string {
@@ -888,7 +990,11 @@ export class Formularios implements OnInit, OnDestroy {
       const ctrl = this.formularioPazSalvo.get(campo);
       if (!ctrl) return;
 
+      // Para usuarios normales: solo validar campos que les fueron asignados
       if (!this.esAdmin() && !this.camposAsignadosUsuario.includes(campo)) return;
+
+      // Campos ya guardados en el backend están deshabilitados → siempre válidos, omitir
+      if (!this.esAdmin() && this.camposBloqueados.includes(campo)) return;
 
       ctrl.markAsTouched();
       ctrl.updateValueAndValidity({ emitEvent: false });
@@ -911,12 +1017,25 @@ export class Formularios implements OnInit, OnDestroy {
       }
     });
 
-    // Validadores cross-field del grupo
+    // Validadores cross-field del grupo — solo aplican si el usuario tiene AMBOS campos asignados
     if (step === 0) {
-      if (this.formularioPazSalvo.errors?.['fechasInvalidas']) {
+      const tieneFechas = this.esAdmin() || (
+        this.camposAsignadosUsuario.includes('fecha_ingreso') &&
+        this.camposAsignadosUsuario.includes('fecha_salida') &&
+        !this.camposBloqueados.includes('fecha_ingreso') &&
+        !this.camposBloqueados.includes('fecha_salida')
+      );
+      if (tieneFechas && this.formularioPazSalvo.errors?.['fechasInvalidas']) {
         errores.push('Fechas: la fecha de salida debe ser posterior a la de ingreso');
       }
-      if (this.formularioPazSalvo.errors?.['emailsIguales']) {
+
+      const tieneEmails = this.esAdmin() || (
+        this.camposAsignadosUsuario.includes('email1') &&
+        this.camposAsignadosUsuario.includes('email2') &&
+        !this.camposBloqueados.includes('email1') &&
+        !this.camposBloqueados.includes('email2')
+      );
+      if (tieneEmails && this.formularioPazSalvo.errors?.['emailsIguales']) {
         errores.push('Email Secundario: no puede ser igual al email principal');
       }
     }
@@ -1085,8 +1204,8 @@ export class Formularios implements OnInit, OnDestroy {
   }
 
   clearFirmaEC(seccion: string): void {
+    if (this.camposBloqueados.includes(seccion)) return; // Firma ya guardada — inmutable
     this.firmasEC[seccion] = null;
-    // Restore upload button if the firma is still assigned and not yet saved
     const asignado = this.esAdmin() || this.camposAsignadosUsuario.includes(seccion);
     const bloqueado = this.camposBloqueados.includes(seccion);
     this.firmasECRequired[seccion] = asignado && !bloqueado;
@@ -1119,6 +1238,130 @@ export class Formularios implements OnInit, OnDestroy {
     if (!todasOk) this.cdr.markForCheck();
 
     return todasOk;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  FIRMA DIGITAL CON .p12 (FirmaEC / PAdES)
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Valida que el archivo seleccionado sea .p12 o .pfx antes de cualquier envío.
+   * Retorna el File si es válido, null si no.
+   */
+  private validarArchivoP12(event: Event): File | null {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    if (!file) return null;
+
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (!['p12', 'pfx'].includes(ext)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Formato inválido',
+        text: 'Solo se aceptan archivos con extensión .p12 o .pfx (certificado FirmaEC).',
+        confirmButtonText: 'Entendido',
+      });
+      (input as HTMLInputElement).value = '';
+      return null;
+    }
+
+    const maxMb = 5;
+    if (file.size > maxMb * 1024 * 1024) {
+      this.showSwalToast(`El certificado no debe superar ${maxMb} MB.`, 'warning');
+      (input as HTMLInputElement).value = '';
+      return null;
+    }
+
+    return file;
+  }
+
+  /**
+   * Envía el .p12 + contraseña al backend para firmar digitalmente la celda FirmaEC.
+   * El backend usa pyHanko para incrustar la firma PAdES con sello visual estilo FirmaEC.
+   *
+   * @param campoFirma  Clave de la celda asignada (ej: 'tic_r1', 'rrhh_dir')
+   * @param event       Evento del input[type=file]
+   */
+  firmarConP12(campoFirma: string, event: Event): void {
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Sin formulario', 'Seleccione un formulario antes de firmar.');
+      return;
+    }
+
+    // Bloquear doble envío
+    if (this.p12Cargando[campoFirma]) return;
+
+    const archivo = this.validarArchivoP12(event);
+    if (!archivo) return;
+
+    const password = (this.p12Passwords[campoFirma] ?? '').trim();
+    if (!password) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Contraseña requerida',
+        text: 'Ingrese la contraseña del certificado .p12 antes de firmar.',
+        confirmButtonText: 'OK',
+      });
+      return;
+    }
+
+    // Confirmar acción irreversible
+    Swal.fire({
+      icon: 'question',
+      title: '¿Confirmar firma?',
+      html: `Va a firmar digitalmente la celda <b>${campoFirma}</b> con su certificado FirmaEC.<br>
+             Esta acción <b>no se puede deshacer</b>.`,
+      showCancelButton: true,
+      confirmButtonText: 'Sí, firmar',
+      cancelButtonText: 'Cancelar',
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      this._ejecutarFirmaP12(campoFirma, archivo, password);
+    });
+  }
+
+  private _ejecutarFirmaP12(campoFirma: string, archivo: File, password: string): void {
+    this.p12Cargando[campoFirma] = true;
+    this.cdr.markForCheck();
+
+    const formData = new FormData();
+    formData.append('campo_firma', campoFirma);
+    formData.append('password', password);
+    formData.append('p12_file', archivo, archivo.name);
+
+    this.formulariosService
+      .firmarEC(this.formularioSeleccionado.id, formData)
+      .pipe(
+        timeout(60_000),
+        catchError((err: any) => {
+          const msg = err?.error?.mensaje ?? 'Error al comunicarse con el servidor.';
+          Swal.fire({ icon: 'error', title: 'Error de firma', text: msg });
+          return of(null);
+        }),
+        finalize(() => {
+          this.p12Cargando[campoFirma] = false;
+          // Limpiar contraseña de memoria
+          this.p12Passwords[campoFirma] = '';
+          this.cdr.markForCheck();
+        })
+      )
+      .subscribe((resp: any) => {
+        if (!resp) return;
+        this.p12NombreFirmante[campoFirma] = resp.firmado_por ?? '';
+        // Marcar como bloqueado localmente (ya no se puede volver a firmar)
+        if (!this.camposBloqueados.includes(campoFirma)) {
+          this.camposBloqueados.push(campoFirma);
+        }
+        this.firmasECRequired[campoFirma] = false;
+        Swal.fire({
+          icon: 'success',
+          title: 'PDF firmado correctamente',
+          html: `Firmado por: <b>${resp.firmado_por}</b><br>
+                 Progreso del formulario: <b>${resp.porcentaje}%</b>`,
+        });
+        // Recargar estado del formulario desde el servidor
+        this.cargarDetalleFormulario(this.formularioSeleccionado);
+      });
   }
 
   onFirmaFileChange(event: Event): void {
@@ -1175,17 +1418,7 @@ export class Formularios implements OnInit, OnDestroy {
       return;
     }
 
-    // Validar FirmaEC de todas las secciones
-    if (!this.validarFirmasEC()) {
-      this.alertaRapida(
-        'Firmas electrónicas requeridas',
-        'Debe registrar la FirmaEC del responsable en todas las secciones del formulario.'
-      );
-      return;
-    }
-
-    // Validar firma del servidor saliente obligatoria
-    // Validar firma del servidor saliente SOLO si ese campo le corresponde al usuario
+    // Firma del servidor saliente: solo requerida si ese campo fue asignado al usuario
     const debeFirmarServidor =
       this.esAdmin() ||
       this.camposAsignadosUsuario.includes('cedula_firmante') ||
@@ -1233,7 +1466,6 @@ export class Formularios implements OnInit, OnDestroy {
   }
 
   private guardarCamposAsignados(): void {
-    // Campos de formulario reactivo asignados con valor
     const camposAGuardar = this.camposAsignadosUsuario.filter(campo => {
       if (this.camposBloqueados.includes(campo)) return false;
       const ctrl = this.formularioPazSalvo.get(campo);
@@ -1245,7 +1477,6 @@ export class Formularios implements OnInit, OnDestroy {
       return true;
     });
 
-    // FirmaEC asignadas con imagen cargada (no son controles reactivos)
     const firmasAGuardar = this.camposAsignadosUsuario.filter(campo => {
       if (this.camposBloqueados.includes(campo)) return false;
       return (campo in this.firmasEC) && !!this.firmasEC[campo];
@@ -1258,17 +1489,22 @@ export class Formularios implements OnInit, OnDestroy {
       return;
     }
 
-    // Validar solo los campos reactivos asignados
     let hayErrores = false;
+    let primerCampoInvalido = '';
     camposAGuardar.forEach(campo => {
       const ctrl = this.formularioPazSalvo.get(campo);
       ctrl?.markAsTouched();
       ctrl?.updateValueAndValidity({ emitEvent: false });
-      if (ctrl?.invalid) hayErrores = true;
+      if (ctrl?.invalid) {
+        hayErrores = true;
+        if (!primerCampoInvalido) primerCampoInvalido = campo;
+      }
     });
 
     if (hayErrores) {
-      this.alertaRapida('Validación', 'Corrija los errores en los campos asignados.');
+      const def = this.camposFormulario.find(c => c.id === primerCampoInvalido);
+      this.alertaRapida('Validación', `Corrija el campo: "${def?.etiqueta ?? primerCampoInvalido}"`);
+      this.navegarACampo(primerCampoInvalido);
       this.cdr.markForCheck();
       return;
     }
@@ -1276,6 +1512,7 @@ export class Formularios implements OnInit, OnDestroy {
     this.cargando = true;
     let guardados = 0;
     let errores = 0;
+    const camposFallidos: string[] = [];
 
     const onDone = () => {
       if (guardados + errores < total) return;
@@ -1286,13 +1523,19 @@ export class Formularios implements OnInit, OnDestroy {
         localStorage.removeItem('pazYSalvoDraft');
         this.cargarDetalleFormulario(this.formularioSeleccionado);
       } else if (guardados > 0) {
-        Swal.fire('Advertencia', `Se guardaron ${guardados} de ${total}. Fallaron ${errores}.`, 'warning');
+        const etiquetas = camposFallidos
+          .map(c => this.camposFormulario.find(x => x.id === c)?.etiqueta ?? c)
+          .join(', ');
+        Swal.fire('Advertencia',
+          `Se guardaron ${guardados} de ${total}.\nFallaron (${errores}): ${etiquetas}`, 'warning')
+          .then(() => {
+            if (camposFallidos[0]) this.navegarACampo(camposFallidos[0]);
+          });
       } else {
-        Swal.fire('Error', `No se pudo guardar. Fallaron ${errores} campos.`, 'error');
+        Swal.fire('Error', `No se pudo guardar ningún campo. Fallaron ${errores}.`, 'error');
       }
     };
 
-    // Guardar campos reactivos
     camposAGuardar.forEach(campo => {
       const ctrl = this.formularioPazSalvo.get(campo);
       this.formulariosService
@@ -1303,11 +1546,15 @@ export class Formularios implements OnInit, OnDestroy {
         })
         .subscribe({
           next: () => { guardados++; onDone(); },
-          error: (err: any) => { console.error(`Error guardando campo '${campo}':`, err?.error); errores++; onDone(); },
+          error: (err: any) => {
+            console.error(`Error guardando campo '${campo}':`, err?.error);
+            camposFallidos.push(campo);
+            errores++;
+            onDone();
+          },
         });
     });
 
-    // Guardar firmasEC (base64 — sin pasar por limpiarTexto)
     firmasAGuardar.forEach(campo => {
       this.formulariosService
         .responder({
@@ -1317,7 +1564,12 @@ export class Formularios implements OnInit, OnDestroy {
         })
         .subscribe({
           next: () => { guardados++; onDone(); },
-          error: (err: any) => { console.error(`Error guardando firma '${campo}':`, err?.error); errores++; onDone(); },
+          error: (err: any) => {
+            console.error(`Error guardando firma '${campo}':`, err?.error);
+            camposFallidos.push(campo);
+            errores++;
+            onDone();
+          },
         });
     });
   }
@@ -1449,22 +1701,26 @@ export class Formularios implements OnInit, OnDestroy {
       });
 
       this.formularioPazSalvo.patchValue(valores, { emitEvent: false });
+      // patchValue con emitEvent:false no dispara valueChanges, por lo que los
+      // validadores condicionales no se actualizan. Los sincronizamos manualmente.
+      this.sincronizarValidadoresCondicionales();
       this.aplicarPermisosCampos();
       this.cdr.markForCheck();
     });
   }
 
-  /** Habilita / deshabilita controles según rol y asignación. */
+  /** Habilita / deshabilita controles según rol y asignación.
+   *  Campos ya guardados (camposBloqueados) → siempre deshabilitados para todos. */
   private aplicarPermisosCampos(): void {
     Object.keys(this.formularioPazSalvo.controls).forEach(key => {
       const ctrl = this.formularioPazSalvo.get(key);
       if (!ctrl) return;
 
-      if (this.esAdmin()) {
-        ctrl.enable({ emitEvent: false });
+      if (this.camposBloqueados.includes(key)) {
+        ctrl.disable({ emitEvent: false });
       } else if (
-        this.camposAsignadosUsuario.includes(key) &&
-        !this.camposBloqueados.includes(key)
+        this.esAdmin() ||
+        this.camposAsignadosUsuario.includes(key)
       ) {
         ctrl.enable({ emitEvent: false });
       } else {
@@ -1472,11 +1728,10 @@ export class Formularios implements OnInit, OnDestroy {
       }
     });
 
-    // Activar/desactivar firmasEC según asignación y estado de carga
+    // Activar/desactivar firmasEC según asignación y estado guardado
     Object.keys(this.firmasEC).forEach(key => {
       const asignado = this.esAdmin() || this.camposAsignadosUsuario.includes(key);
       const bloqueado = this.camposBloqueados.includes(key);
-      // true = mostrar botón de carga / indicador requerido
       this.firmasECRequired[key] = asignado && !bloqueado && !this.firmasEC[key];
     });
   }
@@ -1527,6 +1782,7 @@ export class Formularios implements OnInit, OnDestroy {
     this.contenidoVisible = !this.contenidoVisible;
     this.cdr.markForCheck();
     if (this.contenidoVisible) {
+      this.marcarTodasLeidas();
       setTimeout(() => {
         document.getElementById('listado-formularios')
           ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1809,6 +2065,37 @@ export class Formularios implements OnInit, OnDestroy {
       timer: 2500,
       showConfirmButton: false,
     }).then(() => (this.alertaActiva = false));
+  }
+
+  navegarACampo(campo: string): void {
+    for (let i = 0; i < this.steps.length; i++) {
+      if (this.steps[i].campos.includes(campo)) {
+        this.currentStep = i;
+        this.cdr.markForCheck();
+        break;
+      }
+    }
+    setTimeout(() => {
+      const el = document.querySelector(`[formcontrolname="${campo}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (el as HTMLElement).focus?.();
+      }
+    }, 250);
+  }
+
+  capitalizarInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const val = input.value;
+    if (!val || val.length === 0) return;
+    const capitalized = val.charAt(0).toUpperCase() + val.slice(1);
+    if (capitalized === val) return;
+    input.value = capitalized;
+    const ctrlName = input.getAttribute('formcontrolname');
+    if (ctrlName) {
+      const ctrl = this.formularioPazSalvo.get(ctrlName);
+      ctrl?.setValue(capitalized, { emitEvent: true });
+    }
   }
 
   // ─────────────────────────────────────────────────────────────
