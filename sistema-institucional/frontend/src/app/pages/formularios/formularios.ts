@@ -1,4 +1,4 @@
-﻿import {
+﻿﻿import {
   Component,
   OnInit,
   OnDestroy,
@@ -901,6 +901,61 @@ export class Formularios implements OnInit, OnDestroy {
     return this.usuario?.rol === 'Administrador';
   }
 
+  private normalizarRol(): string {
+    // eslint-disable-next-line no-misleading-character-class
+    return String(this.usuario?.rol ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .trim();
+  }
+
+  esTalentoHumanoCR(): boolean {
+    const r = this.normalizarRol();
+    return r.includes('talento humano') && r.includes('recep');
+  }
+
+  esExFuncionario(): boolean {
+    const r = this.normalizarRol();
+    return r.includes('ex funcionario') || r.includes('ex-funcionario') || r.includes('exfuncionario');
+  }
+
+  /** Devuelve true cuando todos los campos asignados (excepto recepción y firma) ya están guardados. */
+  get otrasSeccionesCompletas(): boolean {
+    const otros = this.camposAsignadosUsuario.filter(
+      c => !this.CAMPOS_RECEPCION_FIRMA.includes(c) && !(c in this.firmasEC)
+    );
+    if (otros.length === 0) return false;
+    return otros.every(c => this.camposBloqueados.includes(c));
+  }
+
+  aprobarFormulario(f: any, event: Event): void {
+    event.stopPropagation();
+    Swal.fire({
+      title: '¿Aprobar formulario?',
+      text: `Se marcará como aprobado el formulario "${f.titulo}"`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, aprobar',
+      cancelButtonText: 'Cancelar',
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      this.cargando = true;
+      this.formulariosService.aprobar(f.id).pipe(
+        timeout(8000),
+        catchError((err: any) => {
+          Swal.fire('Error', err?.error?.mensaje ?? 'Error al aprobar formulario.', 'error');
+          return of(null);
+        }),
+        finalize(() => { this.cargando = false; this.cdr.markForCheck(); })
+      ).subscribe((res: any) => {
+        if (!res) return;
+        Swal.fire('Aprobado', res.mensaje ?? 'Formulario aprobado correctamente.', 'success');
+        this.cargarFormularios();
+      });
+    });
+  }
+
   get provincias(): string[] {
     return Object.keys(PROVINCIAS_CANTONES).sort();
   }
@@ -911,9 +966,15 @@ export class Formularios implements OnInit, OnDestroy {
    * - Administrador: puede editar cualquier campo no guardado.
    * - Usuario normal: solo sus campos asignados no guardados.
    */
+  private readonly CAMPOS_RECEPCION_FIRMA = [
+    'recepcion_fecha', 'recepcion_hojas', 'recepcion_servidor', 'recepcion_cargo',
+    'cedula_firmante', 'fecha_firma',
+  ];
+
   puedeEditarCampo(campo: string): boolean {
     if (this.camposBloqueados.includes(campo)) return false;
     if (this.esAdmin()) return true;
+    if (this.CAMPOS_RECEPCION_FIRMA.includes(campo) && !this.otrasSeccionesCompletas) return false;
     return this.camposAsignadosUsuario.includes(campo);
   }
 
@@ -1526,14 +1587,32 @@ export class Formularios implements OnInit, OnDestroy {
         const etiquetas = camposFallidos
           .map(c => this.camposFormulario.find(x => x.id === c)?.etiqueta ?? c)
           .join(', ');
+        this.cargarDetalleFormulario(this.formularioSeleccionado);
         Swal.fire('Advertencia',
           `Se guardaron ${guardados} de ${total}.\nFallaron (${errores}): ${etiquetas}`, 'warning')
           .then(() => {
             if (camposFallidos[0]) this.navegarACampo(camposFallidos[0]);
           });
       } else {
+        this.cargarDetalleFormulario(this.formularioSeleccionado);
         Swal.fire('Error', `No se pudo guardar ningún campo. Fallaron ${errores}.`, 'error');
       }
+    };
+
+    const manejarErrorCampo = (campo: string, err: any) => {
+      const msg: string = err?.error?.mensaje ?? '';
+      if (err?.status === 400 && msg.toLowerCase().includes('ya fue llenado')) {
+        // Campo ya guardado en la BD desde sesión anterior — contar como exitoso
+        if (!this.camposBloqueados.includes(campo)) {
+          this.camposBloqueados.push(campo);
+        }
+        guardados++;
+      } else {
+        console.error(`Error guardando campo '${campo}':`, err?.error);
+        camposFallidos.push(campo);
+        errores++;
+      }
+      onDone();
     };
 
     camposAGuardar.forEach(campo => {
@@ -1546,12 +1625,7 @@ export class Formularios implements OnInit, OnDestroy {
         })
         .subscribe({
           next: () => { guardados++; onDone(); },
-          error: (err: any) => {
-            console.error(`Error guardando campo '${campo}':`, err?.error);
-            camposFallidos.push(campo);
-            errores++;
-            onDone();
-          },
+          error: (err: any) => manejarErrorCampo(campo, err),
         });
     });
 
@@ -1564,12 +1638,7 @@ export class Formularios implements OnInit, OnDestroy {
         })
         .subscribe({
           next: () => { guardados++; onDone(); },
-          error: (err: any) => {
-            console.error(`Error guardando firma '${campo}':`, err?.error);
-            camposFallidos.push(campo);
-            errores++;
-            onDone();
-          },
+          error: (err: any) => manejarErrorCampo(campo, err),
         });
     });
   }

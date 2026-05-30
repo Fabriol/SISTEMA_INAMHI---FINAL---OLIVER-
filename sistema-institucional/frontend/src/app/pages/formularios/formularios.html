@@ -1,4 +1,4 @@
-﻿<div class="page">
+﻿﻿<div class="page">
 
   <!-- ══ HEADER ══ -->
   <div class="page-header fade-down">
@@ -78,6 +78,22 @@
         <p>{{ f.descripcion || 'Formulario Paz y Salvo' }}</p>
         <span class="estado">{{ f.estado || 'BORRADOR' }}</span>
         <span class="estado activo-label" *ngIf="formularioSeleccionado?.id === f.id">SELECCIONADO</span>
+
+        <!-- Barra de progreso: visible para Ex Funcionario, Talento Humano CR y Admin -->
+        <ng-container *ngIf="esAdmin() || esExFuncionario() || esTalentoHumanoCR()">
+          <div class="item-progress" (click)="$event.stopPropagation()">
+            <div class="item-progress__bar-wrap">
+              <div class="item-progress__bar-fill" [style.width.%]="(f.porcentaje ?? 0)"></div>
+            </div>
+            <span class="item-progress__label">{{ (f.porcentaje ?? 0) }}% completado</span>
+          </div>
+
+          <!-- Botones Ver y Aprobar: solo Talento Humano CR con formulario al 100% -->
+          <div class="item-actions" *ngIf="esTalentoHumanoCR() && (f.porcentaje ?? 0) >= 100" (click)="$event.stopPropagation()">
+            <button type="button" class="btn-ver-form" (click)="verFormulario(f)">Ver formulario</button>
+            <button type="button" class="btn-aprobar-form" (click)="aprobarFormulario(f, $event)">Aprobar</button>
+          </div>
+        </ng-container>
       </div>
     </div>
     <div class="empty" *ngIf="formularios.length === 0 && !cargando">No hay formularios registrados.</div>
@@ -737,8 +753,11 @@
         </div>
 
         <!-- ═══ 9. RECEPCIÓN ═══ -->
-        <div class="doc-section">
+        <div class="doc-section" [class.doc-section--locked]="!esAdmin() && !otrasSeccionesCompletas">
           <div class="doc-section-head"><span class="doc-section-icon">📬</span> 9. Recepción de Documentos — RRHH</div>
+          <div class="seccion-lock-notice" *ngIf="!esAdmin() && !otrasSeccionesCompletas">
+            🔒 Complete las secciones anteriores para habilitar esta sección.
+          </div>
           <div class="doc-fields-grid">
             <div class="input-group" [class.has-error]="formularioPazSalvo.get('recepcion_fecha')?.invalid && formularioPazSalvo.get('recepcion_fecha')?.touched"><label>Fecha de Entrega del Paz y Salvo <span class="req">*</span></label><input class="doc-input" type="date" formControlName="recepcion_fecha" [max]="hoy" [readonly]="!puedeEditarCampo('recepcion_fecha')"><span class="field-error-msg" *ngIf="formularioPazSalvo.get('recepcion_fecha')?.invalid && formularioPazSalvo.get('recepcion_fecha')?.touched">⚠ Requerido</span></div>
             <div class="input-group" [class.has-error]="formularioPazSalvo.get('recepcion_hojas')?.invalid && formularioPazSalvo.get('recepcion_hojas')?.touched"><label>N° de Hojas Recibidas <span class="req">*</span></label><input class="doc-input" type="number" formControlName="recepcion_hojas" placeholder="2" min="1" [readonly]="!puedeEditarCampo('recepcion_hojas')"><span class="field-error-msg" *ngIf="formularioPazSalvo.get('recepcion_hojas')?.invalid && formularioPazSalvo.get('recepcion_hojas')?.touched">⚠ Requerido</span></div>
@@ -756,8 +775,11 @@
         </div>
 
         <!-- ═══ 10. AUTORIZACIÓN Y FIRMA ═══ -->
-        <div class="doc-section">
+        <div class="doc-section" [class.doc-section--locked]="!esAdmin() && !otrasSeccionesCompletas">
           <div class="doc-section-head"><span class="doc-section-icon">✍️</span> 10. Autorización y Firma Digital</div>
+          <div class="seccion-lock-notice" *ngIf="!esAdmin() && !otrasSeccionesCompletas">
+            🔒 Complete las secciones anteriores para habilitar esta sección.
+          </div>
           <div class="doc-auth-section">
             <p class="doc-auth-text">
               Conforme lo establecido en el artículo 110 del Reglamento LOSEP, quien suscribe
@@ -1272,7 +1294,7 @@
           </div>
 
           <!-- ▌9. RECEPCIÓN ▐ -->
-          <div class="ep-bloque ep-bloque--rec">
+          <div class="ep-bloque ep-bloque--rec" [class.ep-bloque--locked]="!esAdmin() && !otrasSeccionesCompletas">
             <div class="ep-bloque__head">
               <span class="ep-bloque__num">09</span>
               <span class="ep-bloque__titulo">RECEPCIÓN DE DOCUMENTOS — DIRECCIÓN DE RRHH</span>
@@ -1306,7 +1328,7 @@
           </div>
 
           <!-- ▌10. AUTORIZACIÓN ▐ -->
-          <div class="ep-bloque ep-bloque--auth">
+          <div class="ep-bloque ep-bloque--auth" [class.ep-bloque--locked]="!esAdmin() && !otrasSeccionesCompletas">
             <div class="ep-bloque__head ep-bloque__head--auth">
               <span class="ep-bloque__num">10</span>
               <span class="ep-bloque__titulo">AUTORIZACIÓN — SERVIDOR SALIENTE</span>

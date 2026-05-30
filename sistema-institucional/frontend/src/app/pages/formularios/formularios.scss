@@ -258,6 +258,47 @@ button {
   h3{font-size:14px;margin-bottom:4px;} p{font-size:12.5px;margin:4px 0 8px;}
   &:hover { background:var(--glass-hover); transform:translateY(-5px); box-shadow:var(--shadow-xl); border-color:var(--blue-200); &::before{opacity:1;} }
 }
+// ── PROGRESO Y ACCIONES EN ÍTEM DE LISTA ────────────────────────────────────
+.item-progress {
+  margin-top: 10px;
+  &__bar-wrap {
+    height: 6px; border-radius: 3px; background: var(--slate-200); overflow: hidden;
+  }
+  &__bar-fill {
+    height: 100%; border-radius: 3px;
+    background: var(--grad-green); transition: width .4s ease;
+  }
+  &__label {
+    font-size: 11px; color: var(--slate-500); margin-top: 3px; display: block;
+  }
+}
+.item-actions {
+  display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;
+}
+.btn-ver-form {
+  font-size: 12px; padding: 5px 12px; border-radius: 6px; border: none; cursor: pointer;
+  background: var(--grad-blue); color: #fff; font-weight: 600;
+  transition: opacity .2s; &:hover { opacity: .85; }
+}
+.btn-aprobar-form {
+  font-size: 12px; padding: 5px 12px; border-radius: 6px; border: none; cursor: pointer;
+  background: var(--grad-green); color: #fff; font-weight: 600;
+  transition: opacity .2s; &:hover { opacity: .85; }
+}
+
+// ── SECCIÓN BLOQUEADA (recepción y firma) ────────────────────────────────────
+.doc-section--locked {
+  opacity: .6; pointer-events: none;
+  filter: grayscale(.4);
+}
+.seccion-lock-notice {
+  background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px;
+  padding: 8px 14px; margin: 8px 16px; font-size: 13px; color: #92400e; font-weight: 500;
+}
+.ep-bloque--locked {
+  opacity: .55; pointer-events: none; filter: grayscale(.35);
+}
+
 .item-activo {
   border:2px solid var(--blue-600) !important;
   background:rgba(239,246,255,.92) !important; transform:translateY(-4px); box-shadow:var(--shadow-blue-lg);

@@ -107,9 +107,6 @@
           [class.input-error]="errorArchivo"
         >
 
-        <small class="hint">
-           Tamaño máximo: 10 MB.
-        </small>
 
         <span class="success-text" *ngIf="archivoSeleccionado && !errorArchivo">
           Archivo seleccionado: {{ archivoSeleccionado.name }}
@@ -322,6 +319,73 @@
     </div>
   </section>
 
+  <!-- FORMULARIOS COMPLETADOS — solo Talento Humano Recepción -->
+  <section class="card animate-up delay" *ngIf="esTalentoHumanoCR()">
+
+    <div class="list-header">
+      <div>
+        <span class="section-label">Formularios Paz y Salvo</span>
+        <h2>Formularios completados al 100%</h2>
+        <p>Formularios listos para revisión y aprobación.</p>
+      </div>
+    </div>
+
+    <div class="loading-box" *ngIf="cargandoFormularios">
+      Cargando formularios...
+    </div>
+
+    <div class="table-wrapper" *ngIf="!cargandoFormularios">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Formulario</th>
+            <th>Descripción</th>
+            <th>Estado</th>
+            <th>Progreso</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let f of formulariosCompletados" class="row-animate">
+            <td>#{{ f.id }}</td>
+            <td><strong>{{ f.titulo }}</strong></td>
+            <td>{{ f.descripcion || 'Formulario Paz y Salvo' }}</td>
+            <td>
+              <span [class.estado-aprobado]="f.estado === 'APROBADO'"
+                    [class.estado-completado]="f.estado !== 'APROBADO'">
+                {{ f.estado || 'COMPLETADO' }}
+              </span>
+            </td>
+            <td>
+              <div class="progreso-wrap">
+                <div class="progreso-bar">
+                  <div class="progreso-fill" [style.width.%]="f.porcentaje ?? 0"></div>
+                </div>
+                <span class="progreso-label">{{ f.porcentaje ?? 0 }}%</span>
+              </div>
+            </td>
+            <td class="acciones">
+              <button type="button" class="btn-view"
+                (click)="verFormularioPDF(f)">
+                Ver PDF
+              </button>
+              <button type="button" class="btn-download"
+                *ngIf="f.estado !== 'APROBADO'"
+                (click)="aprobarFormulario(f)">
+                Aprobar
+              </button>
+              <span class="muted" *ngIf="f.estado === 'APROBADO'">✓ Aprobado</span>
+            </td>
+          </tr>
+          <tr *ngIf="formulariosCompletados.length === 0">
+            <td colspan="6" class="empty">No hay formularios completados al 100% aún.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <!-- VISTA PREVIA -->
   <section *ngIf="archivoPreview && puedePrevisualizarDocumentos()" class="preview animate-up">
 
@@ -417,7 +481,7 @@
           >
 
           <small class="hint">
-            Opcional. Solo PDF máximo 10 MB.
+            Opcional. Solo PDF.
           </small>
 
           <span class="success-text" *ngIf="archivoEdicionSeleccionado && !errorArchivoEdicion">

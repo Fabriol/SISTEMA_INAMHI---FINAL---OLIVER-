@@ -9,6 +9,7 @@ import datetime
 import os
 import re
 import json
+import traceback
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "clave_super_secreta_inamhi_2026_segura"
@@ -922,7 +923,11 @@ def listar_formularios():
                 ORDER BY f.id DESC
             """, (user["id"], user["rol"]))
 
-        return jsonify(cursor.fetchall()), 200
+        rows = cursor.fetchall()
+        for r in rows:
+            if r.get('porcentaje') is None:
+                r['porcentaje'] = 0
+        return jsonify(rows), 200
     except Exception as e:
         return jsonify({"mensaje": "Error al listar formularios", "error": str(e)}), 500
     finally:
@@ -1013,6 +1018,49 @@ def eliminar_formulario(id):
             conn.rollback()
         return jsonify({"mensaje": "Error al eliminar formulario", "error": str(e)}), 500
 
+    finally:
+        close_db(cursor, conn)
+
+
+@app.route("/api/formularios/<int:id>/aprobar", methods=["PATCH"])
+def aprobar_formulario(id):
+    conn = None
+    cursor = None
+    try:
+        user, error = validar_login()
+        if error:
+            return error
+
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT id, estado, porcentaje FROM formularios WHERE id = %s", (id,))
+        formulario = cursor.fetchone()
+
+        if not formulario:
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        if formulario["porcentaje"] < 100:
+            return jsonify({"mensaje": "El formulario no está completo al 100%"}), 400
+
+        cursor.execute(
+            "UPDATE formularios SET estado = 'APROBADO' WHERE id = %s",
+            (id,)
+        )
+        conn.commit()
+
+        registrar_auditoria(
+            user["usuario"], user["rol"], "Formularios",
+            "Aprobación",
+            f"Aprobó el formulario {id}"
+        )
+
+        return jsonify({"mensaje": "Formulario aprobado correctamente.", "estado": "APROBADO"}), 200
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"mensaje": "Error al aprobar formulario", "error": str(e)}), 500
     finally:
         close_db(cursor, conn)
 
@@ -1517,6 +1565,7 @@ def responder_formulario():
     except Exception as e:
         if conn:
             conn.rollback()
+        print("[ERROR /responder]", traceback.format_exc())
         return jsonify({"mensaje": "Error al guardar campo", "error": str(e)}), 500
 
     finally:

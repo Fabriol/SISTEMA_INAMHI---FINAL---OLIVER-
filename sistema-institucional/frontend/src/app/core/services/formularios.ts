@@ -121,6 +121,10 @@ export class FormulariosService {
     return this.http.delete(`${this.api}/formularios/${id}`);
   }
 
+  aprobar(id: number): Observable<any> {
+    return this.http.patch(`${this.api}/formularios/${id}/aprobar`, {}, this.getHeaders());
+  }
+
   // ===============================
   // 🔹 FIRMA DIGITAL (pyHanko)
   // ===============================

@@ -2,7 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { catchError, finalize, of, timeout } from 'rxjs';
 import Swal from 'sweetalert2';
@@ -39,6 +39,9 @@ export class Documentos implements OnInit {
   archivoPreview: SafeResourceUrl | null = null;
   archivoPreviewUrl = '';
 
+  formulariosCompletados: any[] = [];
+  cargandoFormularios = false;
+
   private api = 'http://localhost:5000/api';
   private alertaActiva = false;
 
@@ -51,6 +54,61 @@ export class Documentos implements OnInit {
   ngOnInit(): void {
     this.usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
     this.cargarDocumentos();
+    if (this.esTalentoHumanoCR()) {
+      this.cargarFormulariosCompletados();
+    }
+  }
+
+  private getHeaders(): { headers: HttpHeaders } {
+    const token = localStorage.getItem('token') || '';
+    return { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) };
+  }
+
+  esTalentoHumanoCR(): boolean {
+    const r = this.normalizarRol();
+    return r.includes('talento humano') && r.includes('recep');
+  }
+
+  cargarFormulariosCompletados(): void {
+    this.cargandoFormularios = true;
+    this.http.get<any[]>(`${this.api}/formularios`, this.getHeaders()).pipe(
+      timeout(8000),
+      catchError(() => of([])),
+      finalize(() => { this.cargandoFormularios = false; this.cdr.detectChanges(); })
+    ).subscribe((data: any[]) => {
+      this.formulariosCompletados = (data ?? []).filter(
+        f => (f.porcentaje ?? 0) >= 100
+      );
+    });
+  }
+
+  verFormularioPDF(f: any): void {
+    window.open(`${this.api}/formularios/${f.id}/pdf`, '_blank');
+  }
+
+  aprobarFormulario(f: any): void {
+    Swal.fire({
+      title: '¿Aprobar formulario?',
+      text: `Se marcará como aprobado el formulario "${f.titulo}"`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, aprobar',
+      cancelButtonText: 'Cancelar',
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      this.http.patch(`${this.api}/formularios/${f.id}/aprobar`, {}, this.getHeaders()).pipe(
+        timeout(8000),
+        catchError((err: any) => {
+          Swal.fire('Error', err?.error?.mensaje ?? 'Error al aprobar.', 'error');
+          return of(null);
+        })
+      ).subscribe((res: any) => {
+        if (!res) return;
+        Swal.fire('Aprobado', res.mensaje ?? 'Formulario aprobado.', 'success');
+        f.estado = 'APROBADO';
+        this.cdr.detectChanges();
+      });
+    });
   }
 
   normalizarRol(): string {
@@ -167,10 +225,6 @@ export class Documentos implements OnInit {
 
     if (file.size <= 0) {
       return 'El archivo seleccionado está vacío.';
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      return 'El PDF no debe superar los 10 MB.';
     }
 
     return '';
