@@ -2,7 +2,12 @@
 
   <aside class="sidebar">
     <div class="brand">
-      <div class="logo-circle">🌦️</div>
+      <div class="logo-circle">
+        <img src="/img/logo.png" alt="INAMHI" class="brand-logo-img"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+        >
+        <span class="brand-logo-fb" style="display:none">IN</span>
+      </div>
 
       <div>
         <h2>INAMHI</h2>
@@ -14,11 +19,8 @@
       <a
         *ngFor="let item of menu"
         (click)="navegar(item)"
-        [class.active]="item.ruta === '/dashboard'"
-        [class.bloqueado]="item.bloqueado">
-
+        [class.active]="item.ruta === '/dashboard'">
         <span>{{ item.nombre }}</span>
-        <small *ngIf="item.bloqueado">🔒</small>
       </a>
     </nav>
   </aside>
@@ -59,7 +61,12 @@
 
       <div class="hero-right">
         <div class="weather-card">
-          <div class="weather-icon">⛅</div>
+          <div class="weather-logo-wrap">
+            <img src="/img/logo.png" alt="INAMHI" class="weather-logo-img"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='block'"
+            >
+            <div class="weather-logo-fb" style="display:none">INAMHI</div>
+          </div>
 
           <h2>INAMHI</h2>
 

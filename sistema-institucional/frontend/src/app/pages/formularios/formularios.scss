@@ -1192,7 +1192,7 @@ select.doc-input, select.dark-input {
 // PRINT ESPEJO PREMIUM — Corte inteligente
 // ══════════════════════════════════════════════════════════════════════════════
 @media print {
-  @page { size: A4 portrait; margin: 8mm 8mm 10mm 8mm; }
+  @page { size: A4 portrait; margin: 12mm 10mm 14mm 10mm; /* top right bottom left */ }
 
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box !important; animation: none !important; transition: none !important; }
 
@@ -1303,15 +1303,97 @@ select.doc-input, select.dark-input {
   .ep-footer { padding: 2px 6px !important; font-size: 6px !important; }
 
   // Badges
-  .ep-yn { font-size: 6.5px !important; padding: 0 3px !important; min-width: 18px !important; }
-  .ep-money { font-size: 7px !important; }
+  .ep-yn    { font-size: 7px !important;   padding: 0 3px !important; min-width: 18px !important; }
+  .ep-money { font-size: 7.5px !important; }
 
   // Header stripe
   .ep-header__stripe { height: 2px !important; }
 
   // Bloque número badge
-  .ep-bloque__num { font-size: 7px !important; padding: 0 3px !important; }
+  .ep-bloque__num  { font-size: 7px !important; padding: 0 3px !important; }
   .ep-bloque__icon { font-size: 9px !important; }
+
+  // ── MEJORAS: contenedores raíz al 100% del área imprimible ───────────────
+  html, body {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+    font-size: 10px !important;
+  }
+
+  .page {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .doc-form-layout {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .hoja-espejo-preview {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  #hojaEspejo {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  // ep-doc: cada uno arranca en hoja nueva y ocupa el 100% del área
+  .ep-doc {
+    width: 100% !important;
+    max-width: 100% !important;
+    font-size: 8.5px !important;
+    border: 1px solid #ccc !important;
+    border-top: 3px solid #1e3a8a !important;
+
+    // Salto de página inteligente
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-before: auto !important;
+    break-before: auto !important;
+    page-break-inside: auto !important;
+
+    &--p2 { border-top-color: #1d4ed8 !important; }
+    &:last-child {
+      page-break-after: auto !important;
+      break-after: auto !important;
+    }
+  }
+
+  // Tablas al 100%
+  .ep-tabla-info, .ep-tabla-firmas {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  // Tamaños de texto aumentados para mejor lectura en hoja completa
+  .ep-td   { font-size: 8px !important;   padding: 2px 4px !important; }
+  .ep-tfd  { font-size: 7.5px !important; padding: 2px 4px !important; line-height: 1.35 !important; }
+  .ep-tfr  { font-size: 7.5px !important; padding: 2px 4px !important; }
+  .ep-header__inst  { font-size: 7.5px !important; }
+  .ep-header__dir   { font-size: 6.5px !important; }
+  .ep-header__title { font-size: 8px !important; }
+  .ep-auth-val  { font-size: 8px !important; }
+  .ep-auth-label { font-size: 6.2px !important; }
 }
 
 .doc-select {

@@ -39,7 +39,7 @@ export class Documentos implements OnInit {
   archivoPreview: SafeResourceUrl | null = null;
   archivoPreviewUrl = '';
 
-  formulariosCompletados: any[] = [];
+  formulariosPazSalvo: any[] = [];
   cargandoFormularios = false;
 
   private api = 'http://localhost:5000/api';
@@ -54,8 +54,8 @@ export class Documentos implements OnInit {
   ngOnInit(): void {
     this.usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
     this.cargarDocumentos();
-    if (this.esTalentoHumanoCR()) {
-      this.cargarFormulariosCompletados();
+    if (this.esTalentoHumanoCR() || this.esExFuncionario()) {
+      this.cargarFormulariosPazSalvo();
     }
   }
 
@@ -69,17 +69,32 @@ export class Documentos implements OnInit {
     return r.includes('talento humano') && r.includes('recep');
   }
 
-  cargarFormulariosCompletados(): void {
+  esExFuncionario(): boolean {
+    const r = this.normalizarRol();
+    return r.includes('ex funcionario') || r.includes('ex-funcionario') || r.includes('exfuncionario');
+  }
+
+  cargarFormulariosPazSalvo(): void {
     this.cargandoFormularios = true;
     this.http.get<any[]>(`${this.api}/formularios`, this.getHeaders()).pipe(
       timeout(8000),
       catchError(() => of([])),
       finalize(() => { this.cargandoFormularios = false; this.cdr.detectChanges(); })
     ).subscribe((data: any[]) => {
-      this.formulariosCompletados = (data ?? []).filter(
-        f => (f.porcentaje ?? 0) >= 100
-      );
+      this.formulariosPazSalvo = (data ?? []).map(f => ({
+        ...f,
+        porcentaje: f.porcentaje ?? 0
+      }));
+      this.cdr.detectChanges();
     });
+  }
+
+  get formulariosCompletados(): any[] {
+    return this.formulariosPazSalvo.filter(f => (f.porcentaje ?? 0) >= 100);
+  }
+
+  get formulariosEnProceso(): any[] {
+    return this.formulariosPazSalvo.filter(f => (f.porcentaje ?? 0) < 100);
   }
 
   verFormularioPDF(f: any): void {

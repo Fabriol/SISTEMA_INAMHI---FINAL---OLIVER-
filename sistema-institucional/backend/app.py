@@ -68,15 +68,17 @@ db_pool = pooling.MySQLConnectionPool(
 def get_connection():
     return db_pool.get_connection()
 
-def _ensure_mediumtext():
-    """Ensure respuesta column can hold base64 firma images (run once at startup)."""
+def _ensure_schema():
+    """Ajusta columnas del esquema para soportar todos los tipos de datos necesarios."""
     conn = cursor = None
     try:
         conn = get_connection()
         cursor = conn.cursor()
+
+        # 1. formulario_respuestas.respuesta → MEDIUMTEXT (para base64 de firmas)
         cursor.execute("""
             SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = 'sistema_institucional'
+            WHERE TABLE_SCHEMA = DATABASE()
               AND TABLE_NAME   = 'formulario_respuestas'
               AND COLUMN_NAME  = 'respuesta'
         """)
@@ -85,16 +87,34 @@ def _ensure_mediumtext():
             cursor.execute(
                 "ALTER TABLE formulario_respuestas MODIFY COLUMN respuesta MEDIUMTEXT"
             )
-            conn.commit()
+            print("[startup] formulario_respuestas.respuesta → MEDIUMTEXT OK")
+        elif not row:
+            print("[startup] ADVERTENCIA: columna formulario_respuestas.respuesta no encontrada")
+
+        # 2. formulario_preguntas.tipo → VARCHAR(30) (para aceptar 'FIRMA' y otros)
+        cursor.execute("""
+            SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME   = 'formulario_preguntas'
+              AND COLUMN_NAME  = 'tipo'
+        """)
+        row2 = cursor.fetchone()
+        if row2 and row2[0].lower() == 'enum':
+            cursor.execute(
+                "ALTER TABLE formulario_preguntas MODIFY COLUMN tipo VARCHAR(30) NOT NULL DEFAULT 'TEXTO'"
+            )
+            print("[startup] formulario_preguntas.tipo → VARCHAR(30) OK")
+
+        conn.commit()
     except Exception as e:
-        print(f"[startup] _ensure_mediumtext: {e}")
+        print(f"[startup] _ensure_schema error: {e}")
     finally:
         close_db(cursor, conn)
 
 try:
-    _ensure_mediumtext()
-except Exception:
-    pass
+    _ensure_schema()
+except Exception as e:
+    print(f"[startup] _ensure_schema excepción: {e}")
 
 def close_db(cursor=None, conn=None):
     try:
@@ -106,7 +126,9 @@ def close_db(cursor=None, conn=None):
         print("Error cerrando conexión:", e)
 
 def limpiar_texto(texto):
-    return re.sub(r"\s+", " ", (texto or "").strip())
+    if texto is None:
+        return ""
+    return re.sub(r"\s+", " ", str(texto).strip())
 
 def solo_letras(texto):
     return bool(re.match(r"^[a-zA-ZÁÉÍÓÚáéíóúÑñ\s]+$", texto or ""))
@@ -833,6 +855,186 @@ def reporte_estado_documentos():
     finally:
         close_db(cursor, conn)
 
+@app.route("/api/reportes/formularios-pendientes", methods=["GET"])
+def reportes_formularios_pendientes():
+    """
+    Devuelve formularios con sus asignaciones pendientes.
+    Accesible para Administrador y Talento Humano - Recepcion Documentos.
+    """
+    conn   = None
+    cursor = None
+    try:
+        user, error = validar_login()
+        if error:
+            return error
+
+        rol_raw  = str(user.get("rol") or "")
+        rol_norm = rol_raw.lower().strip()
+        es_admin = rol_raw == "Administrador"
+        es_th    = ("talento humano" in rol_norm) and ("recep" in rol_norm)
+
+        if not es_admin and not es_th:
+            return jsonify({"mensaje": "Acceso denegado"}), 403
+
+        conn   = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # ── Una sola query que trae todo: formulario + usuario + sus conteos ──
+        cursor.execute("""
+            SELECT
+                f.id                                                            AS formulario_id,
+                f.titulo,
+                f.estado                                                        AS formulario_estado,
+                COALESCE(f.porcentaje, 0)                                       AS porcentaje,
+                u.id                                                            AS usuario_id,
+                CONCAT(TRIM(u.nombres), ' ', TRIM(u.apellidos))                 AS nombre_completo,
+                u.nombres,
+                u.apellidos,
+                u.usuario,
+                COUNT(a.id)                                                     AS total_asignados,
+                SUM(CASE WHEN a.estado = 'CULMINADO'  THEN 1 ELSE 0 END)        AS completados,
+                SUM(CASE WHEN a.estado != 'CULMINADO' THEN 1 ELSE 0 END)        AS pendientes
+            FROM formulario_asignaciones a
+            INNER JOIN formularios  f ON f.id = a.formulario_id
+            INNER JOIN usuarios     u ON u.id = a.asignado_usuario_id
+            GROUP BY
+                f.id, f.titulo, f.estado, f.porcentaje,
+                u.id, u.nombres, u.apellidos, u.usuario
+            HAVING SUM(CASE WHEN a.estado != 'CULMINADO' THEN 1 ELSE 0 END) > 0
+            ORDER BY f.id DESC, pendientes DESC
+        """)
+        filas = cursor.fetchall()
+
+        # ── Agrupar por formulario en Python (más simple y sin problema de cursor) ──
+        formularios_map: dict = {}
+        for fila in filas:
+            fid = fila["formulario_id"]
+            if fid not in formularios_map:
+                formularios_map[fid] = {
+                    "id":                 fid,
+                    "titulo":             fila["titulo"],
+                    "estado":             fila["formulario_estado"],
+                    "porcentaje":         int(fila["porcentaje"] or 0),
+                    "total_campos":       0,
+                    "completados":        0,
+                    "pendientes":         0,
+                    "usuarios_pendientes": [],
+                }
+
+            formularios_map[fid]["total_campos"] += int(fila["total_asignados"] or 0)
+            formularios_map[fid]["completados"]  += int(fila["completados"]      or 0)
+            formularios_map[fid]["pendientes"]   += int(fila["pendientes"]       or 0)
+            formularios_map[fid]["usuarios_pendientes"].append({
+                "usuario_id":     fila["usuario_id"],
+                "nombre_completo": fila["nombre_completo"],
+                "nombres":        fila["nombres"],
+                "apellidos":      fila["apellidos"],
+                "usuario":        fila["usuario"],
+                "total_asignados": int(fila["total_asignados"] or 0),
+                "completados":    int(fila["completados"]       or 0),
+                "pendientes":     int(fila["pendientes"]        or 0),
+            })
+
+        resultado = list(formularios_map.values())
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        print("[ERROR /reportes/formularios-pendientes]", traceback.format_exc())
+        return jsonify({"mensaje": "Error al cargar reporte", "error": str(e)}), 500
+    finally:
+        close_db(cursor, conn)
+
+
+@app.route("/api/reportes/enviar-recordatorio", methods=["POST"])
+def enviar_recordatorio():
+    """
+    Envía una notificación de recordatorio a un usuario con campos pendientes.
+    Accesible para Administrador y Talento Humano - Recepcion Documentos.
+    """
+    conn = None
+    cursor = None
+    try:
+        user, error = validar_login()
+        if error:
+            return error
+
+        rol_norm = user["rol"].lower().strip()
+        es_admin = user["rol"] == "Administrador"
+        es_th    = "talento humano" in rol_norm and "recep" in rol_norm
+
+        if not es_admin and not es_th:
+            return jsonify({"mensaje": "Acceso denegado"}), 403
+
+        data          = request.get_json(silent=True) or {}
+        usuario_id    = data.get("usuario_id")
+        formulario_id = data.get("formulario_id")
+        mensaje_extra = limpiar_texto(data.get("mensaje", ""))
+
+        if not usuario_id or not formulario_id:
+            return jsonify({"mensaje": "Datos incompletos: usuario_id y formulario_id requeridos"}), 400
+
+        conn   = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Verificar que el usuario y formulario existen
+        cursor.execute("SELECT id, nombres, apellidos FROM usuarios WHERE id = %s AND estado = 'ACTIVO'", (usuario_id,))
+        dest = cursor.fetchone()
+        if not dest:
+            return jsonify({"mensaje": "Usuario destino no encontrado o inactivo"}), 404
+
+        cursor.execute("SELECT id, titulo FROM formularios WHERE id = %s", (formulario_id,))
+        form = cursor.fetchone()
+        if not form:
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        # Contar campos pendientes de ese usuario en ese formulario
+        cursor.execute("""
+            SELECT COUNT(*) AS pendientes
+            FROM formulario_asignaciones
+            WHERE formulario_id = %s AND asignado_usuario_id = %s AND estado != 'CULMINADO'
+        """, (formulario_id, usuario_id))
+        pend = cursor.fetchone()
+        n_pendientes = pend["pendientes"] if pend else 0
+
+        nombre_dest = f"{dest['nombres']} {dest['apellidos']}".strip()
+        remitente   = user["usuario"]
+
+        titulo_notif = f"Recordatorio: tienes {n_pendientes} campo(s) pendiente(s)"
+        msg_notif    = (
+            f"El formulario «{form['titulo']}» tiene {n_pendientes} campo(s) sin completar "
+            f"asignados a ti. Por favor ingresa al sistema y completa la información. "
+            f"Recordatorio enviado por: {remitente}."
+        )
+        if mensaje_extra:
+            msg_notif += f" Mensaje adicional: {mensaje_extra}"
+
+        cursor.execute("""
+            INSERT INTO notificaciones (usuario_id, rol_destino, titulo, mensaje, leido)
+            VALUES (%s, NULL, %s, %s, 0)
+        """, (usuario_id, titulo_notif, msg_notif))
+
+        conn.commit()
+
+        registrar_auditoria(
+            user["usuario"], user["rol"], "Reportes",
+            "Recordatorio enviado",
+            f"Recordatorio a {nombre_dest} (ID {usuario_id}) por formulario {formulario_id} — {n_pendientes} pendientes"
+        )
+
+        return jsonify({
+            "mensaje": f"Recordatorio enviado correctamente a {nombre_dest}.",
+            "pendientes": n_pendientes
+        }), 200
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print("[ERROR /reportes/enviar-recordatorio]", traceback.format_exc())
+        return jsonify({"mensaje": "Error al enviar recordatorio", "error": str(e)}), 500
+    finally:
+        close_db(cursor, conn)
+
+
 @app.route("/api/auditoria", methods=["GET"])
 def listar_auditoria():
     conn = None
@@ -847,10 +1049,16 @@ def listar_auditoria():
         cursor = conn.cursor(dictionary=True)
 
         cursor.execute("""
-            SELECT *
-            FROM auditoria
-            ORDER BY id DESC
-            LIMIT 300
+            SELECT
+                a.*,
+                COALESCE(
+                    CONCAT(TRIM(u.nombres), ' ', TRIM(u.apellidos)),
+                    a.usuario
+                ) AS nombre_completo
+            FROM auditoria a
+            LEFT JOIN usuarios u ON a.usuario = u.usuario
+            ORDER BY a.id DESC
+            LIMIT 500
         """)
 
         return jsonify(cursor.fetchall()), 200
@@ -1257,7 +1465,10 @@ def asignar_pregunta():
                     codigo
                 )
 
-                tipo = limpiar_texto(campo.get("tipo") or "TEXTO")
+                tipo_raw = limpiar_texto(campo.get("tipo") or "TEXTO").upper()
+                # Tipos reconocidos; cualquier valor desconocido se guarda como TEXTO
+                TIPOS_VALIDOS = {"TEXTO", "NUMERO", "FECHA", "SELECT", "TEXTAREA", "CHECKBOX", "FIRMA"}
+                tipo = tipo_raw if tipo_raw in TIPOS_VALIDOS else "TEXTO"
                 seccion = limpiar_texto(campo.get("seccion") or "GENERAL")
 
             if not codigo or not pregunta:
@@ -1449,6 +1660,8 @@ def marcar_notificacion_leida(id):
 
 @app.route("/api/formularios/responder", methods=["POST"])
 def responder_formulario():
+    import mysql.connector
+
     conn = None
     cursor = None
 
@@ -1460,43 +1673,76 @@ def responder_formulario():
         data = request.get_json(silent=True) or {}
 
         formulario_id = data.get("formulario_id")
-        campo = limpiar_texto(data.get("campo"))
+        campo         = limpiar_texto(data.get("campo"))
         respuesta_raw = data.get("respuesta")
-        # Skip limpiar_texto for base64 firma data (starts with "data:")
+
+        # Conservar base64 de firma intacto; convertir el resto a string limpio
         if isinstance(respuesta_raw, str) and respuesta_raw.startswith("data:"):
+            respuesta = respuesta_raw
+        elif isinstance(respuesta_raw, str) and respuesta_raw.upper().startswith("FIRMADO_EC:"):
             respuesta = respuesta_raw
         else:
             respuesta = limpiar_texto(respuesta_raw)
 
-        if not formulario_id or not campo or respuesta == "":
-            return jsonify({"mensaje": "Datos incompletos"}), 400
+        if not formulario_id or not campo:
+            return jsonify({"mensaje": "Datos incompletos: falta formulario_id o campo"}), 400
 
-        conn = get_connection()
+        if respuesta == "" or respuesta is None:
+            return jsonify({"mensaje": "Datos incompletos: respuesta vacía"}), 400
+
+        conn   = get_connection()
         cursor = conn.cursor(dictionary=True)
 
+        # ── 1. Buscar la pregunta por código (exacto, luego insensible a mayúsculas) ──
         cursor.execute("""
-            SELECT id
-            FROM formulario_preguntas
+            SELECT id FROM formulario_preguntas
             WHERE formulario_id = %s AND codigo = %s
             LIMIT 1
         """, (formulario_id, campo))
-
         pregunta = cursor.fetchone()
 
         if not pregunta:
-            return jsonify({"mensaje": "Campo no encontrado en el formulario"}), 404
+            # Fallback: búsqueda insensible a mayúsculas/minúsculas
+            cursor.execute("""
+                SELECT id FROM formulario_preguntas
+                WHERE formulario_id = %s AND LOWER(TRIM(codigo)) = LOWER(TRIM(%s))
+                LIMIT 1
+            """, (formulario_id, campo))
+            pregunta = cursor.fetchone()
+
+        if not pregunta:
+            # Último intento: crear la pregunta si la asignación existe (estado inconsistente)
+            cursor.execute("""
+                SELECT a.id AS asig_id
+                FROM formulario_asignaciones a
+                WHERE a.formulario_id = %s AND a.asignado_usuario_id = %s
+                LIMIT 1
+            """, (formulario_id, user["id"]))
+            asig_check = cursor.fetchone()
+
+            if asig_check:
+                # El admin asignó este campo pero la pregunta no existe: auto-crear
+                cursor.execute("""
+                    INSERT INTO formulario_preguntas
+                    (formulario_id, codigo, pregunta, tipo, seccion, opciones, obligatorio, orden)
+                    VALUES (%s, %s, %s, 'TEXTO', 'GENERAL', NULL, 0, 0)
+                """, (formulario_id, campo, campo))
+                pregunta = {"id": cursor.lastrowid}
+                print(f"[INFO /responder] Auto-creada pregunta '{campo}' para formulario {formulario_id}")
+            else:
+                print(f"[WARN /responder] Campo '{campo}' no encontrado en formulario {formulario_id}")
+                return jsonify({"mensaje": f"Campo '{campo}' no encontrado en el formulario"}), 404
 
         pregunta_id = pregunta["id"]
 
+        # ── 2. Buscar la asignación del usuario ─────────────────
         cursor.execute("""
-            SELECT id, estado
-            FROM formulario_asignaciones
+            SELECT id, estado FROM formulario_asignaciones
             WHERE formulario_id = %s
-            AND pregunta_id = %s
-            AND asignado_usuario_id = %s
+              AND pregunta_id = %s
+              AND asignado_usuario_id = %s
             LIMIT 1
         """, (formulario_id, pregunta_id, user["id"]))
-
         asignacion = cursor.fetchone()
 
         if user["rol"] != "Administrador" and not asignacion:
@@ -1504,69 +1750,70 @@ def responder_formulario():
 
         asignacion_id = asignacion["id"] if asignacion else None
 
+        # ── 3. Verificar si ya existe respuesta ─────────────────
         cursor.execute("""
-            SELECT id
-            FROM formulario_respuestas
-            WHERE formulario_id = %s
-            AND pregunta_id = %s
+            SELECT id FROM formulario_respuestas
+            WHERE formulario_id = %s AND pregunta_id = %s
             LIMIT 1
         """, (formulario_id, pregunta_id))
-
         ya_respondido = cursor.fetchone()
 
         if ya_respondido:
-            return jsonify({
-                "mensaje": "Este campo ya fue llenado y no se puede editar."
-            }), 400
+            return jsonify({"mensaje": "Este campo ya fue llenado y no se puede editar."}), 400
 
-        cursor.execute("""
-            INSERT INTO formulario_respuestas
-            (formulario_id, pregunta_id, asignacion_id, respondido_por, respuesta)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (formulario_id, pregunta_id, asignacion_id, user["id"], respuesta))
+        # ── 4. Insertar respuesta ────────────────────────────────
+        try:
+            cursor.execute("""
+                INSERT INTO formulario_respuestas
+                (formulario_id, pregunta_id, asignacion_id, respondido_por, respuesta)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (formulario_id, pregunta_id, asignacion_id, user["id"], respuesta))
+        except mysql.connector.errors.IntegrityError as ie:
+            # Llave duplicada: la respuesta ya fue guardada en otra sesión simultánea
+            conn.rollback()
+            return jsonify({"mensaje": "Este campo ya fue llenado y no se puede editar."}), 400
+        except mysql.connector.errors.DataError as de:
+            conn.rollback()
+            print(f"[ERROR /responder] DataError campo='{campo}': {de}")
+            return jsonify({"mensaje": f"El valor del campo '{campo}' es demasiado largo o tiene formato inválido.", "error": str(de)}), 400
 
+        # ── 5. Marcar asignación como culminada ──────────────────
         if asignacion_id:
             cursor.execute("""
                 UPDATE formulario_asignaciones
-                SET estado = 'CULMINADO',
-                    fecha_culminado = NOW()
+                SET estado = 'CULMINADO', fecha_culminado = NOW()
                 WHERE id = %s
             """, (asignacion_id,))
 
+        # ── 6. Recalcular porcentaje ─────────────────────────────
+        TOTAL_CAMPOS_ESPEJO = 147
         cursor.execute("""
-            SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN estado = 'CULMINADO' THEN 1 ELSE 0 END) AS completados
+            SELECT COUNT(*) AS completados
             FROM formulario_asignaciones
-            WHERE formulario_id = %s
+            WHERE formulario_id = %s AND estado = 'CULMINADO'
         """, (formulario_id,))
-
-        progreso = cursor.fetchone()
-        total = progreso["total"] or 0
+        progreso    = cursor.fetchone()
         completados = progreso["completados"] or 0
-        porcentaje = round((completados / total) * 100) if total > 0 else 0
-        estado = "COMPLETADO" if total > 0 and porcentaje == 100 else "EN_PROCESO"
+        porcentaje  = min(round((completados / TOTAL_CAMPOS_ESPEJO) * 100), 100)
+        estado_form = "COMPLETADO" if completados >= TOTAL_CAMPOS_ESPEJO else "EN_PROCESO"
 
         cursor.execute("""
-            UPDATE formularios
-            SET porcentaje = %s,
-                estado = %s
-            WHERE id = %s
-        """, (porcentaje, estado, formulario_id))
+            UPDATE formularios SET porcentaje = %s, estado = %s WHERE id = %s
+        """, (porcentaje, estado_form, formulario_id))
 
         conn.commit()
 
         return jsonify({
             "mensaje": "Campo guardado correctamente",
             "porcentaje": porcentaje,
-            "estado": estado
+            "estado": estado_form
         }), 200
 
     except Exception as e:
         if conn:
             conn.rollback()
         print("[ERROR /responder]", traceback.format_exc())
-        return jsonify({"mensaje": "Error al guardar campo", "error": str(e)}), 500
+        return jsonify({"mensaje": "Error interno al guardar campo", "error": str(e)}), 500
 
     finally:
         close_db(cursor, conn)
@@ -2149,18 +2396,17 @@ def firmar_ec_pdf(formulario_id):
              WHERE id = %s
         """, (fila["asignacion_id"],))
 
-        # Recalcular porcentaje
+        # Recalcular porcentaje usando el total fijo de campos del espejo
+        TOTAL_CAMPOS_ESPEJO = 147
         cursor.execute("""
-            SELECT COUNT(*) AS total,
-                   SUM(CASE WHEN estado = 'CULMINADO' THEN 1 ELSE 0 END) AS completados
+            SELECT COUNT(*) AS completados
               FROM formulario_asignaciones
-             WHERE formulario_id = %s
+             WHERE formulario_id = %s AND estado = 'CULMINADO'
         """, (formulario_id,))
         prog        = cursor.fetchone()
-        total_asig  = prog["total"]       or 0
         completados = prog["completados"] or 0
-        porcentaje  = round((completados / total_asig) * 100) if total_asig > 0 else 0
-        estado_form = "COMPLETADO" if porcentaje == 100 else "EN_PROCESO"
+        porcentaje  = min(round((completados / TOTAL_CAMPOS_ESPEJO) * 100), 100)
+        estado_form = "COMPLETADO" if completados >= TOTAL_CAMPOS_ESPEJO else "EN_PROCESO"
 
         cursor.execute(
             "UPDATE formularios SET porcentaje = %s, estado = %s WHERE id = %s",

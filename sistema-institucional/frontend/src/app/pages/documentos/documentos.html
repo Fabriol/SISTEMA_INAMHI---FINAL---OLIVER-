@@ -319,14 +319,22 @@
     </div>
   </section>
 
-  <!-- FORMULARIOS COMPLETADOS — solo Talento Humano Recepción -->
-  <section class="card animate-up delay" *ngIf="esTalentoHumanoCR()">
+  <!-- FORMULARIOS PAZ Y SALVO — Talento Humano Recepción y Ex Funcionario -->
+  <section class="card animate-up delay" *ngIf="esTalentoHumanoCR() || esExFuncionario()">
 
     <div class="list-header">
       <div>
         <span class="section-label">Formularios Paz y Salvo</span>
-        <h2>Formularios completados al 100%</h2>
-        <p>Formularios listos para revisión y aprobación.</p>
+        <h2 *ngIf="esTalentoHumanoCR()">Seguimiento de Formularios Paz y Salvo</h2>
+        <h2 *ngIf="esExFuncionario() && !esTalentoHumanoCR()">Mi Formulario Paz y Salvo</h2>
+        <p *ngIf="esTalentoHumanoCR()">
+          {{ formulariosPazSalvo.length }} formulario(s) —
+          {{ formulariosCompletados.length }} completado(s) al 100%,
+          {{ formulariosEnProceso.length }} en proceso.
+        </p>
+        <p *ngIf="esExFuncionario() && !esTalentoHumanoCR()">
+          Puedes ver el progreso de tu formulario en tiempo real.
+        </p>
       </div>
     </div>
 
@@ -340,46 +348,82 @@
           <tr>
             <th>#</th>
             <th>Formulario</th>
-            <th>Descripción</th>
             <th>Estado</th>
             <th>Progreso</th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let f of formulariosCompletados" class="row-animate">
+          <tr *ngFor="let f of formulariosPazSalvo" class="row-animate"
+              [class.fila-completada]="(f.porcentaje ?? 0) >= 100"
+              [class.fila-proceso]="(f.porcentaje ?? 0) > 0 && (f.porcentaje ?? 0) < 100"
+              [class.fila-inicio]="(f.porcentaje ?? 0) === 0">
+
             <td>#{{ f.id }}</td>
-            <td><strong>{{ f.titulo }}</strong></td>
-            <td>{{ f.descripcion || 'Formulario Paz y Salvo' }}</td>
+
+            <td><strong>{{ f.titulo }}</strong><br>
+              <small style="color:#64748b">{{ f.descripcion || 'Formulario Paz y Salvo' }}</small>
+            </td>
+
             <td>
-              <span [class.estado-aprobado]="f.estado === 'APROBADO'"
-                    [class.estado-completado]="f.estado !== 'APROBADO'">
-                {{ f.estado || 'COMPLETADO' }}
+              <span class="estado-badge"
+                [class.estado-aprobado]="f.estado === 'APROBADO'"
+                [class.estado-completado]="f.estado === 'COMPLETADO'"
+                [class.estado-proceso]="f.estado === 'EN_PROCESO' || f.estado === 'ENVIADO'"
+                [class.estado-borrador]="f.estado === 'BORRADOR'">
+                {{ f.estado || 'BORRADOR' }}
               </span>
             </td>
-            <td>
+
+            <td style="min-width:160px">
               <div class="progreso-wrap">
                 <div class="progreso-bar">
-                  <div class="progreso-fill" [style.width.%]="f.porcentaje ?? 0"></div>
+                  <div class="progreso-fill"
+                    [style.width.%]="f.porcentaje ?? 0"
+                    [class.progreso-fill--completo]="(f.porcentaje ?? 0) >= 100"
+                    [class.progreso-fill--proceso]="(f.porcentaje ?? 0) > 0 && (f.porcentaje ?? 0) < 100"
+                    [class.progreso-fill--inicio]="(f.porcentaje ?? 0) === 0">
+                  </div>
                 </div>
-                <span class="progreso-label">{{ f.porcentaje ?? 0 }}%</span>
+                <span class="progreso-label"
+                  [style.color]="(f.porcentaje ?? 0) >= 100 ? '#16a34a' : (f.porcentaje ?? 0) > 0 ? '#d97706' : '#94a3b8'">
+                  {{ f.porcentaje ?? 0 }}%
+                </span>
               </div>
             </td>
+
             <td class="acciones">
+              <!-- Ver PDF solo cuando está al 100% -->
               <button type="button" class="btn-view"
+                *ngIf="(f.porcentaje ?? 0) >= 100"
                 (click)="verFormularioPDF(f)">
                 Ver PDF
               </button>
-              <button type="button" class="btn-download"
-                *ngIf="f.estado !== 'APROBADO'"
-                (click)="aprobarFormulario(f)">
-                Aprobar
-              </button>
-              <span class="muted" *ngIf="f.estado === 'APROBADO'">✓ Aprobado</span>
+              <span class="muted" *ngIf="(f.porcentaje ?? 0) < 100" style="font-size:12px;color:#94a3b8">
+                En proceso...
+              </span>
+
+              <!-- Aprobar: solo Talento Humano y solo cuando esté al 100% -->
+              <ng-container *ngIf="esTalentoHumanoCR() && (f.porcentaje ?? 0) >= 100">
+                <button type="button" class="btn-download"
+                  *ngIf="f.estado !== 'APROBADO'"
+                  (click)="aprobarFormulario(f)">
+                  Aprobar
+                </button>
+                <span class="muted" *ngIf="f.estado === 'APROBADO'">✓ Aprobado</span>
+              </ng-container>
+
+              <span class="muted"
+                *ngIf="esExFuncionario() && !esTalentoHumanoCR() && f.estado === 'APROBADO'">
+                ✓ Aprobado
+              </span>
             </td>
           </tr>
-          <tr *ngIf="formulariosCompletados.length === 0">
-            <td colspan="6" class="empty">No hay formularios completados al 100% aún.</td>
+
+          <tr *ngIf="formulariosPazSalvo.length === 0">
+            <td colspan="5" class="empty">
+              No hay formularios asignados aún.
+            </td>
           </tr>
         </tbody>
       </table>

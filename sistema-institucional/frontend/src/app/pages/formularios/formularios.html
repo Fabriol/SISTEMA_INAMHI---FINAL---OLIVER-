@@ -43,6 +43,34 @@
       </div>
     </div>
     <p style="padding:20px;color:#475569;font-size:15px;">Todos los campos asignados fueron completados correctamente.</p>
+    <div style="padding:0 20px 20px;display:flex;gap:12px;flex-wrap:wrap;">
+      <a routerLink="/documentos" class="btn-primary"
+        *ngIf="esExFuncionario() || esTalentoHumanoCR()"
+        style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+        Ver en Documentos →
+      </a>
+    </div>
+  </section>
+
+  <!-- Aviso cuando el formulario seleccionado llega al 100% -->
+  <section class="notif-card fade-in"
+    *ngIf="formularioSeleccionado && (formularioSeleccionado.porcentaje ?? 0) >= 100 && !esAdmin()">
+    <div class="notif-card__header">
+      <div class="notif-card__titulo">
+        <span class="notif-icono-header">📄</span>
+        <h2>Formulario al 100% — disponible en Documentos</h2>
+        <span class="notif-badge-todas">COMPLETADO</span>
+      </div>
+    </div>
+    <p style="padding:20px;color:#475569;font-size:15px;">
+      El formulario Paz y Salvo se ha completado al 100%. Ahora está disponible en la sección de Documentos para revisión.
+    </p>
+    <div style="padding:0 20px 20px;">
+      <a routerLink="/documentos" class="btn-primary"
+        style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+        Ir a Documentos →
+      </a>
+    </div>
   </section>
 
   <!-- ══ CREAR FORMULARIO (admin) ══ -->
@@ -418,7 +446,7 @@
           <div class="doc-fields-grid">
             <div class="input-group span-2" [class.has-error]="formularioPazSalvo.get('nombres_apellidos')?.invalid && formularioPazSalvo.get('nombres_apellidos')?.touched" [class.has-success]="formularioPazSalvo.get('nombres_apellidos')?.valid && formularioPazSalvo.get('nombres_apellidos')?.touched">
               <label>Nombres y Apellidos <span class="req">*</span></label>
-              <input class="doc-input" formControlName="nombres_apellidos" placeholder="Juan Carlos Pérez Rodríguez" maxlength="80" [readonly]="!puedeEditarCampo('nombres_apellidos')">
+              <input class="doc-input" formControlName="nombres_apellidos"maxlength="80" [readonly]="!puedeEditarCampo('nombres_apellidos')">
               <div class="field-feedback">
                 <span class="field-error-msg" *ngIf="formularioPazSalvo.get('nombres_apellidos')?.errors?.['required'] && formularioPazSalvo.get('nombres_apellidos')?.touched" role="alert">⚠ Obligatorio</span>
                 <span class="field-error-msg" *ngIf="formularioPazSalvo.get('nombres_apellidos')?.errors?.['pattern'] && formularioPazSalvo.get('nombres_apellidos')?.touched" role="alert">⚠ Solo letras y espacios</span>
@@ -438,11 +466,11 @@
             </div>
             <div class="input-group" [class.has-error]="formularioPazSalvo.get('cedula')?.invalid && formularioPazSalvo.get('cedula')?.touched" [class.has-success]="formularioPazSalvo.get('cedula')?.valid && formularioPazSalvo.get('cedula')?.touched">
               <label>Cédula / Pasaporte <span class="req">*</span></label>
-              <input class="doc-input" formControlName="cedula" placeholder="1723456789" maxlength="15" inputmode="numeric" [readonly]="!puedeEditarCampo('cedula')">
+              <input class="doc-input" formControlName="cedula" placeholder="1777777777" maxlength="10" inputmode="numeric" [readonly]="!puedeEditarCampo('cedula')">
               <div class="field-feedback">
                 <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula')?.errors?.['required'] && formularioPazSalvo.get('cedula')?.touched" role="alert">⚠ Obligatorio</span>
-                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula')?.errors?.['cedulaInvalida'] && formularioPazSalvo.get('cedula')?.touched" role="alert">⚠ Cédula inválida</span>
-                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula')?.errors?.['pattern'] && formularioPazSalvo.get('cedula')?.touched" role="alert">⚠ Solo números</span>
+                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula')?.errors?.['pattern'] && !formularioPazSalvo.get('cedula')?.errors?.['required'] && formularioPazSalvo.get('cedula')?.touched" role="alert">⚠ Exactamente 10 dígitos numéricos</span>
+                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula')?.errors?.['cedulaInvalida'] && formularioPazSalvo.get('cedula')?.touched" role="alert">⚠ Cédula ecuatoriana inválida (dígito verificador incorrecto)</span>
               </div>
             </div>
             <div class="input-group" [class.has-error]="formularioPazSalvo.get('fecha_ingreso')?.invalid && formularioPazSalvo.get('fecha_ingreso')?.touched">
@@ -466,13 +494,21 @@
               </div>
             </div>
             <div class="input-group"><label>Número Domicilio</label><input class="doc-input" formControlName="numero_domicilio" placeholder="02-2345678" maxlength="10" [readonly]="!puedeEditarCampo('numero_domicilio')"></div>
-            <div class="input-group" [class.has-error]="formularioPazSalvo.get('celular')?.invalid && formularioPazSalvo.get('celular')?.touched">
+            <div class="input-group" [class.has-error]="formularioPazSalvo.get('celular')?.invalid && formularioPazSalvo.get('celular')?.touched" [class.has-success]="formularioPazSalvo.get('celular')?.valid && formularioPazSalvo.get('celular')?.touched && formularioPazSalvo.get('celular')?.value">
               <label>Celular <span class="req">*</span></label>
-              <input class="doc-input" formControlName="celular" placeholder="0991234567" maxlength="10" inputmode="tel" [readonly]="!puedeEditarCampo('celular')">
-              <span class="field-error-msg" *ngIf="formularioPazSalvo.get('celular')?.errors?.['required'] && formularioPazSalvo.get('celular')?.touched" role="alert">⚠ Obligatorio</span>
-              <span class="field-error-msg" *ngIf="formularioPazSalvo.get('celular')?.errors?.['pattern'] && formularioPazSalvo.get('celular')?.touched" role="alert">⚠ 10 dígitos, empieza en 09</span>
+              <input class="doc-input" formControlName="celular" placeholder="0999999999" maxlength="10" inputmode="numeric" [readonly]="!puedeEditarCampo('celular')">
+              <div class="field-feedback">
+                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('celular')?.errors?.['required'] && formularioPazSalvo.get('celular')?.touched" role="alert">⚠ Obligatorio</span>
+                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('celular')?.errors?.['pattern'] && !formularioPazSalvo.get('celular')?.errors?.['required'] && formularioPazSalvo.get('celular')?.touched" role="alert">⚠ Debe tener exactamente 10 dígitos y empezar con 09 (ej: 0999999999)</span>
+              </div>
             </div>
-            <div class="input-group"><label>Contacto Emergencia</label><input class="doc-input" formControlName="emergencia" placeholder="0987654321" maxlength="10" inputmode="tel" [readonly]="!puedeEditarCampo('emergencia')"></div>
+            <div class="input-group" [class.has-error]="formularioPazSalvo.get('emergencia')?.invalid && formularioPazSalvo.get('emergencia')?.touched">
+              <label>Contacto Emergencia</label>
+              <input class="doc-input" formControlName="emergencia" placeholder="0999999999" maxlength="10" inputmode="numeric" [readonly]="!puedeEditarCampo('emergencia')">
+              <div class="field-feedback">
+                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('emergencia')?.errors?.['pattern'] && formularioPazSalvo.get('emergencia')?.touched" role="alert">⚠ Si ingresa un número debe tener exactamente 10 dígitos y empezar con 09</span>
+              </div>
+            </div>
             <div class="input-group" [class.has-error]="formularioPazSalvo.get('email1')?.invalid && formularioPazSalvo.get('email1')?.touched">
               <label>Email Principal <span class="req">*</span></label>
               <input class="doc-input" type="email" formControlName="email1" placeholder="correo@ejemplo.com" maxlength="60" [readonly]="!puedeEditarCampo('email1')">
@@ -753,11 +789,8 @@
         </div>
 
         <!-- ═══ 9. RECEPCIÓN ═══ -->
-        <div class="doc-section" [class.doc-section--locked]="!esAdmin() && !otrasSeccionesCompletas">
+        <div class="doc-section">
           <div class="doc-section-head"><span class="doc-section-icon">📬</span> 9. Recepción de Documentos — RRHH</div>
-          <div class="seccion-lock-notice" *ngIf="!esAdmin() && !otrasSeccionesCompletas">
-            🔒 Complete las secciones anteriores para habilitar esta sección.
-          </div>
           <div class="doc-fields-grid">
             <div class="input-group" [class.has-error]="formularioPazSalvo.get('recepcion_fecha')?.invalid && formularioPazSalvo.get('recepcion_fecha')?.touched"><label>Fecha de Entrega del Paz y Salvo <span class="req">*</span></label><input class="doc-input" type="date" formControlName="recepcion_fecha" [max]="hoy" [readonly]="!puedeEditarCampo('recepcion_fecha')"><span class="field-error-msg" *ngIf="formularioPazSalvo.get('recepcion_fecha')?.invalid && formularioPazSalvo.get('recepcion_fecha')?.touched">⚠ Requerido</span></div>
             <div class="input-group" [class.has-error]="formularioPazSalvo.get('recepcion_hojas')?.invalid && formularioPazSalvo.get('recepcion_hojas')?.touched"><label>N° de Hojas Recibidas <span class="req">*</span></label><input class="doc-input" type="number" formControlName="recepcion_hojas" placeholder="2" min="1" [readonly]="!puedeEditarCampo('recepcion_hojas')"><span class="field-error-msg" *ngIf="formularioPazSalvo.get('recepcion_hojas')?.invalid && formularioPazSalvo.get('recepcion_hojas')?.touched">⚠ Requerido</span></div>
@@ -775,11 +808,8 @@
         </div>
 
         <!-- ═══ 10. AUTORIZACIÓN Y FIRMA ═══ -->
-        <div class="doc-section" [class.doc-section--locked]="!esAdmin() && !otrasSeccionesCompletas">
+        <div class="doc-section">
           <div class="doc-section-head"><span class="doc-section-icon">✍️</span> 10. Autorización y Firma Digital</div>
-          <div class="seccion-lock-notice" *ngIf="!esAdmin() && !otrasSeccionesCompletas">
-            🔒 Complete las secciones anteriores para habilitar esta sección.
-          </div>
           <div class="doc-auth-section">
             <p class="doc-auth-text">
               Conforme lo establecido en el artículo 110 del Reglamento LOSEP, quien suscribe
@@ -810,11 +840,14 @@
             <div class="firma-requerida-msg" *ngIf="firmaRequired && !hasFirma" role="alert">⚠️ La firma es OBLIGATORIA para enviar el formulario.</div>
             <div class="firma-ok-msg" *ngIf="hasFirma">✅ Firma registrada correctamente.</div>
             <div class="doc-fields-grid" style="margin-top:12px">
-              <div class="input-group" [class.has-error]="formularioPazSalvo.get('cedula_firmante')?.invalid && formularioPazSalvo.get('cedula_firmante')?.touched">
+              <div class="input-group" [class.has-error]="formularioPazSalvo.get('cedula_firmante')?.invalid && formularioPazSalvo.get('cedula_firmante')?.touched" [class.has-success]="formularioPazSalvo.get('cedula_firmante')?.valid && formularioPazSalvo.get('cedula_firmante')?.touched">
                 <label>C.C. del Firmante <span class="req">*</span></label>
-                <input class="doc-input" formControlName="cedula_firmante" placeholder="Cédula de 10 dígitos" maxlength="10" inputmode="numeric" [readonly]="!puedeEditarCampo('cedula_firmante')">
-                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula_firmante')?.errors?.['required'] && formularioPazSalvo.get('cedula_firmante')?.touched">⚠ Requerido</span>
-                <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula_firmante')?.errors?.['cedulaInvalida'] && formularioPazSalvo.get('cedula_firmante')?.touched">⚠ Cédula inválida</span>
+                <input class="doc-input" formControlName="cedula_firmante" placeholder="Cédula" maxlength="10" inputmode="numeric" [readonly]="!puedeEditarCampo('cedula_firmante')">
+                <div class="field-feedback">
+                  <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula_firmante')?.errors?.['required'] && formularioPazSalvo.get('cedula_firmante')?.touched">⚠ Obligatorio</span>
+                  <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula_firmante')?.errors?.['pattern'] && !formularioPazSalvo.get('cedula_firmante')?.errors?.['required'] && formularioPazSalvo.get('cedula_firmante')?.touched">⚠ Exactamente 10 dígitos numéricos</span>
+                  <span class="field-error-msg" *ngIf="formularioPazSalvo.get('cedula_firmante')?.errors?.['cedulaInvalida'] && formularioPazSalvo.get('cedula_firmante')?.touched">⚠ Cédula ecuatoriana inválida (dígito verificador incorrecto)</span>
+                </div>
               </div>
               <div class="input-group" [class.has-error]="formularioPazSalvo.get('fecha_firma')?.invalid && formularioPazSalvo.get('fecha_firma')?.touched">
                 <label>Fecha de Firma <span class="req">*</span></label>
@@ -1294,7 +1327,7 @@
           </div>
 
           <!-- ▌9. RECEPCIÓN ▐ -->
-          <div class="ep-bloque ep-bloque--rec" [class.ep-bloque--locked]="!esAdmin() && !otrasSeccionesCompletas">
+          <div class="ep-bloque ep-bloque--rec" >
             <div class="ep-bloque__head">
               <span class="ep-bloque__num">09</span>
               <span class="ep-bloque__titulo">RECEPCIÓN DE DOCUMENTOS — DIRECCIÓN DE RRHH</span>
@@ -1328,7 +1361,7 @@
           </div>
 
           <!-- ▌10. AUTORIZACIÓN ▐ -->
-          <div class="ep-bloque ep-bloque--auth" [class.ep-bloque--locked]="!esAdmin() && !otrasSeccionesCompletas">
+          <div class="ep-bloque ep-bloque--auth" >
             <div class="ep-bloque__head ep-bloque__head--auth">
               <span class="ep-bloque__num">10</span>
               <span class="ep-bloque__titulo">AUTORIZACIÓN — SERVIDOR SALIENTE</span>

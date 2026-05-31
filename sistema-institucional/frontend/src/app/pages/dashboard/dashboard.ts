@@ -61,26 +61,38 @@ export class Dashboard implements OnInit, AfterViewInit {
     return this.usuario?.rol === 'Administrador';
   }
 
+  private normalizarRol(rol: string): string {
+    return (rol || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  }
+
+  esTalentoHumano(): boolean {
+    const r = this.normalizarRol(this.usuario?.rol);
+    return r.includes('talento humano') && r.includes('recep');
+  }
+
   cargarMenu(): void {
-    if (this.esAdmin()) {
-      this.menu = [
-        { nombre: 'Dashboard', ruta: '/dashboard', bloqueado: false },
-        { nombre: 'Usuarios', ruta: '/usuarios', bloqueado: false },
-        { nombre: 'Documentos', ruta: '/documentos', bloqueado: false },
-        { nombre: 'Formularios', ruta: '/formularios', bloqueado: false },
-        { nombre: 'Reportes', ruta: '/reportes', bloqueado: false },
-        { nombre: 'Auditoría', ruta: '/auditoria', bloqueado: false }
-      ];
-    } else {
-      this.menu = [
-        { nombre: 'Dashboard', ruta: '/dashboard', bloqueado: false },
-        { nombre: 'Documentos', ruta: '/documentos', bloqueado: false },
-        { nombre: 'Formularios', ruta: '/formularios', bloqueado: false },
-        { nombre: 'Usuarios', ruta: '/usuarios', bloqueado: true },
-        { nombre: 'Reportes', ruta: '/reportes', bloqueado: true },
-        { nombre: 'Auditoría', ruta: '/auditoria', bloqueado: true }
-      ];
+    const admin = this.esAdmin();
+    const th    = this.esTalentoHumano();
+
+    // Items siempre visibles
+    const base = [
+      { nombre: 'Dashboard',    ruta: '/dashboard' },
+      { nombre: 'Documentos',   ruta: '/documentos' },
+      { nombre: 'Formularios',  ruta: '/formularios' },
+    ];
+
+    // Items adicionales según rol — solo aparecen si tienen acceso
+    if (admin) {
+      base.push(
+        { nombre: 'Usuarios',   ruta: '/usuarios' },
+        { nombre: 'Reportes',   ruta: '/reportes' },
+        { nombre: 'Auditoría',  ruta: '/auditoria' },
+      );
+    } else if (th) {
+      base.push({ nombre: 'Reportes', ruta: '/reportes' });
     }
+
+    this.menu = base.map(i => ({ ...i, bloqueado: false }));
   }
 
   navegar(item: any): void {

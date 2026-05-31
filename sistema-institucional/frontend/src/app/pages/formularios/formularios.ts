@@ -974,7 +974,7 @@ export class Formularios implements OnInit, OnDestroy {
   puedeEditarCampo(campo: string): boolean {
     if (this.camposBloqueados.includes(campo)) return false;
     if (this.esAdmin()) return true;
-    if (this.CAMPOS_RECEPCION_FIRMA.includes(campo) && !this.otrasSeccionesCompletas) return false;
+    // Recepción y Firma ya no requieren que las otras secciones estén completas
     return this.camposAsignadosUsuario.includes(campo);
   }
 
@@ -1065,9 +1065,14 @@ export class Formularios implements OnInit, OnDestroy {
         const label = def?.etiqueta ?? campo;
         const err = ctrl.errors ?? {};
 
+        const esTelefono = ['celular', 'emergencia'].includes(campo);
+        const esCedula = ['cedula', 'cedula_firmante'].includes(campo);
+
         if (err['required']) errores.push(`${label}: campo obligatorio`);
-        else if (err['email']) errores.push(`${label}: formato de email inválido`);
-        else if (err['cedulaInvalida']) errores.push(`${label}: cédula con dígito verificador incorrecto`);
+        else if (err['email']) errores.push(`${label}: formato de email inválido (ej: correo@ejemplo.com)`);
+        else if (err['cedulaInvalida']) errores.push(`${label}: cédula ecuatoriana inválida — dígito verificador incorrecto`);
+        else if (err['pattern'] && esTelefono) errores.push(`${label}: debe tener exactamente 10 dígitos y empezar con 09 (ej: 0991234567)`);
+        else if (err['pattern'] && esCedula) errores.push(`${label}: debe tener exactamente 10 dígitos numéricos`);
         else if (err['pattern']) errores.push(`${label}: formato inválido`);
         else if (err['minlength']) errores.push(`${label}: muy corto (mín. ${err['minlength'].requiredLength} caracteres)`);
         else if (err['maxlength']) errores.push(`${label}: muy largo (máx. ${err['maxlength'].requiredLength} caracteres)`);
@@ -1580,9 +1585,24 @@ export class Formularios implements OnInit, OnDestroy {
       this.cargando = false;
       this.cdr.markForCheck();
       if (errores === 0) {
-        Swal.fire('Guardado', 'Campos guardados correctamente.', 'success');
         localStorage.removeItem('pazYSalvoDraft');
         this.cargarDetalleFormulario(this.formularioSeleccionado);
+        // Verificar si el usuario ya completó todos sus campos
+        const pendientes = this.camposAsignadosUsuario.filter(
+          c => ![...this.camposBloqueados, ...camposAGuardar, ...firmasAGuardar].includes(c)
+        );
+        if (pendientes.length === 0) {
+          Swal.fire({
+            icon: 'success',
+            title: '¡Formulario completado!',
+            html: `<p>Todos tus campos han sido guardados correctamente.</p>
+                   <p style="margin-top:8px;color:#64748b;font-size:14px;">El formulario queda bloqueado para edición.</p>`,
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#16a34a',
+          });
+        } else {
+          Swal.fire('Guardado', 'Campos guardados correctamente.', 'success');
+        }
       } else if (guardados > 0) {
         const etiquetas = camposFallidos
           .map(c => this.camposFormulario.find(x => x.id === c)?.etiqueta ?? c)
@@ -1779,13 +1799,19 @@ export class Formularios implements OnInit, OnDestroy {
   }
 
   /** Habilita / deshabilita controles según rol y asignación.
-   *  Campos ya guardados (camposBloqueados) → siempre deshabilitados para todos. */
+   *  Campos ya guardados (camposBloqueados) → siempre deshabilitados para todos.
+   *  Si el usuario ya completó TODOS sus campos → todo deshabilitado. */
   private aplicarPermisosCampos(): void {
+    // Si el usuario (no admin) ya terminó todos sus campos, bloquear todo
+    const todosCompletados = !this.esAdmin()
+      && this.camposAsignadosUsuario.length > 0
+      && this.camposAsignadosUsuario.every(c => this.camposBloqueados.includes(c));
+
     Object.keys(this.formularioPazSalvo.controls).forEach(key => {
       const ctrl = this.formularioPazSalvo.get(key);
       if (!ctrl) return;
 
-      if (this.camposBloqueados.includes(key)) {
+      if (todosCompletados || this.camposBloqueados.includes(key)) {
         ctrl.disable({ emitEvent: false });
       } else if (
         this.esAdmin() ||

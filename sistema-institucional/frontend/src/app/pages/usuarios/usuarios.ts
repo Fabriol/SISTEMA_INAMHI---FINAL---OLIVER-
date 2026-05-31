@@ -88,11 +88,92 @@ export class Usuarios implements OnInit {
   }
 
   campoSoloLetrasValido(texto: string): boolean {
-    return /^[a-zA-ZÁÉÍÓÚáéíóúÑñ\s]+$/.test(texto || '');
+    return /^[a-zA-ZÁÉÍÓÚáéíóúÑñ\s]+$/.test((texto || '').trim());
   }
 
   campoUsuarioValido(texto: string): boolean {
     return /^[a-z0-9._-]+$/.test(texto || '');
+  }
+
+  // ── Getters de estado para mostrar errores en tiempo real ──
+  get errNombresNuevo(): string {
+    const v = (this.nuevo.nombres || '').trim();
+    if (!v) return 'Obligatorio';
+    if (v.length < 2) return 'Mínimo 2 caracteres';
+    if (v.length > 50) return 'Máximo 50 caracteres';
+    if (!this.campoSoloLetrasValido(v)) return 'Solo letras y espacios';
+    return '';
+  }
+
+  get errApellidosNuevo(): string {
+    const v = (this.nuevo.apellidos || '').trim();
+    if (!v) return 'Obligatorio';
+    if (v.length < 2) return 'Mínimo 2 caracteres';
+    if (v.length > 50) return 'Máximo 50 caracteres';
+    if (!this.campoSoloLetrasValido(v)) return 'Solo letras y espacios';
+    return '';
+  }
+
+  get errPasswordNuevo(): string {
+    const v = this.nuevo.password || '';
+    if (!v) return 'Obligatorio';
+    if (v.length < 6) return 'Mínimo 6 caracteres';
+    if (v.length > 50) return 'Máximo 50 caracteres';
+    return '';
+  }
+
+  get errRolNuevo(): string {
+    return !this.nuevo.rol ? 'Seleccione un rol' : '';
+  }
+
+  get errNombresEditar(): string {
+    const v = (this.usuarioEditando?.nombres || '').trim();
+    if (!v) return 'Obligatorio';
+    if (v.length < 2) return 'Mínimo 2 caracteres';
+    if (v.length > 50) return 'Máximo 50 caracteres';
+    if (!this.campoSoloLetrasValido(v)) return 'Solo letras y espacios';
+    return '';
+  }
+
+  get errApellidosEditar(): string {
+    const v = (this.usuarioEditando?.apellidos || '').trim();
+    if (!v) return 'Obligatorio';
+    if (v.length < 2) return 'Mínimo 2 caracteres';
+    if (v.length > 50) return 'Máximo 50 caracteres';
+    if (!this.campoSoloLetrasValido(v)) return 'Solo letras y espacios';
+    return '';
+  }
+
+  get errPasswordEditar(): string {
+    const v = this.usuarioEditando?.password || '';
+    if (!v) return ''; // opcional en edición
+    if (v.length < 6) return 'Mínimo 6 caracteres';
+    if (v.length > 50) return 'Máximo 50 caracteres';
+    return '';
+  }
+
+  get errRolEditar(): string {
+    return !this.usuarioEditando?.rol ? 'Seleccione un rol' : '';
+  }
+
+  get formularioNuevoValido(): boolean {
+    return (
+      !this.errNombresNuevo &&
+      !this.errApellidosNuevo &&
+      !this.errPasswordNuevo &&
+      !this.errRolNuevo &&
+      !!this.nuevo.nombres?.trim() &&
+      !!this.nuevo.apellidos?.trim()
+    );
+  }
+
+  get formularioEditarValido(): boolean {
+    return (
+      !this.errNombresEditar &&
+      !this.errApellidosEditar &&
+      !this.errPasswordEditar &&
+      !this.errRolEditar
+    );
   }
 
   validarSoloLetras(event: any, objeto: any, campo: string): void {
@@ -199,30 +280,66 @@ export class Usuarios implements OnInit {
     this.nuevo.nombres = this.limpiarTexto(this.nuevo.nombres);
     this.nuevo.apellidos = this.limpiarTexto(this.nuevo.apellidos);
 
-    if (!this.nuevo.nombres || !this.nuevo.apellidos || !this.nuevo.password || !this.nuevo.rol) {
-      Swal.fire('Campos incompletos', 'Complete nombres, apellidos, contraseña y rol.', 'warning');
+    if (!this.nuevo.nombres) {
+      Swal.fire('Campos incompletos', 'Ingrese los nombres del usuario.', 'warning');
       return false;
     }
-
+    if (this.nuevo.nombres.length < 2) {
+      Swal.fire('Validación', 'Nombres: mínimo 2 caracteres.', 'warning');
+      return false;
+    }
+    if (this.nuevo.nombres.length > 50) {
+      Swal.fire('Validación', 'Nombres: máximo 50 caracteres.', 'warning');
+      return false;
+    }
     if (!this.campoSoloLetrasValido(this.nuevo.nombres)) {
-      Swal.fire('Error', 'El campo nombres solo permite letras.', 'error');
+      Swal.fire('Validación', 'Nombres: solo se permiten letras y espacios.', 'error');
       return false;
     }
 
+    if (!this.nuevo.apellidos) {
+      Swal.fire('Campos incompletos', 'Ingrese los apellidos del usuario.', 'warning');
+      return false;
+    }
+    if (this.nuevo.apellidos.length < 2) {
+      Swal.fire('Validación', 'Apellidos: mínimo 2 caracteres.', 'warning');
+      return false;
+    }
+    if (this.nuevo.apellidos.length > 50) {
+      Swal.fire('Validación', 'Apellidos: máximo 50 caracteres.', 'warning');
+      return false;
+    }
     if (!this.campoSoloLetrasValido(this.nuevo.apellidos)) {
-      Swal.fire('Error', 'El campo apellidos solo permite letras.', 'error');
+      Swal.fire('Validación', 'Apellidos: solo se permiten letras y espacios.', 'error');
       return false;
     }
 
     this.generarUsuario();
 
-    if (!this.campoUsuarioValido(this.nuevo.usuario)) {
-      Swal.fire('Error', 'El usuario contiene caracteres inválidos.', 'error');
+    if (!this.nuevo.usuario || !this.campoUsuarioValido(this.nuevo.usuario)) {
+      Swal.fire('Validación', 'Usuario inválido. Solo letras minúsculas, números, punto, guion y guion bajo.', 'error');
+      return false;
+    }
+    if (this.nuevo.usuario.length > 30) {
+      Swal.fire('Validación', 'Usuario: máximo 30 caracteres.', 'warning');
       return false;
     }
 
-    if (this.nuevo.password.length < 4) {
-      Swal.fire('Validación', 'La contraseña debe tener mínimo 4 caracteres.', 'warning');
+    if (!this.nuevo.password) {
+      Swal.fire('Campos incompletos', 'Ingrese una contraseña.', 'warning');
+      return false;
+    }
+    if (this.nuevo.password.length < 6) {
+      Swal.fire('Validación', 'La contraseña debe tener mínimo 6 caracteres.', 'warning');
+      return false;
+    }
+    if (this.nuevo.password.length > 50) {
+      Swal.fire('Validación', 'La contraseña no debe superar 50 caracteres.', 'warning');
+      return false;
+    }
+
+    if (!this.nuevo.rol) {
+      Swal.fire('Campos incompletos', 'Seleccione un rol para el usuario.', 'warning');
       return false;
     }
 
@@ -233,30 +350,58 @@ export class Usuarios implements OnInit {
     this.usuarioEditando.nombres = this.limpiarTexto(this.usuarioEditando.nombres);
     this.usuarioEditando.apellidos = this.limpiarTexto(this.usuarioEditando.apellidos);
 
-    if (!this.usuarioEditando.nombres || !this.usuarioEditando.apellidos || !this.usuarioEditando.rol) {
-      Swal.fire('Campos incompletos', 'Complete nombres, apellidos y rol.', 'warning');
+    if (!this.usuarioEditando.nombres) {
+      Swal.fire('Campos incompletos', 'Ingrese los nombres del usuario.', 'warning');
       return false;
     }
-
+    if (this.usuarioEditando.nombres.length < 2) {
+      Swal.fire('Validación', 'Nombres: mínimo 2 caracteres.', 'warning');
+      return false;
+    }
+    if (this.usuarioEditando.nombres.length > 50) {
+      Swal.fire('Validación', 'Nombres: máximo 50 caracteres.', 'warning');
+      return false;
+    }
     if (!this.campoSoloLetrasValido(this.usuarioEditando.nombres)) {
-      Swal.fire('Error', 'El campo nombres solo permite letras.', 'error');
+      Swal.fire('Validación', 'Nombres: solo se permiten letras y espacios.', 'error');
       return false;
     }
 
+    if (!this.usuarioEditando.apellidos) {
+      Swal.fire('Campos incompletos', 'Ingrese los apellidos del usuario.', 'warning');
+      return false;
+    }
+    if (this.usuarioEditando.apellidos.length < 2) {
+      Swal.fire('Validación', 'Apellidos: mínimo 2 caracteres.', 'warning');
+      return false;
+    }
+    if (this.usuarioEditando.apellidos.length > 50) {
+      Swal.fire('Validación', 'Apellidos: máximo 50 caracteres.', 'warning');
+      return false;
+    }
     if (!this.campoSoloLetrasValido(this.usuarioEditando.apellidos)) {
-      Swal.fire('Error', 'El campo apellidos solo permite letras.', 'error');
+      Swal.fire('Validación', 'Apellidos: solo se permiten letras y espacios.', 'error');
       return false;
     }
 
     this.generarUsuarioEditar();
 
     if (!this.campoUsuarioValido(this.usuarioEditando.usuario)) {
-      Swal.fire('Error', 'El usuario contiene caracteres inválidos.', 'error');
+      Swal.fire('Validación', 'Usuario inválido. Solo letras minúsculas, números, punto, guion y guion bajo.', 'error');
       return false;
     }
 
-    if (this.usuarioEditando.password && this.usuarioEditando.password.length < 4) {
-      Swal.fire('Validación', 'La nueva contraseña debe tener mínimo 4 caracteres.', 'warning');
+    if (this.usuarioEditando.password && this.usuarioEditando.password.length < 6) {
+      Swal.fire('Validación', 'La contraseña debe tener mínimo 6 caracteres.', 'warning');
+      return false;
+    }
+    if (this.usuarioEditando.password && this.usuarioEditando.password.length > 50) {
+      Swal.fire('Validación', 'La contraseña no debe superar 50 caracteres.', 'warning');
+      return false;
+    }
+
+    if (!this.usuarioEditando.rol) {
+      Swal.fire('Campos incompletos', 'Seleccione un rol para el usuario.', 'warning');
       return false;
     }
 

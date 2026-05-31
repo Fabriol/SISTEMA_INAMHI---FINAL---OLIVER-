@@ -1,70 +1,260 @@
 <div class="page">
 
+  <!-- HEADER -->
   <div class="page-header animate-down">
     <div>
       <span class="badge">Reportes</span>
       <h1>Reportes del Sistema</h1>
-      <p>Resumen general y estadísticas del sistema institucional.</p>
+      <p>Seguimiento de formularios, estado de asignaciones y envío de recordatorios.</p>
     </div>
-
-    <button class="back" routerLink="/dashboard">
-      ← Volver
-    </button>
+    <button class="back" routerLink="/dashboard">← Volver</button>
   </div>
 
-  <div class="loading-box animate-up" *ngIf="cargando">
-    Cargando reportes...
-  </div>
+  <!-- ══ RESUMEN ESTADÍSTICO ══ -->
+  <div class="stats-grid animate-up" *ngIf="!cargandoResumen">
 
-  <div class="error-box animate-up" *ngIf="error && !cargando">
-    {{ error }}
-  </div>
-
-  <div class="cards animate-up">
-
-    <div class="card stat-card">
-      <div class="icon usuarios">👥</div>
-      <div>
-        <h2>Usuarios</h2>
-        <p>{{ resumen.usuarios }}</p>
+    <div class="stat-card stat-blue">
+      <div class="stat-icon">👥</div>
+      <div class="stat-info">
+        <span class="stat-label">Usuarios registrados</span>
+        <strong class="stat-num">{{ resumen.usuarios }}</strong>
       </div>
     </div>
 
-    <div class="card stat-card">
-      <div class="icon documentos">📄</div>
-      <div>
-        <h2>Documentos</h2>
-        <p>{{ resumen.documentos }}</p>
+    <div class="stat-card stat-green">
+      <div class="stat-icon">📄</div>
+      <div class="stat-info">
+        <span class="stat-label">Documentos subidos</span>
+        <strong class="stat-num">{{ resumen.documentos }}</strong>
+      </div>
+    </div>
+
+    <div class="stat-card stat-purple">
+      <div class="stat-icon">📋</div>
+      <div class="stat-info">
+        <span class="stat-label">Formularios totales</span>
+        <strong class="stat-num">{{ resumen.formularios }}</strong>
+      </div>
+    </div>
+
+    <div class="stat-card stat-orange">
+      <div class="stat-icon">✅</div>
+      <div class="stat-info">
+        <span class="stat-label">Completados al 100%</span>
+        <strong class="stat-num">{{ resumen.formularios_100 ?? 0 }}</strong>
+      </div>
+    </div>
+
+    <div class="stat-card stat-red">
+      <div class="stat-icon">⏳</div>
+      <div class="stat-info">
+        <span class="stat-label">En proceso</span>
+        <strong class="stat-num">{{ resumen.formularios_proceso ?? 0 }}</strong>
       </div>
     </div>
 
   </div>
 
-  <div class="grid-reportes">
+  <div class="loading-box animate-up" *ngIf="cargandoResumen">Cargando resumen...</div>
+  <div class="error-box" *ngIf="errorResumen">{{ errorResumen }}</div>
 
-    <section class="card grafico animate-up delay">
-      <div class="card-title">
-        <h2>Resumen gráfico</h2>
-        <button class="btn-refresh" (click)="recargar()" [disabled]="cargando">
-          Actualizar
+  <!-- ══ FORMULARIOS CON ASIGNACIONES PENDIENTES ══ -->
+  <section class="card animate-up delay" *ngIf="puedeVerPendientes()">
+
+    <div class="card-title">
+      <div>
+        <h2>Formularios con campos pendientes</h2>
+        <p>Usuarios que aún no han completado sus campos asignados. Puedes enviarles un recordatorio.</p>
+      </div>
+      <button class="btn-refresh" (click)="cargarPendientes()" [disabled]="cargandoPendientes">
+        {{ cargandoPendientes ? 'Cargando...' : 'Actualizar' }}
+      </button>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="filtros-reporte">
+
+      <!-- Buscar formulario por nombre -->
+      <div class="filtro-field">
+        <label>Buscar formulario</label>
+        <input type="text" [(ngModel)]="busquedaFormulario"
+          placeholder="Nombre del formulario..."
+          maxlength="60" autocomplete="off">
+      </div>
+
+      <!-- Selector desplegable de usuario -->
+      <div class="filtro-field">
+        <label>Filtrar por usuario asignado</label>
+
+        <div class="dropdown-selector" [class.open]="dropdownAbierto">
+
+          <!-- Botón que abre/cierra el dropdown -->
+          <button type="button" class="dropdown-trigger" (click)="toggleDropdown()">
+            <span class="dropdown-label">{{ labelUsuarioSeleccionado }}</span>
+            <span class="dropdown-arrow">{{ dropdownAbierto ? '▲' : '▼' }}</span>
+          </button>
+
+          <!-- Panel desplegable con lista de usuarios -->
+          <div class="dropdown-panel" *ngIf="dropdownAbierto">
+            <div class="dropdown-list">
+
+              <!-- Opción: todos los usuarios -->
+              <div class="dropdown-item"
+                [class.activo]="!usuarioSeleccionado"
+                (click)="limpiarUsuario()">
+                <span class="dropdown-nombre">Todos los usuarios</span>
+                <span class="checkmark" *ngIf="!usuarioSeleccionado">✓</span>
+              </div>
+
+              <!-- Lista de usuarios con pendientes -->
+              <div class="dropdown-item"
+                *ngFor="let u of usuariosUnicos"
+                [class.activo]="usuarioSeleccionado === u.usuario_id?.toString()"
+                (click)="seleccionarUsuario(u.usuario_id?.toString())">
+                <div class="dropdown-avatar">{{ (u.nombre_completo || '?')[0].toUpperCase() }}</div>
+                <span class="dropdown-nombre">{{ u.nombre_completo }}</span>
+                <span class="checkmark" *ngIf="usuarioSeleccionado === u.usuario_id?.toString()">✓</span>
+              </div>
+
+              <div class="dropdown-empty" *ngIf="usuariosUnicos.length === 0">
+                No hay usuarios con pendientes
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Limpiar filtro de usuario -->
+        <button type="button" class="clear-filtro"
+          *ngIf="usuarioSeleccionado"
+          (click)="limpiarUsuario()">
+          × Quitar filtro
         </button>
       </div>
 
-      <div class="chart-box">
-        <canvas id="grafico"></canvas>
-      </div>
-    </section>
+    </div>
 
-    <section class="card grafico animate-up delay-2">
-      <div class="card-title">
-        <h2>Documentos por estado</h2>
+    <div class="loading-box" *ngIf="cargandoPendientes">
+      Cargando formularios pendientes...
+    </div>
+
+    <div class="error-box" *ngIf="errorPendientes && !cargandoPendientes">
+      {{ errorPendientes }}
+    </div>
+
+    <!-- SIN RESULTADOS -->
+    <div class="empty-state" *ngIf="!cargandoPendientes && !errorPendientes && formulariosFiltrados.length === 0">
+      <div class="empty-icon">🎉</div>
+      <h3>¡Sin pendientes!</h3>
+      <p *ngIf="!busquedaFormulario && !usuarioSeleccionado">
+        Todos los formularios tienen sus campos completados o aún no hay asignaciones.
+      </p>
+      <p *ngIf="busquedaFormulario || usuarioSeleccionado">
+        No se encontraron resultados para los filtros aplicados.
+      </p>
+    </div>
+
+    <!-- LISTA DE FORMULARIOS PENDIENTES -->
+    <div class="formularios-pendientes" *ngIf="!cargandoPendientes && formulariosFiltrados.length > 0">
+
+      <div class="formulario-card" *ngFor="let f of formulariosFiltrados">
+
+        <!-- Cabecera del formulario -->
+        <div class="form-card-header">
+          <div class="form-card-info">
+            <h3>{{ f.titulo }}</h3>
+            <div class="form-card-meta">
+              <span class="meta-item">
+                <span class="meta-label">Progreso:</span>
+                <span class="progress-inline">
+                  <span class="progress-bar-mini">
+                    <span class="progress-fill-mini"
+                      [style.width.%]="f.porcentaje ?? 0"
+                      [style.background]="colorPorcentaje(f.porcentaje ?? 0)">
+                    </span>
+                  </span>
+                  <strong [style.color]="colorPorcentaje(f.porcentaje ?? 0)">
+                    {{ f.porcentaje ?? 0 }}%
+                  </strong>
+                </span>
+              </span>
+              <span class="meta-item">
+                <span class="meta-label">Completados:</span>
+                <strong class="meta-green">{{ f.completados }}</strong>
+              </span>
+              <span class="meta-item">
+                <span class="meta-label">Pendientes:</span>
+                <strong class="meta-red">{{ f.pendientes }}</strong>
+              </span>
+            </div>
+          </div>
+          <span class="badge-estado" [class.badge-completado]="f.estado === 'COMPLETADO'"
+            [class.badge-proceso]="f.estado !== 'COMPLETADO'">
+            {{ f.estado || 'EN PROCESO' }}
+          </span>
+        </div>
+
+        <!-- Tabla de usuarios con campos pendientes -->
+        <div class="usuarios-pendientes-tabla">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>Asignados</th>
+                <th>Completados</th>
+                <th>Pendientes</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let u of usuariosFiltrados(f)" class="row-animate">
+                <td>
+                  <div class="usuario-cell">
+                    <div class="avatar">{{ (u.nombres || u.usuario || '?')[0].toUpperCase() }}</div>
+                    <div>
+                      <strong>{{ u.nombres }} {{ u.apellidos }}</strong>
+                      <small>@{{ u.usuario }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="rol-badge">{{ u.rol }}</span></td>
+                <td class="center">{{ u.total_asignados }}</td>
+                <td class="center meta-green">{{ u.completados }}</td>
+                <td class="center">
+                  <span class="pendiente-badge">{{ u.pendientes }}</span>
+                </td>
+                <td class="center">
+                  <button type="button" class="btn-recordatorio"
+                    [disabled]="enviandoRecordatorio[f.id + '_' + u.usuario_id]"
+                    (click)="enviarRecordatorio(f, u)">
+                    <span *ngIf="!enviandoRecordatorio[f.id + '_' + u.usuario_id]">
+                      📧 Enviar recordatorio
+                    </span>
+                    <span *ngIf="enviandoRecordatorio[f.id + '_' + u.usuario_id]">
+                      Enviando...
+                    </span>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="usuariosFiltrados(f).length === 0">
+                <td colspan="6" class="empty">No hay usuarios pendientes con ese filtro.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
 
-      <div class="chart-box">
-        <canvas id="graficoEstado"></canvas>
-      </div>
-    </section>
+    </div>
+  </section>
 
-  </div>
+  <!-- Sección solo para roles sin acceso a pendientes -->
+  <section class="card animate-up" *ngIf="!puedeVerPendientes()">
+    <div style="text-align:center;padding:40px;color:#64748b;">
+      <div style="font-size:48px;margin-bottom:16px;">📊</div>
+      <h3 style="margin:0 0 8px;color:#1e3a8a">Reportes del Sistema</h3>
+      <p>Los reportes detallados están disponibles para Administradores y Talento Humano.</p>
+    </div>
+  </section>
 
 </div>

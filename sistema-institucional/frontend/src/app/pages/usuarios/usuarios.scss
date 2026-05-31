@@ -270,13 +270,62 @@ input[type='file']::file-selector-button:hover {
 .error-text {
   color: #dc2626;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
+  margin-top: 4px;
+  display: block;
+}
+
+.hint-text {
+  color: #64748b;
+  font-size: 11px;
+  margin-top: 3px;
+  display: block;
+}
+
+.hint-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 400;
 }
 
 .success-text {
   color: #16a34a;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
+}
+
+.req {
+  color: #dc2626;
+  font-size: 13px;
+  margin-left: 2px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  input, select {
+    transition: border-color .18s, box-shadow .18s;
+  }
+}
+
+.field-error input,
+.field-error select {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,.12) !important;
+}
+
+.field-ok input,
+.field-ok select {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 3px rgba(34,197,94,.10) !important;
 }
 
 /* =========================

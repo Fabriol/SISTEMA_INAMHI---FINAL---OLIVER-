@@ -4,14 +4,12 @@
     <div>
       <span class="badge">Administración</span>
       <h1>Gestión de Usuarios</h1>
-      <p>Control de usuarios, roles y estados.</p>
+      <p>Control de usuarios, roles y estados del sistema.</p>
     </div>
-
-    <button class="secondary" routerLink="/dashboard">
-      ← Volver
-    </button>
+    <button class="secondary" routerLink="/dashboard">← Volver</button>
   </div>
 
+  <!-- ══ CREAR USUARIO ══ -->
   <section class="card">
     <div class="card-title">
       <h2>Crear usuario</h2>
@@ -20,37 +18,60 @@
 
     <div class="form-grid">
 
-      <div class="field">
-        <input [(ngModel)]="nuevo.nombres" (input)="onNombreApellidoNuevo($event, 'nombres')" placeholder="Nombres"
-          autocomplete="off">
-
+      <!-- NOMBRES -->
+      <div class="field" [class.field-error]="nuevo.nombres && errNombresNuevo" [class.field-ok]="nuevo.nombres && !errNombresNuevo">
+        <label>Nombres <span class="req"></span></label>
+        <input
+          [(ngModel)]="nuevo.nombres"
+          (input)="onNombreApellidoNuevo($event, 'nombres')"
+          placeholder="Ej: Juan Carlos"
+          autocomplete="off"
+          maxlength="50">
+        <small class="error-text" *ngIf="nuevo.nombres && errNombresNuevo">⚠ {{ errNombresNuevo }}</small>
       </div>
 
-      <div class="field">
-        <input [(ngModel)]="nuevo.apellidos" (input)="onNombreApellidoNuevo($event, 'apellidos')"
-          placeholder="Apellidos" autocomplete="off">
-
+      <!-- APELLIDOS -->
+      <div class="field" [class.field-error]="nuevo.apellidos && errApellidosNuevo" [class.field-ok]="nuevo.apellidos && !errApellidosNuevo">
+        <label>Apellidos <span class="req"></span></label>
+        <input
+          [(ngModel)]="nuevo.apellidos"
+          (input)="onNombreApellidoNuevo($event, 'apellidos')"
+          placeholder="Ej: Pérez Romero"
+          autocomplete="off"
+          maxlength="50">
+        <small class="error-text" *ngIf="nuevo.apellidos && errApellidosNuevo">⚠ {{ errApellidosNuevo }}</small>
       </div>
 
-      <div class="field">
-        <input [(ngModel)]="nuevo.usuario" (input)="soloUsuario($event, nuevo)" placeholder="Usuario autogenerado"
-          autocomplete="off">
-
+      <!-- USUARIO (autogenerado) -->
+      <div class="field" [class.field-error]="nuevo.usuario && !campoUsuarioValido(nuevo.usuario)" [class.field-ok]="nuevo.usuario && campoUsuarioValido(nuevo.usuario)">
+        <label>Usuario <span class="req"></span></label>
+        <input
+          [(ngModel)]="nuevo.usuario"
+          (input)="soloUsuario($event, nuevo)"
+          placeholder="Se genera automáticamente"
+          autocomplete="off"
+          maxlength="30">
+        <small class="error-text" *ngIf="nuevo.usuario && !campoUsuarioValido(nuevo.usuario)">⚠ Solo letras minúsculas, números, punto, guion y guion bajo</small>
       </div>
 
-      <div class="field">
-        <input [(ngModel)]="nuevo.password" type="password" placeholder="Contraseña">
-
+      <!-- CONTRASEÑA -->
+      <div class="field" [class.field-error]="nuevo.password && errPasswordNuevo" [class.field-ok]="nuevo.password && !errPasswordNuevo">
+        <label>Contraseña <span class="req"></span></label>
+        <input
+          [(ngModel)]="nuevo.password"
+          type="password"
+          placeholder="Mínimo 6 caracteres"
+          maxlength="50">
+        <small class="error-text" *ngIf="nuevo.password && errPasswordNuevo">⚠ {{ errPasswordNuevo }}</small>
       </div>
 
-      <div class="field">
+      <!-- ROL -->
+      <div class="field" [class.field-error]="nuevo.rol === ''" [class.field-ok]="nuevo.rol">
+        <label>Rol <span class="req"></span></label>
         <select [(ngModel)]="nuevo.rol">
-          <option value="">Seleccione un rol</option>
-          <option *ngFor="let r of roles" [value]="r.nombre">
-            {{ r.nombre }}
-          </option>
+          <option value="">— Seleccione un rol —</option>
+          <option *ngFor="let r of roles" [value]="r.nombre">{{ r.nombre }}</option>
         </select>
-
       </div>
 
     </div>
@@ -59,18 +80,24 @@
       <button class="btn-primary" (click)="guardar()" [disabled]="cargando">
         {{ cargando ? 'Guardando...' : 'Crear usuario' }}
       </button>
+      <button class="secondary" type="button" (click)="limpiar()">Limpiar</button>
     </div>
   </section>
 
+  <!-- ══ LISTA DE USUARIOS ══ -->
   <section class="card">
     <div class="list-header">
       <div>
         <h2>Lista de usuarios</h2>
         <p>Total registrados: {{ usuariosFiltrados.length }}</p>
       </div>
-
       <div class="search-box">
-        <input type="text" placeholder="Buscar por nombre, usuario o rol..." [(ngModel)]="filtro">
+        <input
+          type="text"
+          placeholder="Buscar por nombre, usuario o rol..."
+          [(ngModel)]="filtro"
+          maxlength="60"
+          autocomplete="off">
       </div>
     </div>
 
@@ -86,39 +113,27 @@
             <th>Acciones</th>
           </tr>
         </thead>
-
         <tbody>
           <tr *ngFor="let u of usuariosFiltrados">
             <td>#{{ u.id }}</td>
             <td><strong>{{ u.nombres }} {{ u.apellidos }}</strong></td>
             <td>{{ u.usuario }}</td>
             <td><span class="role">{{ u.rol }}</span></td>
-
             <td>
               <span class="status" [class.activo]="u.estado === 'ACTIVO'" [class.inactivo]="u.estado !== 'ACTIVO'">
                 {{ u.estado }}
               </span>
             </td>
-
             <td class="acciones">
-              <button *ngIf="puedeEditar()" class="btn-edit" (click)="abrirEditar(u)">
-                Editar
-              </button>
-
+              <button *ngIf="puedeEditar()" class="btn-edit" (click)="abrirEditar(u)">Editar</button>
               <button *ngIf="esAdmin()" class="btn-warning" (click)="cambiarEstado(u)">
                 {{ u.estado === 'ACTIVO' ? 'Inhabilitar' : 'Activar' }}
               </button>
-
-              <button *ngIf="puedeEliminar()" class="btn-danger" (click)="eliminar(u.id)">
-                Eliminar
-              </button>
+              <button *ngIf="puedeEliminar()" class="btn-danger" (click)="eliminar(u.id)">Eliminar</button>
             </td>
           </tr>
-
           <tr *ngIf="usuariosFiltrados.length === 0">
-            <td colspan="6" class="empty">
-              No se encontraron usuarios.
-            </td>
+            <td colspan="6" class="empty">No se encontraron usuarios.</td>
           </tr>
         </tbody>
       </table>
@@ -127,7 +142,8 @@
 
 </div>
 
-<div class="modal-backdrop" *ngIf="mostrarModal">
+<!-- ══ MODAL EDITAR ══ -->
+<div class="modal-backdrop" *ngIf="mostrarModal && usuarioEditando">
   <div class="modal-content-custom">
 
     <div class="modal-header">
@@ -137,67 +153,81 @@
 
     <div class="modal-grid">
 
-      <div class="field">
-        <input [(ngModel)]="usuarioEditando.nombres" (input)="onNombreApellidoEditar($event, 'nombres')"
-          placeholder="Nombres">
-
+      <!-- NOMBRES -->
+      <div class="field" [class.field-error]="usuarioEditando.nombres && errNombresEditar" [class.field-ok]="usuarioEditando.nombres && !errNombresEditar">
+        <label>Nombres <span class="req">*</span></label>
+        <input
+          [(ngModel)]="usuarioEditando.nombres"
+          (input)="onNombreApellidoEditar($event, 'nombres')"
+          placeholder="Nombres"
+          maxlength="50">
+        <small class="error-text" *ngIf="usuarioEditando.nombres && errNombresEditar">⚠ {{ errNombresEditar }}</small>
       </div>
 
-      <div class="field">
-        <input [(ngModel)]="usuarioEditando.apellidos" (input)="onNombreApellidoEditar($event, 'apellidos')"
-          placeholder="Apellidos">
-
+      <!-- APELLIDOS -->
+      <div class="field" [class.field-error]="usuarioEditando.apellidos && errApellidosEditar" [class.field-ok]="usuarioEditando.apellidos && !errApellidosEditar">
+        <label>Apellidos <span class="req">*</span></label>
+        <input
+          [(ngModel)]="usuarioEditando.apellidos"
+          (input)="onNombreApellidoEditar($event, 'apellidos')"
+          placeholder="Apellidos"
+          maxlength="50">
+        <small class="error-text" *ngIf="usuarioEditando.apellidos && errApellidosEditar">⚠ {{ errApellidosEditar }}</small>
       </div>
 
-      <div class="field">
-        <input [(ngModel)]="usuarioEditando.usuario" (input)="soloUsuario($event, usuarioEditando)"
-          placeholder="Usuario">
-
+      <!-- USUARIO -->
+      <div class="field" [class.field-error]="usuarioEditando.usuario && !campoUsuarioValido(usuarioEditando.usuario)" [class.field-ok]="usuarioEditando.usuario && campoUsuarioValido(usuarioEditando.usuario)">
+        <label>Usuario <span class="req">*</span></label>
+        <input
+          [(ngModel)]="usuarioEditando.usuario"
+          (input)="soloUsuario($event, usuarioEditando)"
+          placeholder="Usuario"
+          maxlength="30">
+        <small class="error-text" *ngIf="usuarioEditando.usuario && !campoUsuarioValido(usuarioEditando.usuario)">⚠ Solo letras minúsculas, números, punto, guion y guion bajo</small>
       </div>
 
-      <div class="field">
-        <input [(ngModel)]="usuarioEditando.password" type="password" placeholder="Nueva contraseña opcional">
-
+      <!-- CONTRASEÑA (opcional en edición) -->
+      <div class="field" [class.field-error]="usuarioEditando.password && errPasswordEditar" [class.field-ok]="usuarioEditando.password && !errPasswordEditar">
+        <label>Nueva contraseña <span class="hint-label">(opcional)</span></label>
+        <input
+          [(ngModel)]="usuarioEditando.password"
+          type="password"
+          placeholder="Dejar en blanco para no cambiar"
+          maxlength="50">
+        <small class="error-text" *ngIf="usuarioEditando.password && errPasswordEditar">⚠ {{ errPasswordEditar }}</small>
+        <small class="hint-text" *ngIf="!usuarioEditando.password">Si no ingresa contraseña, se mantiene la actual</small>
       </div>
 
-      <div class="field">
+      <!-- ROL -->
+      <div class="field" [class.field-error]="!usuarioEditando.rol" [class.field-ok]="usuarioEditando.rol">
+        <label>Rol <span class="req">*</span></label>
         <select [(ngModel)]="usuarioEditando.rol">
-          <option value="">Seleccione rol</option>
-          <option *ngFor="let r of roles" [value]="r.nombre">
-            {{ r.nombre }}
-          </option>
+          <option value="">— Seleccione rol —</option>
+          <option *ngFor="let r of roles" [value]="r.nombre">{{ r.nombre }}</option>
         </select>
+        <small class="error-text" *ngIf="!usuarioEditando.rol">⚠ Seleccione un rol</small>
       </div>
 
+      <!-- ESTADO -->
       <div class="field">
-
-        <select [(ngModel)]="usuarioEditando.estado" [ngClass]="{
-      'estado-activo': usuarioEditando.estado === 'ACTIVO',
-      'estado-inhabilitado': usuarioEditando.estado === 'INHABILITADO'
-    }">
-
-          <option value="ACTIVO">
-            ACTIVO
-          </option>
-
-          <option value="INHABILITADO">
-            INHABILITADO
-          </option>
-
+        <label>Estado</label>
+        <select [(ngModel)]="usuarioEditando.estado"
+          [ngClass]="{
+            'estado-activo': usuarioEditando.estado === 'ACTIVO',
+            'estado-inhabilitado': usuarioEditando.estado === 'INHABILITADO'
+          }">
+          <option value="ACTIVO">ACTIVO</option>
+          <option value="INHABILITADO">INHABILITADO</option>
         </select>
-
       </div>
 
     </div>
 
     <div class="modal-actions">
-      <button class="btn-success" (click)="guardarEdicion()">
+      <button class="btn-success" (click)="guardarEdicion()" [disabled]="!formularioEditarValido">
         Guardar cambios
       </button>
-
-      <button class="btn-secondary" (click)="cerrarModal()">
-        Cancelar
-      </button>
+      <button class="btn-secondary" (click)="cerrarModal()">Cancelar</button>
     </div>
 
   </div>

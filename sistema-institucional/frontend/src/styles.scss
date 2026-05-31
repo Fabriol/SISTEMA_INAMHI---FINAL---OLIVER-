@@ -1,1 +1,115 @@
-/* You can add global styles to this file, and also import other style files */
+/* ═══════════════════════════════════════════════════════
+   ESTILOS GLOBALES — Sistema INAMHI
+═══════════════════════════════════════════════════════ */
+
+/* Elimina scroll horizontal en TODAS las páginas */
+html {
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  margin: 0;
+  padding: 0;
+}
+
+/* Asegura que ningún componente Angular desborde horizontalmente */
+:host {
+  display: block;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SWEETALERT2 — estilos personalizados INAMHI
+═══════════════════════════════════════════════════════ */
+
+.swal-inamhi-popup {
+  border-radius: 24px !important;
+  box-shadow: 0 25px 60px rgba(15,23,42,.20), 0 8px 20px rgba(15,23,42,.12) !important;
+  border-top: 4px solid #2563eb !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  padding: 24px !important;
+
+  &.swal-error   { border-top-color: #dc2626 !important; }
+  &.swal-warning { border-top-color: #d97706 !important; }
+  &.swal-success { border-top-color: #16a34a !important; }
+  &.swal-info    { border-top-color: #2563eb !important; }
+  &.swal-confirm { border-top-color: #dc2626 !important; }
+}
+
+.swal-inamhi-title {
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  letter-spacing: -.02em !important;
+  margin-bottom: 8px !important;
+}
+
+.swal-inamhi-html {
+  font-size: 14px !important;
+  color: #475569 !important;
+  line-height: 1.6 !important;
+}
+
+.swal-inamhi-icon {
+  border-width: 3px !important;
+  margin-bottom: 16px !important;
+  transform: scale(0.85) !important;
+}
+
+.swal-inamhi-confirm {
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  padding: 11px 24px !important;
+  letter-spacing: .01em !important;
+  transition: transform .15s, box-shadow .15s !important;
+
+  &:hover { transform: translateY(-1px) !important; }
+  &:active { transform: scale(.97) !important; }
+}
+
+.swal-inamhi-cancel {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  padding: 11px 20px !important;
+}
+
+/* Toast INAMHI */
+.swal-toast-inamhi {
+  border-radius: 14px !important;
+  box-shadow: 0 8px 24px rgba(15,23,42,.16) !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  border-left: 4px solid currentColor !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* Animación de entrada personalizada */
+.swal2-show { animation: swalSlideIn .25s ease !important; }
+@keyframes swalSlideIn {
+  from { opacity: 0; transform: translateY(-16px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);   }
+}
+
+/* ═══════════════════════════════════════════════════════
+   PRINT GLOBAL — aplica a todas las páginas
+═══════════════════════════════════════════════════════ */
+@media print {
+  /* Ocultar la barra de navegación del navegador no es posible con CSS,
+     pero sí los elementos propios de la app */
+  app-navbar,
+  app-sidebar,
+  .navbar,
+  .sidebar {
+    display: none !important;
+  }
+}
