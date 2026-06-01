@@ -105,6 +105,32 @@ def _ensure_schema():
             )
             print("[startup] formulario_preguntas.tipo → VARCHAR(30) OK")
 
+        # 3. formularios.observacion → TEXT (observación de rechazo / revisión)
+        cursor.execute("""
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME   = 'formularios'
+              AND COLUMN_NAME  = 'observacion'
+        """)
+        if not cursor.fetchone():
+            cursor.execute(
+                "ALTER TABLE formularios ADD COLUMN observacion TEXT NULL DEFAULT NULL"
+            )
+            print("[startup] formularios.observacion → TEXT OK")
+
+        # 4. formularios.revisado_por → VARCHAR(120) (quien hizo la acción final)
+        cursor.execute("""
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME   = 'formularios'
+              AND COLUMN_NAME  = 'revisado_por'
+        """)
+        if not cursor.fetchone():
+            cursor.execute(
+                "ALTER TABLE formularios ADD COLUMN revisado_por VARCHAR(120) NULL DEFAULT NULL"
+            )
+            print("[startup] formularios.revisado_por → VARCHAR OK")
+
         conn.commit()
     except Exception as e:
         print(f"[startup] _ensure_schema error: {e}")
@@ -115,6 +141,72 @@ try:
     _ensure_schema()
 except Exception as e:
     print(f"[startup] _ensure_schema excepción: {e}")
+
+
+def _habilitar_openssl_legacy():
+    """
+    Habilita el proveedor 'legacy' de OpenSSL 3.x.
+
+    Los certificados FirmaEC Ecuador (ANF, Security Data, BCE, etc.) usan
+    RC2-40-CBC / 3DES para cifrar las claves privadas dentro del PKCS#12.
+    OpenSSL ≥ 3.0 mueve esos algoritmos al proveedor 'legacy', que por
+    defecto viene desactivado.  Sin este paso, load_key_and_certificates()
+    y SimpleSigner.load_pkcs12() lanzan errores aunque la contraseña sea
+    correcta.
+
+    Métodos probados en orden hasta que uno funcione:
+      1. cryptography backend directo (más portable)
+      2. ctypes sobre libssl (fallback)
+    """
+    # ── Método 1: usar el backend interno de cryptography ──────
+    try:
+        from cryptography.hazmat.backends.openssl import backend as _ssl_backend
+        _lib = _ssl_backend._lib
+        _ffi = _ssl_backend._ffi
+        if hasattr(_lib, 'OSSL_PROVIDER_load'):
+            _prov_legacy = _lib.OSSL_PROVIDER_load(_ffi.NULL, b'legacy')
+            _lib.OSSL_PROVIDER_load(_ffi.NULL, b'default')
+            if _prov_legacy != _ffi.NULL:
+                print("[startup] OpenSSL legacy provider habilitado (vía cryptography backend) ✓")
+                return
+    except Exception as _e1:
+        print(f"[startup] legacy método 1 falló: {_e1}")
+
+    # ── Método 2: ctypes directamente sobre libssl ─────────────
+    try:
+        import ctypes, ctypes.util
+        _libssl = None
+        # Probar nombres comunes en Windows, Linux y macOS
+        _ssl_names = [
+            'libssl-3-x64.dll', 'libssl-3.dll', 'libssl.dll',   # Windows
+            ctypes.util.find_library('ssl') or '',               # Linux/macOS via ldconfig
+            'libssl.so.3', 'libssl.so.1.1', 'libssl.dylib',     # fallback
+        ]
+        for _dll in _ssl_names:
+            if not _dll:
+                continue
+            try:
+                _libssl = ctypes.CDLL(_dll)
+                break
+            except Exception:
+                continue
+
+        if _libssl and hasattr(_libssl, 'OSSL_PROVIDER_load'):
+            _libssl.OSSL_PROVIDER_load.restype  = ctypes.c_void_p
+            _libssl.OSSL_PROVIDER_load.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+            _libssl.OSSL_PROVIDER_load(None, b'legacy')
+            _libssl.OSSL_PROVIDER_load(None, b'default')
+            print("[startup] OpenSSL legacy provider habilitado (vía ctypes) ✓")
+            return
+    except Exception as _e2:
+        print(f"[startup] legacy método 2 falló: {_e2}")
+
+    print("[startup] ADVERTENCIA: no se pudo habilitar el proveedor legacy de OpenSSL. "
+          "Los certificados FirmaEC con RC2/3DES podrían no cargarse.")
+
+
+_habilitar_openssl_legacy()
+
 
 def close_db(cursor=None, conn=None):
     try:
@@ -1273,6 +1365,98 @@ def aprobar_formulario(id):
         close_db(cursor, conn)
 
 
+@app.route("/api/formularios/<int:id>/estado", methods=["PATCH"])
+def cambiar_estado_formulario(id):
+    """
+    Talento Humano - Recepcion Documentos define el estado final:
+    APROBADO → inhabilita al ex funcionario asignado
+    EN_REVISION → queda pendiente de revisión
+    NEGADO → requiere observacion obligatoria
+    """
+    conn = cursor = None
+    try:
+        user, error = validar_login()
+        if error:
+            return error
+
+        data = request.get_json(silent=True) or {}
+        nuevo_estado = (data.get("estado") or "").strip().upper()
+        observacion  = limpiar_texto(data.get("observacion") or "")
+
+        if nuevo_estado not in ("APROBADO", "EN_REVISION", "NEGADO"):
+            return jsonify({"mensaje": "Estado inválido. Use APROBADO, EN_REVISION o NEGADO"}), 400
+
+        if nuevo_estado == "NEGADO" and not observacion:
+            return jsonify({"mensaje": "La observación es obligatoria al negar un formulario"}), 400
+
+        conn    = get_connection()
+        cursor  = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT id, porcentaje, creado_por FROM formularios WHERE id = %s", (id,))
+        formulario = cursor.fetchone()
+        if not formulario:
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        if nuevo_estado == "APROBADO" and (formulario["porcentaje"] or 0) < 100:
+            return jsonify({"mensaje": "El formulario no está completo al 100%"}), 400
+
+        cursor.execute("""
+            UPDATE formularios
+            SET estado = %s, observacion = %s, revisado_por = %s
+            WHERE id = %s
+        """, (nuevo_estado, observacion if nuevo_estado == "NEGADO" else None,
+              user["usuario"], id))
+
+        usuario_inhabilitado = None
+        if nuevo_estado == "APROBADO":
+            # Encontrar al ex funcionario asignado al formulario
+            cursor.execute("""
+                SELECT DISTINCT u.id, u.usuario, u.nombres, u.apellidos
+                FROM formulario_asignaciones a
+                INNER JOIN usuarios u ON a.asignado_usuario_id = u.id
+                WHERE a.formulario_id = %s
+                  AND LOWER(u.rol) LIKE '%ex%funcionario%'
+                LIMIT 1
+            """, (id,))
+            ex_func = cursor.fetchone()
+            if ex_func:
+                cursor.execute(
+                    "UPDATE usuarios SET estado = 'INHABILITADO' WHERE id = %s",
+                    (ex_func["id"],)
+                )
+                usuario_inhabilitado = f"{ex_func['nombres']} (ID {ex_func['id']})"
+
+        conn.commit()
+
+        registrar_auditoria(
+            user["usuario"], user["rol"], "Formularios",
+            f"Estado final: {nuevo_estado}",
+            f"Formulario {id} → {nuevo_estado}"
+            + (f" | Obs: {observacion}" if observacion else "")
+            + (f" | Usuario inhabilitado: {usuario_inhabilitado}" if usuario_inhabilitado else "")
+        )
+
+        msg = {
+            "APROBADO":    "Formulario aprobado. El ex funcionario ha sido inhabilitado.",
+            "EN_REVISION": "Formulario marcado en revisión.",
+            "NEGADO":      "Formulario negado. El ex funcionario ha sido notificado.",
+        }[nuevo_estado]
+
+        return jsonify({
+            "mensaje": msg,
+            "estado":  nuevo_estado,
+            "usuario_inhabilitado": usuario_inhabilitado
+        }), 200
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print("[ERROR /estado]", traceback.format_exc())
+        return jsonify({"mensaje": "Error al cambiar estado", "error": str(e)}), 500
+    finally:
+        close_db(cursor, conn)
+
+
 @app.route("/api/formularios/<int:id>", methods=["GET"])
 def ver_formulario(id):
     conn = None
@@ -1833,7 +2017,7 @@ _MB   = 55      # Y mínima antes de salto de página
 _CW   = [210, 145, 160]            # Ítem | Nombre Responsable | FirmaEC
 _CX   = [_ML, _ML+210, _ML+355]   # X de inicio de cada columna: 40 | 250 | 395
 
-_RH   = 80   # Altura UNIFORME de cada fila FirmaEC (80 pts ≈ 2.8 cm)
+_RH   = 100  # Altura UNIFORME de cada fila FirmaEC (100 pts ≈ 3.5 cm)
 _HH   = 18   # Altura cabecera de sección
 _CH   = 14   # Altura cabecera de columnas
 _FH   = 15   # Altura fila de datos personales
@@ -2239,6 +2423,244 @@ def generar_pdf(formulario_id):
         close_db(cursor, conn)
         
 # ═══════════════════════════════════════════════════════════════
+#  ENDPOINT: PDF FIRMADO POR FIRMAEC DESKTOP (AutoFirma)
+# ═══════════════════════════════════════════════════════════════
+
+@app.route("/api/formularios/<int:formulario_id>/firmar-ec-desktop", methods=["POST"])
+def firmar_ec_desktop(formulario_id):
+    """
+    Recibe un PDF ya firmado externamente por FirmaEC Desktop (AutoFirma).
+
+    Valida que el PDF contenga al menos una firma digital PAdES,
+    extrae el nombre del firmante del certificado incrustado,
+    guarda el PDF como la versión firmada del formulario y registra
+    el campo en la BD con el mismo flujo que firmar_ec_pdf.
+
+    Form-data esperado:
+        campo_firma      : str  – clave de la celda (ej: 'tic_r1')
+        pdf_firmado_b64  : str  – PDF firmado codificado en base64
+        cert_b64         : str  – (opcional) certificado del firmante en base64
+    """
+    import base64 as _b64
+    conn = cursor = None
+    try:
+        user, error = validar_login()
+        if error:
+            return error
+
+        campo_firma     = (request.form.get("campo_firma") or "").strip()
+        pdf_b64         = (request.form.get("pdf_firmado_b64") or "").strip()
+        cert_b64        = (request.form.get("cert_b64") or "").strip()
+
+        if not campo_firma:
+            return jsonify({"mensaje": "campo_firma es requerido"}), 400
+        if not pdf_b64:
+            return jsonify({"mensaje": "pdf_firmado_b64 es requerido"}), 400
+
+        # ── Decodificar PDF ──────────────────────────────────────
+        try:
+            pdf_bytes = _b64.b64decode(pdf_b64)
+        except Exception:
+            return jsonify({"mensaje": "El PDF firmado tiene codificación base64 inválida"}), 400
+
+        if len(pdf_bytes) < 5 or pdf_bytes[:5] != b'%PDF-':
+            return jsonify({"mensaje": "El archivo recibido no es un PDF válido"}), 400
+
+        # ── Validar firma digital incrustada ─────────────────────
+        signer_name = None
+        try:
+            import io as _io
+            from pyhanko.pdf_utils.reader import PdfFileReader as _PdfR
+            reader = _PdfR(_io.BytesIO(pdf_bytes))
+            sigs   = list(reader.embedded_signatures)
+
+            if not sigs:
+                return jsonify({
+                    "mensaje": "El PDF no contiene firma digital. "
+                               "Asegúrese de firmar con FirmaEC Desktop antes de enviar."
+                }), 400
+
+            # Extraer nombre del firmante del último certificado
+            try:
+                from asn1crypto import pem as _pem, x509 as _x509
+                raw_cert = sigs[-1].signer_cert.dump()
+                cert_obj = _x509.Certificate.load(raw_cert)
+                signer_name = cert_obj.subject.human_friendly
+            except Exception:
+                pass
+
+            if not signer_name:
+                # Fallback: leer del campo de firma en el PDF
+                try:
+                    signer_name = sigs[-1].sig_object.get('/Name', '').strip() or None
+                except Exception:
+                    pass
+
+        except ImportError:
+            # pyhanko no disponible para lectura (raro) — aceptar de igual modo
+            signer_name = None
+        except Exception as ve:
+            print(f"[firmar-ec-desktop] Advertencia validación: {ve}")
+            signer_name = None
+
+        # Si no se pudo extraer del PDF, intentar con cert_b64 provisto por el cliente
+        if not signer_name and cert_b64:
+            try:
+                from cryptography import x509 as _x509_crypto
+                from cryptography.hazmat.primitives.serialization import Encoding
+                cert_der = _b64.b64decode(cert_b64)
+                cert_obj_c = _x509_crypto.load_der_x509_certificate(cert_der)
+                cn_attrs = cert_obj_c.subject.get_attributes_for_oid(
+                    _x509_crypto.NameOID.COMMON_NAME
+                )
+                signer_name = cn_attrs[0].value.upper() if cn_attrs else None
+            except Exception:
+                pass
+
+        signer_name = signer_name or user.get("usuario", "FIRMANTE").upper()
+
+        # ── Consultas BD ─────────────────────────────────────────
+        conn   = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT id FROM formularios WHERE id = %s", (formulario_id,))
+        if not cursor.fetchone():
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        cursor.execute("""
+            SELECT p.id AS pregunta_id,
+                   a.id AS asignacion_id,
+                   a.asignado_usuario_id
+            FROM   formulario_preguntas p
+            INNER  JOIN formulario_asignaciones a ON p.id = a.pregunta_id
+            WHERE  p.formulario_id = %s AND p.codigo = %s
+            LIMIT  1
+        """, (formulario_id, campo_firma))
+        fila = cursor.fetchone()
+
+        if not fila:
+            return jsonify({"mensaje": f"La celda '{campo_firma}' no existe en este formulario"}), 404
+
+        if user["rol"] != "Administrador" and fila["asignado_usuario_id"] != user["id"]:
+            return jsonify({"mensaje": "No tiene autorización para firmar esta celda."}), 403
+
+        cursor.execute("""
+            SELECT id FROM formulario_respuestas
+            WHERE  formulario_id = %s AND pregunta_id = %s LIMIT 1
+        """, (formulario_id, fila["pregunta_id"]))
+        if cursor.fetchone():
+            return jsonify({"mensaje": "Esta celda ya fue firmada y no puede modificarse."}), 400
+
+        # ── Guardar PDF firmado ───────────────────────────────────
+        pdf_signed = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
+        with open(pdf_signed, "wb") as fout:
+            fout.write(pdf_bytes)
+
+        # ── Registrar en BD ──────────────────────────────────────
+        marca = f"FIRMADO_EC:{signer_name}:{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+        cursor.execute("""
+            INSERT INTO formulario_respuestas
+                   (formulario_id, pregunta_id, asignacion_id, respondido_por, respuesta)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (formulario_id, fila["pregunta_id"], fila["asignacion_id"], user["id"], marca))
+
+        cursor.execute("""
+            UPDATE formulario_asignaciones
+               SET estado = 'CULMINADO', fecha_culminado = NOW()
+             WHERE id = %s
+        """, (fila["asignacion_id"],))
+
+        cursor.execute("""
+            SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN estado = 'CULMINADO' THEN 1 ELSE 0 END) AS completados
+              FROM formulario_asignaciones WHERE formulario_id = %s
+        """, (formulario_id,))
+        prog        = cursor.fetchone()
+        total_asig  = prog["total"] or 0
+        completados = prog["completados"] or 0
+        porcentaje  = round((completados / total_asig) * 100) if total_asig > 0 else 0
+        estado_form = "COMPLETADO" if porcentaje == 100 else "EN_PROCESO"
+
+        cursor.execute(
+            "UPDATE formularios SET porcentaje = %s, estado = %s WHERE id = %s",
+            (porcentaje, estado_form, formulario_id)
+        )
+        conn.commit()
+
+        registrar_auditoria(
+            user["usuario"], user["rol"], "Formularios",
+            "Firma digital EC Desktop",
+            f"Firmó celda '{campo_firma}' en formulario {formulario_id} como '{signer_name}'"
+        )
+
+        return jsonify({
+            "mensaje":    "PDF firmado y validado correctamente con FirmaEC Desktop.",
+            "firmado_por": signer_name,
+            "porcentaje":  porcentaje,
+            "estado":      estado_form,
+        }), 200
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print("[ERROR /firmar-ec-desktop]", traceback.format_exc())
+        return jsonify({"mensaje": "Error al procesar firma", "error": str(e)}), 500
+    finally:
+        close_db(cursor, conn)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  ENDPOINT: PDF ORIGINAL COMO BYTES (para FirmaEC Desktop)
+# ═══════════════════════════════════════════════════════════════
+
+@app.route("/api/formularios/<int:formulario_id>/pdf-bytes", methods=["GET"])
+def obtener_pdf_bytes(formulario_id):
+    """
+    Devuelve el PDF del formulario como bytes (application/pdf) con soporte
+    para Authorization header — usado por el flujo FirmaEC Desktop.
+    """
+    conn = cursor = None
+    try:
+        user, error = validar_login()
+        if error:
+            return error
+
+        conn   = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id FROM formularios WHERE id = %s", (formulario_id,))
+        if not cursor.fetchone():
+            return jsonify({"mensaje": "Formulario no encontrado"}), 404
+
+        pdf_signed = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
+        pdf_orig   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}.pdf")
+
+        # Si el PDF no existe aún, generarlo en el momento
+        if not os.path.exists(pdf_signed) and not os.path.exists(pdf_orig):
+            close_db(cursor, conn)
+            cursor = conn = None
+            gen_resp = generar_pdf(formulario_id)
+            # generar_pdf devuelve una Response; si es error no hay archivo
+            if hasattr(gen_resp, 'status_code') and gen_resp.status_code not in (200,):
+                return jsonify({"mensaje": "No se pudo generar el PDF automáticamente."}), 500
+
+        if os.path.exists(pdf_signed):
+            ruta = pdf_signed
+        elif os.path.exists(pdf_orig):
+            ruta = pdf_orig
+        else:
+            return jsonify({"mensaje": "No se pudo crear el PDF."}), 500
+
+        from flask import send_file as _send_file
+        return _send_file(ruta, mimetype="application/pdf", as_attachment=False)
+
+    except Exception as e:
+        return jsonify({"mensaje": "Error al obtener PDF", "error": str(e)}), 500
+    finally:
+        close_db(cursor, conn)
+
+
+# ═══════════════════════════════════════════════════════════════
 #  FIRMA DIGITAL EC  (pyHanko + PAdES)
 # ═══════════════════════════════════════════════════════════════
 
@@ -2275,30 +2697,90 @@ def firmar_ec_pdf(formulario_id):
         if not p12_bytes:
             return jsonify({"mensaje": "El archivo .p12 está vacío"}), 400
 
-        # ── Cargar y validar el certificado ANTES de tocar la BD ─
-        try:
-            from cryptography.hazmat.primitives.serialization.pkcs12 import (
-                load_key_and_certificates,
-            )
-            _, certificate, _ = load_key_and_certificates(
-                p12_bytes, password_raw.encode("utf-8")
-            )
-        except (ValueError, TypeError):
-            return jsonify({"mensaje": "Contraseña incorrecta o archivo .p12 inválido/corrupto"}), 400
-        except Exception as exc:
-            return jsonify({"mensaje": f"No se pudo leer el certificado: {exc}"}), 400
+        # ── Cargar y validar el certificado directamente con pyHanko ──
+        # Los certificados FirmaEC Ecuador (ANF, Security Data, BCE, etc.) usan
+        # algoritmos legacy (RC2/3DES) que OpenSSL 3.x rechaza. pyHanko tiene
+        # mejor compatibilidad con estos formatos al usar oscrypto internamente.
+        signer_name = None
+        _signer_obj = None
+        _encodings  = ['utf-8', 'latin-1', 'cp1252', 'utf-16-le']
+        _pyhanko_err = None
 
-        if certificate is None:
-            return jsonify({"mensaje": "El archivo .p12 no contiene un certificado válido"}), 400
-
-        # ── Extraer nombre del firmante del Subject del certificado ─
-        from cryptography import x509
         try:
-            signer_name = certificate.subject.get_attributes_for_oid(
-                x509.NameOID.COMMON_NAME
-            )[0].value.upper()
-        except (IndexError, Exception):
-            signer_name = user.get("usuario", "FIRMANTE DESCONOCIDO").upper()
+            from pyhanko.sign import signers as _ph_signers
+        except ImportError:
+            return jsonify({"mensaje": "pyHanko no está instalado en el servidor"}), 500
+
+        # pyHanko.load_pkcs12 espera una RUTA de archivo (str), no bytes del contenido.
+        # Escribimos el .p12 a un archivo temporal y pasamos la ruta.
+        import tempfile as _tempfile
+        _tmp_p12_path = None
+        try:
+            with _tempfile.NamedTemporaryFile(suffix='.p12', delete=False) as _tmp:
+                _tmp.write(p12_bytes)
+                _tmp_p12_path = _tmp.name
+
+            for _enc in _encodings:
+                try:
+                    _signer_obj = _ph_signers.SimpleSigner.load_pkcs12(
+                        pfx_file   = _tmp_p12_path,
+                        passphrase = password_raw.encode(_enc),
+                    )
+                    break
+                except Exception as _e:
+                    _pyhanko_err = _e
+                    continue
+        finally:
+            if _tmp_p12_path and os.path.exists(_tmp_p12_path):
+                os.unlink(_tmp_p12_path)
+
+        if _signer_obj is None:
+            # Log real error para diagnóstico
+            print(f"[firmar-ec] Todos los encodings fallaron. Último error: {_pyhanko_err}")
+            return jsonify({
+                "mensaje": (
+                    "No se pudo cargar el certificado. Posibles causas:\n"
+                    "• Contraseña incorrecta\n"
+                    "• Certificado expirado o revocado\n"
+                    "• Formato no compatible (pruebe exportar el .p12 nuevamente desde FirmaEC)"
+                )
+            }), 400
+
+        # ── Extraer nombre del firmante del certificado ─────────────
+        try:
+            _cert_obj  = _signer_obj.signing_cert
+            _subj_str  = _cert_obj.subject.human_friendly
+            signer_name = (
+                _subj_str.split("Common Name:")[1].split(",")[0].strip().upper()
+                if "Common Name:" in _subj_str
+                else _subj_str.split("=")[-1].strip().upper()
+            )
+        except Exception:
+            try:
+                # Fallback usando cryptography si está disponible
+                from cryptography.hazmat.primitives.serialization.pkcs12 import (
+                    load_key_and_certificates,
+                )
+                for _enc in _encodings:
+                    try:
+                        _, _cert_c, _ = load_key_and_certificates(
+                            p12_bytes, password_raw.encode(_enc)
+                        )
+                        if _cert_c:
+                            from cryptography import x509 as _cx509
+                            signer_name = _cert_c.subject.get_attributes_for_oid(
+                                _cx509.NameOID.COMMON_NAME
+                            )[0].value.upper()
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        if not signer_name:
+            signer_name = user.get("usuario", "FIRMANTE").upper()
+
+        # _signer_obj ya está listo — se pasa directo a _pyhanko_firmar
 
         # ── Consultas a la BD ────────────────────────────────────
         conn    = get_connection()
@@ -2350,11 +2832,22 @@ def firmar_ec_pdf(formulario_id):
 
         pdf_src = pdf_signed if os.path.exists(pdf_signed) else pdf_orig
         if not os.path.exists(pdf_src):
+            # Generar el PDF automáticamente si no existe
+            try:
+                close_db(cursor, conn)
+                cursor = conn = None
+                _gen = generar_pdf(formulario_id)
+                if hasattr(_gen, 'status_code') and _gen.status_code not in (200,):
+                    return jsonify({"mensaje": "No se pudo generar el PDF automáticamente."}), 500
+                conn    = get_connection()
+                cursor  = conn.cursor(dictionary=True)
+            except Exception as _eg:
+                return jsonify({"mensaje": f"No se pudo generar el PDF: {_eg}"}), 500
+            pdf_src = pdf_signed if os.path.exists(pdf_signed) else pdf_orig
+
+        if not os.path.exists(pdf_src):
             return jsonify({
-                "mensaje": (
-                    "El PDF aún no existe. Genere el documento primero "
-                    "usando el botón 'Descargar PDF' del formulario."
-                )
+                "mensaje": "El PDF no se pudo generar. Use 'Descargar PDF' primero."
             }), 400
 
         if not os.path.exists(json_path):
@@ -2378,6 +2871,7 @@ def firmar_ec_pdf(formulario_id):
                 campo_firma  = campo_firma,
                 formulario_id= formulario_id,
                 json_path    = json_path,
+                signer_obj   = _signer_obj,   # ya cargado — evita re-leer el .p12
             )
         except RuntimeError as exc:
             return jsonify({"mensaje": str(exc)}), 400
@@ -2444,6 +2938,7 @@ def _pyhanko_firmar(
     campo_firma: str,
     formulario_id: int,
     json_path: str,
+    signer_obj=None,          # objeto SimpleSigner ya cargado (evita releer el .p12)
 ) -> None:
     """
     Firma digitalmente la celda `campo_firma` del PDF con pyHanko (PAdES).
@@ -2477,13 +2972,37 @@ def _pyhanko_firmar(
         raise RuntimeError("pip install pyhanko pyhanko-certvalidator")
 
     # ── Cargar firmante desde PKCS#12 ────────────────────────────
-    try:
-        signer = signers.SimpleSigner.load_pkcs12(
-            pfx_file   = _io.BytesIO(p12_bytes),
-            passphrase = password.encode("utf-8"),
-        )
-    except Exception:
-        raise RuntimeError("Contraseña del .p12 incorrecta o certificado dañado.")
+    # Si el endpoint ya cargó el signer, reutilizarlo directamente.
+    if signer_obj is not None:
+        signer = signer_obj
+    else:
+        # pyHanko.load_pkcs12 necesita una RUTA de archivo, no bytes del contenido.
+        import tempfile as _tf2
+        signer = None
+        _encs  = ['utf-8', 'latin-1', 'cp1252', 'utf-16-le']
+        _tmp2  = None
+        try:
+            with _tf2.NamedTemporaryFile(suffix='.p12', delete=False) as _t:
+                _t.write(p12_bytes)
+                _tmp2 = _t.name
+            for _enc in _encs:
+                try:
+                    signer = signers.SimpleSigner.load_pkcs12(
+                        pfx_file   = _tmp2,
+                        passphrase = password.encode(_enc),
+                    )
+                    break
+                except Exception:
+                    continue
+        finally:
+            if _tmp2 and os.path.exists(_tmp2):
+                os.unlink(_tmp2)
+
+        if signer is None:
+            raise RuntimeError(
+                "No se pudo cargar el certificado. Verifique la contraseña y "
+                "que el archivo .p12 sea válido."
+            )
 
     # ── Leer coordenadas del JSON generado por generar_pdf ───────
     try:

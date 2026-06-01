@@ -761,3 +761,58 @@ tr.fila-proceso {
 tr.fila-inicio {
   background: rgba(241, 245, 249, 0.4);
 }
+
+/* ── ACCIONES DE ESTADO FINAL ───────────────────── */
+.acciones-estado {
+  vertical-align: top;
+  padding-top: 10px !important;
+}
+
+.botones-estado {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.btn-sm {
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  transition: opacity .2s, transform .2s;
+  &:hover { opacity: .88; transform: translateY(-1px); }
+}
+
+.btn-aprobar     { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.btn-revision-accion { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+.btn-negar       { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+.btn-revision    { background: linear-gradient(135deg, #0ea5e9, #0369a1); margin-top: 4px; }
+
+.estado-final-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  &.badge-aprobado  { background: #dcfce7; color: #15803d; }
+  &.badge-negado    { background: #fee2e2; color: #b91c1c; }
+  &.badge-revision  { background: #fef3c7; color: #92400e; }
+}
+
+.obs-negado {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #fff1f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #b91c1c;
+  max-width: 220px;
+}

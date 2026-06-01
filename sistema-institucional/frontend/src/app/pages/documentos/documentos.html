@@ -392,31 +392,70 @@
               </div>
             </td>
 
-            <td class="acciones">
-              <!-- Ver PDF solo cuando está al 100% -->
+            <td class="acciones acciones-estado">
+              <!-- Ver PDF cuando está al 100% -->
               <button type="button" class="btn-view"
                 *ngIf="(f.porcentaje ?? 0) >= 100"
                 (click)="verFormularioPDF(f)">
                 Ver PDF
               </button>
+
               <span class="muted" *ngIf="(f.porcentaje ?? 0) < 100" style="font-size:12px;color:#94a3b8">
                 En proceso...
               </span>
 
-              <!-- Aprobar: solo Talento Humano y solo cuando esté al 100% -->
+              <!-- ACCIONES TALENTO HUMANO CR — 3 estados posibles -->
               <ng-container *ngIf="esTalentoHumanoCR() && (f.porcentaje ?? 0) >= 100">
-                <button type="button" class="btn-download"
-                  *ngIf="f.estado !== 'APROBADO'"
-                  (click)="aprobarFormulario(f)">
-                  Aprobar
-                </button>
-                <span class="muted" *ngIf="f.estado === 'APROBADO'">✓ Aprobado</span>
+
+                <!-- Ya tiene estado final -->
+                <ng-container *ngIf="f.estado === 'APROBADO' || f.estado === 'NEGADO' || f.estado === 'EN_REVISION'">
+                  <span class="estado-final-badge"
+                    [class.badge-aprobado]="f.estado === 'APROBADO'"
+                    [class.badge-negado]="f.estado === 'NEGADO'"
+                    [class.badge-revision]="f.estado === 'EN_REVISION'">
+                    {{ f.estado === 'APROBADO' ? '✓ Aprobado' : f.estado === 'NEGADO' ? '✗ Negado' : '⟳ En revisión' }}
+                  </span>
+                  <!-- Mostrar observación si fue negado -->
+                  <div *ngIf="f.estado === 'NEGADO' && f.observacion" class="obs-negado">
+                    <strong>Obs:</strong> {{ f.observacion }}
+                  </div>
+                  <!-- Botón para cambiar si está en revisión -->
+                  <button type="button" class="btn-sm btn-revision"
+                    *ngIf="f.estado === 'EN_REVISION'"
+                    (click)="accionFormulario(f, 'APROBADO')">
+                    Aprobar ahora
+                  </button>
+                </ng-container>
+
+                <!-- Pendiente de decisión (COMPLETADO / BORRADOR) -->
+                <ng-container *ngIf="f.estado !== 'APROBADO' && f.estado !== 'NEGADO' && f.estado !== 'EN_REVISION'">
+                  <div class="botones-estado">
+                    <button type="button" class="btn-sm btn-aprobar"
+                      (click)="accionFormulario(f, 'APROBADO')">
+                      ✓ Aprobar
+                    </button>
+                    <button type="button" class="btn-sm btn-revision-accion"
+                      (click)="accionFormulario(f, 'EN_REVISION')">
+                      ⟳ En revisión
+                    </button>
+                    <button type="button" class="btn-sm btn-negar"
+                      (click)="negarFormulario(f)">
+                      ✗ Negar
+                    </button>
+                  </div>
+                </ng-container>
+
               </ng-container>
 
-              <span class="muted"
-                *ngIf="esExFuncionario() && !esTalentoHumanoCR() && f.estado === 'APROBADO'">
-                ✓ Aprobado
-              </span>
+              <!-- Ex Funcionario: ve el estado final -->
+              <ng-container *ngIf="esExFuncionario() && !esTalentoHumanoCR()">
+                <span class="estado-final-badge badge-aprobado" *ngIf="f.estado === 'APROBADO'">✓ Aprobado</span>
+                <span class="estado-final-badge badge-negado" *ngIf="f.estado === 'NEGADO'">✗ Negado</span>
+                <span class="estado-final-badge badge-revision" *ngIf="f.estado === 'EN_REVISION'">⟳ En revisión</span>
+                <div *ngIf="f.estado === 'NEGADO' && f.observacion" class="obs-negado">
+                  <strong>Motivo:</strong> {{ f.observacion }}
+                </div>
+              </ng-container>
             </td>
           </tr>
 

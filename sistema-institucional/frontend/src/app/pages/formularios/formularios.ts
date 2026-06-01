@@ -29,6 +29,7 @@ import {
 } from 'rxjs/operators';
 import Swal from 'sweetalert2';
 import { FormulariosService } from '../../core/services/formularios';
+import { FirmaEcDesktopService } from '../../core/services/firma-ec-desktop.service';
 
 // ═══════════════════════════════════════════════════════════════
 //  INTERFACES
@@ -493,10 +494,15 @@ export class Formularios implements OnInit, OnDestroy {
   // ── FormGroup anidado para el ESPEJO A4 (columna derecha) ───
   form!: FormGroup;
 
+  /** Estado del flujo FirmaEC Desktop por campo: idle | detectando | firmando | ok | error */
+  firmaDesktopEstado: Record<string, 'idle' | 'detectando' | 'firmando' | 'ok' | 'error'> = {};
+  firmaDesktopMensaje: Record<string, string> = {};
+
   constructor(
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef,
     private formulariosService: FormulariosService,
+    private firmaEcDesktop: FirmaEcDesktopService,
   ) { }
 
   // ─────────────────────────────────────────────────────────────
@@ -918,6 +924,29 @@ export class Formularios implements OnInit, OnDestroy {
   esExFuncionario(): boolean {
     const r = this.normalizarRol();
     return r.includes('ex funcionario') || r.includes('ex-funcionario') || r.includes('exfuncionario');
+  }
+
+  /** Progreso agrupado por sección — usado en el panel de Ex Funcionario. */
+  get progresoSecciones(): { seccion: string; total: number; completados: number; completo: boolean }[] {
+    const mapa = new Map<string, { total: number; completados: number }>();
+
+    this.camposFormulario.forEach(c => {
+      if (!this.camposAsignadosUsuario.includes(c.id)) return;
+      const sec = c.seccion || 'Otros';
+      if (!mapa.has(sec)) mapa.set(sec, { total: 0, completados: 0 });
+      const entry = mapa.get(sec)!;
+      entry.total++;
+      if (this.camposBloqueados.includes(c.id) || this.firmasEC[c.id]) {
+        entry.completados++;
+      }
+    });
+
+    return Array.from(mapa.entries()).map(([seccion, v]) => ({
+      seccion,
+      total: v.total,
+      completados: v.completados,
+      completo: v.completados === v.total && v.total > 0,
+    }));
   }
 
   /** Devuelve true cuando todos los campos asignados (excepto recepción y firma) ya están guardados. */
@@ -1426,6 +1455,355 @@ export class Formularios implements OnInit, OnDestroy {
                  Progreso del formulario: <b>${resp.porcentaje}%</b>`,
         });
         // Recargar estado del formulario desde el servidor
+        this.cargarDetalleFormulario(this.formularioSeleccionado);
+      });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  FIRMA CON CERTIFICADO FIRMAEC (modal .p12 + pyHanko)
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Abre un modal que solicita el archivo .p12 (certificado FirmaEC) y la contraseña.
+   * Al confirmar, llama a _ejecutarFirmaP12() que usa pyHanko para colocar la firma
+   * exactamente en la celda correcta del PDF con sello visual y QR de validación.
+   */
+  abrirModalFirmaEC(campoFirma: string): void {
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Sin formulario', 'Seleccione un formulario antes de firmar.');
+      return;
+    }
+    if (this.camposBloqueados.includes(campoFirma)) {
+      this.alertaRapida('Ya firmado', 'Esta celda ya fue firmada.');
+      return;
+    }
+    if (this.p12Cargando[campoFirma]) return;
+
+    Swal.fire({
+      title: 'Firmar con FirmaEC',
+      width: 480,
+      allowOutsideClick: false,
+      showClass:  { popup: 'swal-firmaec-popup' },
+      hideClass:  { popup: 'swal2-hide' },
+      customClass: {
+        popup:             'swal-firmaec-popup',
+        htmlContainer:     'swal-firmaec-html',
+        actions:           'swal-firmaec-actions',
+        validationMessage: 'swal-firmaec-validation',
+      },
+      html: `
+        <div style="font-family:'Inter',system-ui,sans-serif;text-align:left">
+
+          <!-- Subtítulo -->
+          <p style="font-size:13px;color:#64748b;line-height:1.6;margin:0 0 20px;text-align:center">
+            Ingrese su certificado digital para firmar esta celda.<br>
+            La firma quedará incrustada en la posición exacta del formulario.
+          </p>
+
+          <!-- PASO 1 — Certificado -->
+          <div style="margin-bottom:18px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="background:linear-gradient(135deg,#1d4ed8,#0ea5e9);color:#fff;
+                width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+                font-size:11px;font-weight:900;flex-shrink:0">1</span>
+              <span style="font-size:11px;font-weight:800;text-transform:uppercase;
+                letter-spacing:.07em;color:#1e40af">Certificado FirmaEC (.p12 / .pfx)</span>
+            </div>
+
+            <div id="swal-file-zone"
+              style="position:relative;border:2px dashed #93c5fd;border-radius:16px;
+                background:linear-gradient(135deg,#eff6ff 0%,#f0f9ff 100%);
+                padding:16px 18px;cursor:pointer;transition:all .25s;overflow:hidden">
+              <input type="file" id="swal-p12-file" accept=".p12,.pfx"
+                style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
+              <div style="display:flex;align-items:center;gap:14px;pointer-events:none">
+                <div id="swal-file-emoji"
+                  style="width:44px;height:44px;border-radius:12px;background:#dbeafe;
+                    display:grid;place-items:center;font-size:22px;flex-shrink:0;
+                    transition:all .25s">📁</div>
+                <div>
+                  <span id="swal-file-label"
+                    style="display:block;font-size:13px;font-weight:700;color:#1e40af">
+                    Haz clic para seleccionar</span>
+                  <span id="swal-file-sub"
+                    style="display:block;font-size:11px;color:#64748b;margin-top:2px">
+                    Archivos .p12 o .pfx — máx 5 MB</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PASO 2 — Contraseña -->
+          <div style="margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="background:linear-gradient(135deg,#1d4ed8,#0ea5e9);color:#fff;
+                width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+                font-size:11px;font-weight:900;flex-shrink:0">2</span>
+              <span style="font-size:11px;font-weight:800;text-transform:uppercase;
+                letter-spacing:.07em;color:#1e40af">Contraseña del certificado</span>
+            </div>
+
+            <div style="position:relative">
+              <input type="password" id="swal-p12-pass"
+                placeholder="Contraseña de su FirmaEC"
+                autocomplete="current-password"
+                style="width:100%;padding:13px 46px 13px 16px;border:1.5px solid #cbd5e1;
+                  border-radius:14px;font-size:14px;font-weight:600;color:#0f172a;
+                  background:#f8fafc;outline:none;box-sizing:border-box;
+                  transition:border-color .2s,box-shadow .2s;font-family:inherit"
+                onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 4px rgba(59,130,246,.15)';this.style.background='#fff'"
+                onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none';this.style.background='#f8fafc'">
+              <span id="swal-eye"
+                style="position:absolute;right:14px;top:50%;transform:translateY(-50%);
+                  cursor:pointer;font-size:18px;user-select:none;transition:opacity .2s"
+                title="Mostrar/ocultar contraseña">👁️</span>
+            </div>
+          </div>
+
+          <!-- Info badge -->
+          <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;
+            background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;
+            border-radius:14px">
+            <span style="font-size:18px;flex-shrink:0;margin-top:1px">✅</span>
+            <div style="font-size:12px;color:#166534;line-height:1.55">
+              Firma digital <strong>PAdES legalmente válida</strong> — incrustada en la celda
+              correcta del formulario con sello visual y código QR de validación en
+              <strong>FirmaEC.ec</strong>.
+            </div>
+          </div>
+
+        </div>`,
+      showCancelButton:   true,
+      confirmButtonText:  '🔏 Firmar ahora',
+      cancelButtonText:   'Cancelar',
+      focusConfirm: false,
+      didOpen: () => {
+        const fileInput = document.getElementById('swal-p12-file')  as HTMLInputElement;
+        const fileZone  = document.getElementById('swal-file-zone') as HTMLElement;
+        const fileEmoji = document.getElementById('swal-file-emoji') as HTMLElement;
+        const fileLabel = document.getElementById('swal-file-label') as HTMLElement;
+        const fileSub   = document.getElementById('swal-file-sub')  as HTMLElement;
+        const passInput = document.getElementById('swal-p12-pass')  as HTMLInputElement;
+        const eyeBtn    = document.getElementById('swal-eye')       as HTMLElement;
+
+        // Cambio de archivo → actualizar zona visual
+        fileInput?.addEventListener('change', () => {
+          const f = fileInput.files?.[0];
+          if (f) {
+            fileZone.style.borderColor = '#22c55e';
+            fileZone.style.background  = 'linear-gradient(135deg,#f0fdf4,#dcfce7)';
+            fileEmoji.textContent      = '✅';
+            fileEmoji.style.background = '#dcfce7';
+            fileLabel.textContent      = f.name;
+            fileLabel.style.color      = '#15803d';
+            fileSub.textContent        = `${(f.size / 1024).toFixed(0)} KB`;
+          }
+        });
+
+        // Hover en la zona de archivo
+        fileZone?.addEventListener('mouseenter', () => {
+          if (!fileInput?.files?.length) {
+            fileZone.style.borderColor = '#3b82f6';
+            fileZone.style.background  = 'linear-gradient(135deg,#dbeafe,#e0f2fe)';
+          }
+        });
+        fileZone?.addEventListener('mouseleave', () => {
+          if (!fileInput?.files?.length) {
+            fileZone.style.borderColor = '#93c5fd';
+            fileZone.style.background  = 'linear-gradient(135deg,#eff6ff,#f0f9ff)';
+          }
+        });
+
+        // Toggle mostrar/ocultar contraseña
+        eyeBtn?.addEventListener('click', () => {
+          if (passInput.type === 'password') {
+            passInput.type = 'text';
+            eyeBtn.textContent = '🙈';
+          } else {
+            passInput.type = 'password';
+            eyeBtn.textContent = '👁️';
+          }
+        });
+      },
+      preConfirm: () => {
+        const fileInput = document.getElementById('swal-p12-file') as HTMLInputElement;
+        const passInput = document.getElementById('swal-p12-pass') as HTMLInputElement;
+        const file     = fileInput?.files?.[0];
+        const password = passInput?.value?.trim() ?? '';
+
+        if (!file) {
+          Swal.showValidationMessage('⚠ Seleccione su certificado FirmaEC (.p12).');
+          return false;
+        }
+        const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+        if (!['p12', 'pfx'].includes(ext)) {
+          Swal.showValidationMessage('⚠ Solo se aceptan archivos .p12 o .pfx.');
+          return false;
+        }
+        if (!password) {
+          Swal.showValidationMessage('⚠ Ingrese la contraseña del certificado.');
+          return false;
+        }
+        return { file, password };
+      },
+    }).then((result) => {
+      if (!result.isConfirmed || !result.value) return;
+      const { file, password } = result.value as { file: File; password: string };
+      this.p12Passwords[campoFirma] = password;
+      this._ejecutarFirmaP12(campoFirma, file, password);
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  FIRMA CON FIRMAEC DESKTOP 5.x  (aplicación standalone)
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Flujo guiado de firma con FirmaEC Desktop 5.x:
+   *
+   *  1. Descarga el PDF desde el backend al equipo del usuario.
+   *  2. Intenta abrir FirmaEC via protocolo URL (firmaec://).
+   *  3. Muestra un modal con instrucciones paso a paso.
+   *  4. El usuario firma en FirmaEC, guarda el PDF firmado.
+   *  5. El usuario sube el PDF firmado desde el modal.
+   *  6. El backend valida la firma PAdES y registra el campo.
+   */
+  async firmarConDesktop(campoFirma: string): Promise<void> {
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Sin formulario', 'Seleccione un formulario antes de firmar.');
+      return;
+    }
+    if (this.camposBloqueados.includes(campoFirma)) {
+      this.alertaRapida('Ya firmado', 'Este campo ya fue firmado y no puede modificarse.');
+      return;
+    }
+
+    const setEstado = (e: 'idle' | 'detectando' | 'firmando' | 'ok' | 'error', msg = '') => {
+      this.firmaDesktopEstado[campoFirma]  = e;
+      this.firmaDesktopMensaje[campoFirma] = msg;
+      this.cdr.markForCheck();
+    };
+
+    // ── Paso 1: Obtener PDF del backend ──────────────────────────
+    setEstado('detectando', 'Preparando PDF…');
+    let pdfBytes: ArrayBuffer | null = null;
+
+    try {
+      pdfBytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+        this.formulariosService
+          .obtenerPdfBytes(this.formularioSeleccionado.id)
+          .pipe(timeout(30_000), catchError(err => { reject(err); return of(null as any); }))
+          .subscribe({ next: (b: ArrayBuffer) => b ? resolve(b) : reject('vacío'), error: reject });
+      });
+    } catch {
+      setEstado('error', 'No se pudo obtener el PDF. Use "Descargar PDF" para generarlo primero.');
+      Swal.fire('PDF no disponible',
+        'El documento aún no ha sido generado. Haga clic en "Descargar PDF" para crearlo y vuelva a intentar.',
+        'warning');
+      return;
+    }
+
+    const nombrePdf = `formulario_${this.formularioSeleccionado.id}_para_firmar.pdf`;
+
+    // ── Paso 2: Descargar el PDF en el equipo del usuario ─────────
+    this.firmaEcDesktop.descargarPdf(pdfBytes, nombrePdf);
+
+    setEstado('firmando', 'Esperando que el usuario firme…');
+
+    // ── Paso 3: Modal con instrucciones y carga del PDF firmado ───
+    const { value: archivoPdfFirmado } = await Swal.fire<File>({
+      title:             'Firmar con FirmaEC Desktop',
+      width:             560,
+      allowOutsideClick: false,
+      allowEscapeKey:    false,
+      html: `
+        <div style="text-align:left;font-size:13px;line-height:1.7">
+          <p style="margin-bottom:10px;font-weight:700;color:#1d4ed8">
+            El PDF <b>${nombrePdf}</b> se ha descargado en su carpeta de Descargas.
+          </p>
+          <ol style="margin:0;padding-left:18px;color:#334155">
+            <li>Abra <b>FirmaEC 5.1.0</b> en su equipo.</li>
+            <li>En la pestaña <b>"Firmar Documento (1)"</b>, haga clic en <b>"Buscar Documento(s)"</b> y seleccione el PDF descargado.</li>
+            <li>Haga clic en <b>"Buscar Certificado"</b> y seleccione su archivo <b>.p12</b>.</li>
+            <li>Ingrese su <b>contraseña</b> del certificado.</li>
+            <li>Haga clic en el botón <b>Firmar</b> dentro de FirmaEC.</li>
+            <li>Guarde el PDF firmado que genera FirmaEC.</li>
+            <li>Seleccione ese PDF firmado aquí abajo:</li>
+          </ol>
+          <div style="margin-top:14px">
+            <label style="display:block;font-weight:700;margin-bottom:6px;color:#1e3a8a">
+              📎 PDF firmado por FirmaEC:
+            </label>
+            <input type="file" id="swal-pdf-firmado" accept=".pdf,application/pdf"
+              style="width:100%;padding:8px;border:2px dashed #93c5fd;border-radius:10px;
+                     background:#eff6ff;font-size:13px;cursor:pointer">
+          </div>
+        </div>`,
+      showCancelButton:   true,
+      confirmButtonText:  'Validar y registrar firma',
+      cancelButtonText:   'Cancelar',
+      confirmButtonColor: '#1d4ed8',
+      focusConfirm: false,
+      preConfirm: () => {
+        const input = document.getElementById('swal-pdf-firmado') as HTMLInputElement;
+        const file  = input?.files?.[0];
+        if (!file) {
+          Swal.showValidationMessage('Seleccione el PDF firmado por FirmaEC.');
+          return false;
+        }
+        const err = this.firmaEcDesktop.validarPdfFirmado(file);
+        if (err) {
+          Swal.showValidationMessage(err);
+          return false;
+        }
+        return file;
+      },
+    });
+
+    if (!archivoPdfFirmado) {
+      setEstado('idle', '');
+      return;
+    }
+
+    // ── Paso 4: Enviar al backend para validación ─────────────────
+    setEstado('firmando', 'Validando firma con el servidor…');
+
+    let pdfB64: string;
+    try {
+      pdfB64 = await this.firmaEcDesktop.fileToBase64(archivoPdfFirmado);
+    } catch {
+      setEstado('error', 'No se pudo leer el archivo seleccionado.');
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append('campo_firma',     campoFirma);
+    fd.append('pdf_firmado_b64', pdfB64);
+
+    this.formulariosService
+      .subirFirmaEcDesktop(this.formularioSeleccionado.id, fd)
+      .pipe(
+        timeout(60_000),
+        catchError((err: any) => {
+          const msg = err?.error?.mensaje ?? 'Error al validar la firma.';
+          setEstado('error', msg);
+          Swal.fire('Firma inválida', msg, 'error');
+          return of(null);
+        })
+      )
+      .subscribe((resp: any) => {
+        if (!resp) return;
+        setEstado('ok', `Firmado por: ${resp.firmado_por}`);
+        if (!this.camposBloqueados.includes(campoFirma)) {
+          this.camposBloqueados.push(campoFirma);
+        }
+        this.firmasECRequired[campoFirma] = false;
+        Swal.fire({
+          icon:  'success',
+          title: '✅ Firma registrada correctamente',
+          html:  `Firmado por: <b>${resp.firmado_por}</b><br>
+                  Progreso del formulario: <b>${resp.porcentaje}%</b>`,
+        });
         this.cargarDetalleFormulario(this.formularioSeleccionado);
       });
   }

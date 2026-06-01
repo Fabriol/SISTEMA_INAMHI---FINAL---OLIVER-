@@ -131,6 +131,74 @@
     Seleccione un formulario del listado para empezar.
   </div>
 
+  <!-- ══ PANEL DE PROGRESO — Ex Funcionario ══ -->
+  <section *ngIf="formularioSeleccionado && esExFuncionario() && !esAdmin() && contenidoVisible"
+           class="card fade-in progress-panel">
+
+    <div class="card-title">
+      <div>
+        <h2>Progreso de mi Formulario Paz y Salvo</h2>
+        <p>Estado de cada área asignada — actualizado en tiempo real.</p>
+      </div>
+      <div class="progress-global">
+        <div class="progress-circle"
+             [class.progress-circle--done]="formularioSeleccionado?.porcentaje >= 100">
+          {{ formularioSeleccionado?.porcentaje ?? 0 }}%
+        </div>
+        <span class="progress-global-label"
+              [style.color]="(formularioSeleccionado?.porcentaje ?? 0) >= 100 ? '#16a34a' : '#d97706'">
+          {{ (formularioSeleccionado?.porcentaje ?? 0) >= 100 ? '¡Completo!' : 'En progreso' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Estado final del proceso si fue definido -->
+    <div class="estado-final-aviso"
+         *ngIf="formularioSeleccionado?.estado === 'APROBADO' || formularioSeleccionado?.estado === 'NEGADO' || formularioSeleccionado?.estado === 'EN_REVISION'">
+      <div class="estado-final-aviso__badge"
+           [class.aviso-aprobado]="formularioSeleccionado?.estado === 'APROBADO'"
+           [class.aviso-negado]="formularioSeleccionado?.estado === 'NEGADO'"
+           [class.aviso-revision]="formularioSeleccionado?.estado === 'EN_REVISION'">
+        <span *ngIf="formularioSeleccionado?.estado === 'APROBADO'">✅ Tu formulario fue APROBADO</span>
+        <span *ngIf="formularioSeleccionado?.estado === 'EN_REVISION'">⏳ Tu formulario está EN REVISIÓN</span>
+        <span *ngIf="formularioSeleccionado?.estado === 'NEGADO'">❌ Tu formulario fue NEGADO</span>
+      </div>
+      <div class="estado-final-aviso__obs"
+           *ngIf="formularioSeleccionado?.estado === 'NEGADO' && formularioSeleccionado?.observacion">
+        <strong>Observación:</strong> {{ formularioSeleccionado?.observacion }}
+      </div>
+    </div>
+
+    <!-- Secciones -->
+    <div class="progress-secciones">
+      <div *ngFor="let s of progresoSecciones"
+           class="progress-seccion"
+           [class.progress-seccion--done]="s.completo"
+           [class.progress-seccion--pending]="!s.completo">
+
+        <div class="progress-seccion__icon">
+          <span *ngIf="s.completo">✓</span>
+          <span *ngIf="!s.completo">○</span>
+        </div>
+
+        <div class="progress-seccion__info">
+          <span class="progress-seccion__nombre">{{ s.seccion }}</span>
+          <span class="progress-seccion__conteo">{{ s.completados }} / {{ s.total }}</span>
+        </div>
+
+        <span class="progress-seccion__badge"
+              [class.badge-done]="s.completo"
+              [class.badge-pending]="!s.completo">
+          {{ s.completo ? 'Completado' : 'Pendiente' }}
+        </span>
+      </div>
+
+      <div *ngIf="progresoSecciones.length === 0" class="empty">
+        No hay campos asignados aún.
+      </div>
+    </div>
+  </section>
+
   <!-- ══ DESIGNAR CAMPOS (admin) ══ -->
   <section *ngIf="formularioSeleccionado && esAdmin() && contenidoVisible" class="card fade-in">
     <div class="card-title">
@@ -379,7 +447,7 @@
       <div class="asignar-usuario-label">
         <span class="asignar-usuario-icono">👤</span>
         <div>
-          <label for="select-usuario" class="asignar-usuario-titulo">Asignar a usuario <span class="req">*</span></label>
+          <label for="select-usuario" class="asignar-usuario-titulo">Asignar a usuario <span class="req"></span></label>
           <p class="asignar-usuario-desc">Selecciona el servidor al que se le asignarán los campos designados.</p>
         </div>
       </div>
@@ -580,6 +648,29 @@
           </div>
         </div>
 
+        <!-- ═══ TEMPLATE REUTILIZABLE — Celda FirmaEC ═══ -->
+        <ng-template #celdaFirma let-key="key">
+
+          <!-- Ya firmado: mostrar badge + nombre firmante -->
+          <div *ngIf="esCampoGuardado(key)" class="firma-mini-ok">
+            <span class="firma-guardada-badge" title="Firmado digitalmente — no se puede modificar">🔒</span>
+            <small *ngIf="p12NombreFirmante[key]" class="firma-firmante-label">{{ p12NombreFirmante[key] }}</small>
+          </div>
+
+          <!-- Pendiente: botón principal con spinner mientras firma -->
+          <ng-container *ngIf="!esCampoGuardado(key) && firmasECRequired[key]">
+            <button type="button" class="btn-firmaec-desktop"
+              [disabled]="p12Cargando[key]"
+              (click)="abrirModalFirmaEC(key)">
+              <span *ngIf="!p12Cargando[key]">✍ FirmaEC</span>
+              <span *ngIf="p12Cargando[key]">⏳ Firmando…</span>
+            </button>
+          </ng-container>
+
+          <!-- No asignado a este usuario -->
+          <span *ngIf="!firmasECRequired[key] && !esCampoGuardado(key)" class="firma-no-asignada">—</span>
+        </ng-template>
+
         <!-- ═══ 3. TRÁMITES Y UNIDAD ═══ -->
         <div class="doc-section">
           <div class="doc-section-head"><span class="doc-section-icon">📋</span> 3. Entrega / Gestión Documental y de Trámites</div>
@@ -607,13 +698,12 @@
                 <tr *ngFor="let item of [{key:'tramites_r1',ctrl:'tramites_nombre_resp1',label:'Informe fin gestión / QUIPUX'},{key:'tramites_r2',ctrl:'tramites_nombre_resp2',label:'Fe de presentación / Claves de acceso'},{key:'tramites_r3',ctrl:'tramites_nombre_resp3',label:'Archivo LOSEP / Acta entrega claves'}]">
                   <td class="doc-resp-item">{{ item.label }}</td>
                   <td class="doc-resp-nombre"><input class="doc-input" [formControlName]="item.ctrl" placeholder="Nombre *" maxlength="80" [readonly]="!puedeEditarCampo(item.ctrl)"><span class="doc-error" *ngIf="formularioPazSalvo.get(item.ctrl)?.invalid && formularioPazSalvo.get(item.ctrl)?.touched">⚠ Requerido</span></td>
-                  <td class="doc-resp-firma"><label *ngIf="!firmasEC[item.key] && firmasECRequired[item.key]" class="btn-firma-mini" [for]="'fec-'+item.key">✍ FirmaEC<input type="file" [id]="'fec-'+item.key" accept="image/*" (change)="onFirmaECChange(item.key,$event)" style="display:none"></label><div *ngIf="firmasEC[item.key]" class="firma-mini-ok"><img [src]="firmasEC[item.key]" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado(item.key)" class="firma-mini-clear" (click)="clearFirmaEC(item.key)">✕</button>
-                    <span *ngIf="esCampoGuardado(item.key)" class="firma-guardada-badge" title="Firma guardada — no se puede modificar">🔒</span></div><span *ngIf="firmasECRequired[item.key] && !firmasEC[item.key]" class="firma-mini-req">* requerida</span></td>
+                  <td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:item.key}"></ng-container></td>
                 </tr>
                 <tr>
                   <td class="doc-resp-item">Firma del Jefe Inmediato</td>
                   <td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('tramites_jefe_inmediato')?.value || '—' }}</td>
-                  <td class="doc-resp-firma"><label *ngIf="!firmasEC['tramites_jefe'] && firmasECRequired['tramites_jefe']" class="btn-firma-mini" for="fec-tramites-jefe">✍ FirmaEC<input type="file" id="fec-tramites-jefe" accept="image/*" (change)="onFirmaECChange('tramites_jefe',$event)" style="display:none"></label><div *ngIf="firmasEC['tramites_jefe']" class="firma-mini-ok"><img [src]="firmasEC['tramites_jefe']" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado('tramites_jefe')" class="firma-mini-clear" (click)="clearFirmaEC('tramites_jefe')">✕</button><span *ngIf="esCampoGuardado('tramites_jefe')" class="firma-guardada-badge" title="Firma guardada">🔒</span></div><span *ngIf="firmasECRequired['tramites_jefe'] && !firmasEC['tramites_jefe']" class="firma-mini-req">* requerida</span></td>
+                  <td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:'tramites_jefe'}"></ng-container></td>
                 </tr>
               </tbody>
             </table>
@@ -640,10 +730,9 @@
                 <tr *ngFor="let item of [{key:'admin_r1',ctrl:'admin_nombre_resp1',label:'Entrega de Informe de Actividades'},{key:'admin_r2',ctrl:'admin_nombre_resp2',label:'Entrega Bienes / Acta'},{key:'admin_r3',ctrl:'admin_nombre_resp3',label:'Deducibles / Pasajes'},{key:'admin_r4',ctrl:'admin_nombre_resp4',label:'Verificación / Responsable Administrativo'}]">
                   <td class="doc-resp-item">{{ item.label }}</td>
                   <td class="doc-resp-nombre"><input class="doc-input" [formControlName]="item.ctrl" placeholder="Nombre *" maxlength="80" [readonly]="!puedeEditarCampo(item.ctrl)"><span class="doc-error" *ngIf="formularioPazSalvo.get(item.ctrl)?.invalid && formularioPazSalvo.get(item.ctrl)?.touched">⚠ Requerido</span></td>
-                  <td class="doc-resp-firma"><label *ngIf="!firmasEC[item.key] && firmasECRequired[item.key]" class="btn-firma-mini" [for]="'fec-'+item.key">✍ FirmaEC<input type="file" [id]="'fec-'+item.key" accept="image/*" (change)="onFirmaECChange(item.key,$event)" style="display:none"></label><div *ngIf="firmasEC[item.key]" class="firma-mini-ok"><img [src]="firmasEC[item.key]" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado(item.key)" class="firma-mini-clear" (click)="clearFirmaEC(item.key)">✕</button>
-                    <span *ngIf="esCampoGuardado(item.key)" class="firma-guardada-badge" title="Firma guardada — no se puede modificar">🔒</span></div><span *ngIf="firmasECRequired[item.key] && !firmasEC[item.key]" class="firma-mini-req">* requerida</span></td>
+                  <td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:item.key}"></ng-container></td>
                 </tr>
-                <tr><td class="doc-resp-item">Director/a Administrativo/a Financiero/a</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('admin_responsable')?.value || '—' }}</td><td class="doc-resp-firma"><label *ngIf="!firmasEC['admin_dir'] && firmasECRequired['admin_dir']" class="btn-firma-mini" for="fec-admin-dir">✍ FirmaEC<input type="file" id="fec-admin-dir" accept="image/*" (change)="onFirmaECChange('admin_dir',$event)" style="display:none"></label><div *ngIf="firmasEC['admin_dir']" class="firma-mini-ok"><img [src]="firmasEC['admin_dir']" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado('admin_dir')" class="firma-mini-clear" (click)="clearFirmaEC('admin_dir')">✕</button><span *ngIf="esCampoGuardado('admin_dir')" class="firma-guardada-badge" title="Firma guardada">🔒</span></div><span *ngIf="firmasECRequired['admin_dir'] && !firmasEC['admin_dir']" class="firma-mini-req">* requerida</span></td></tr>
+                <tr><td class="doc-resp-item">Director/a Administrativo/a Financiero/a</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('admin_responsable')?.value || '—' }}</td><td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:'admin_dir'}"></ng-container></td></tr>
               </tbody>
             </table>
           </div>
@@ -680,10 +769,9 @@
                 <tr *ngFor="let item of [{key:'tic_r1',ctrl:'tic_nombre_resp1',label:'Verificación Equipo / IP Fija'},{key:'tic_r2',ctrl:'tic_nombre_resp2',label:'Backup / Ruta de backup'},{key:'tic_r3',ctrl:'tic_nombre_resp3',label:'Correo / eSigef / SPRYN / eSByE'},{key:'tic_r4',ctrl:'tic_nombre_resp4',label:'QUIPUX / Tarjeta de Cuentas'}]">
                   <td class="doc-resp-item">{{ item.label }}</td>
                   <td class="doc-resp-nombre"><input class="doc-input" [formControlName]="item.ctrl" placeholder="Nombre *" maxlength="80" [readonly]="!puedeEditarCampo(item.ctrl)"><span class="doc-error" *ngIf="formularioPazSalvo.get(item.ctrl)?.invalid && formularioPazSalvo.get(item.ctrl)?.touched">⚠ Requerido</span></td>
-                  <td class="doc-resp-firma"><label *ngIf="!firmasEC[item.key] && firmasECRequired[item.key]" class="btn-firma-mini" [for]="'fec-'+item.key">✍ FirmaEC<input type="file" [id]="'fec-'+item.key" accept="image/*" (change)="onFirmaECChange(item.key,$event)" style="display:none"></label><div *ngIf="firmasEC[item.key]" class="firma-mini-ok"><img [src]="firmasEC[item.key]" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado(item.key)" class="firma-mini-clear" (click)="clearFirmaEC(item.key)">✕</button>
-                    <span *ngIf="esCampoGuardado(item.key)" class="firma-guardada-badge" title="Firma guardada — no se puede modificar">🔒</span></div><span *ngIf="firmasECRequired[item.key] && !firmasEC[item.key]" class="firma-mini-req">* requerida</span></td>
+                  <td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:item.key}"></ng-container></td>
                 </tr>
-                <tr><td class="doc-resp-item">Responsable TIC</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('tic_responsable')?.value || '—' }}</td><td class="doc-resp-firma"><label *ngIf="!firmasEC['tic_r5'] && firmasECRequired['tic_r5']" class="btn-firma-mini" for="fec-tic-r5">✍ FirmaEC<input type="file" id="fec-tic-r5" accept="image/*" (change)="onFirmaECChange('tic_r5',$event)" style="display:none"></label><div *ngIf="firmasEC['tic_r5']" class="firma-mini-ok"><img [src]="firmasEC['tic_r5']" class="firma-mini-img" alt="F"><button type="button" class="firma-mini-clear" (click)="clearFirmaEC('tic_r5')">✕</button></div><span *ngIf="firmasECRequired['tic_r5'] && !firmasEC['tic_r5']" class="firma-mini-req">* requerida</span></td></tr>
+                <tr><td class="doc-resp-item">Responsable TIC</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('tic_responsable')?.value || '—' }}</td><td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:'tic_r5'}"></ng-container></td></tr>
               </tbody>
             </table>
           </div>
@@ -707,10 +795,9 @@
                 <tr *ngFor="let item of [{key:'fin_r1',ctrl:'fin_nombre_resp1',label:'Saldos contables'},{key:'fin_r2',ctrl:'fin_nombre_resp2',label:'Anticipo de remuneraciones'},{key:'fin_r3',ctrl:'fin_nombre_resp3',label:'Recuperación de valores'},{key:'fin_r4',ctrl:'fin_nombre_resp4',label:'Devolución de bienes'}]">
                   <td class="doc-resp-item">{{ item.label }}</td>
                   <td class="doc-resp-nombre"><input class="doc-input" [formControlName]="item.ctrl" placeholder="Nombre *" maxlength="80" [readonly]="!puedeEditarCampo(item.ctrl)"><span class="doc-error" *ngIf="formularioPazSalvo.get(item.ctrl)?.invalid && formularioPazSalvo.get(item.ctrl)?.touched">⚠ Requerido</span></td>
-                  <td class="doc-resp-firma"><label *ngIf="!firmasEC[item.key] && firmasECRequired[item.key]" class="btn-firma-mini" [for]="'fec-'+item.key">✍ FirmaEC<input type="file" [id]="'fec-'+item.key" accept="image/*" (change)="onFirmaECChange(item.key,$event)" style="display:none"></label><div *ngIf="firmasEC[item.key]" class="firma-mini-ok"><img [src]="firmasEC[item.key]" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado(item.key)" class="firma-mini-clear" (click)="clearFirmaEC(item.key)">✕</button>
-                    <span *ngIf="esCampoGuardado(item.key)" class="firma-guardada-badge" title="Firma guardada — no se puede modificar">🔒</span></div><span *ngIf="firmasECRequired[item.key] && !firmasEC[item.key]" class="firma-mini-req">* requerida</span></td>
+                  <td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:item.key}"></ng-container></td>
                 </tr>
-                <tr><td class="doc-resp-item">Director/a Administrativo/a Financiero/a</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('fin_director')?.value || '—' }}</td><td class="doc-resp-firma"><label *ngIf="!firmasEC['fin_dir'] && firmasECRequired['fin_dir']" class="btn-firma-mini" for="fec-fin-dir">✍ FirmaEC<input type="file" id="fec-fin-dir" accept="image/*" (change)="onFirmaECChange('fin_dir',$event)" style="display:none"></label><div *ngIf="firmasEC['fin_dir']" class="firma-mini-ok"><img [src]="firmasEC['fin_dir']" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado('fin_dir')" class="firma-mini-clear" (click)="clearFirmaEC('fin_dir')">✕</button><span *ngIf="esCampoGuardado('fin_dir')" class="firma-guardada-badge" title="Firma guardada">🔒</span></div><span *ngIf="firmasECRequired['fin_dir'] && !firmasEC['fin_dir']" class="firma-mini-req">* requerida</span></td></tr>
+                <tr><td class="doc-resp-item">Director/a Administrativo/a Financiero/a</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('fin_director')?.value || '—' }}</td><td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:'fin_dir'}"></ng-container></td></tr>
               </tbody>
             </table>
           </div>
@@ -734,10 +821,9 @@
                 <tr *ngFor="let item of [{key:'seg_r1',ctrl:'seg_nombre_resp1',label:'Archivos digitales / Verificación'},{key:'seg_r2',ctrl:'seg_nombre_resp2',label:'Archivos físicos / Entrega copia'}]">
                   <td class="doc-resp-item">{{ item.label }}</td>
                   <td class="doc-resp-nombre"><input class="doc-input" [formControlName]="item.ctrl" placeholder="Nombre *" maxlength="80" [readonly]="!puedeEditarCampo(item.ctrl)"><span class="doc-error" *ngIf="formularioPazSalvo.get(item.ctrl)?.invalid && formularioPazSalvo.get(item.ctrl)?.touched">⚠ Requerido</span></td>
-                  <td class="doc-resp-firma"><label *ngIf="!firmasEC[item.key] && firmasECRequired[item.key]" class="btn-firma-mini" [for]="'fec-'+item.key">✍ FirmaEC<input type="file" [id]="'fec-'+item.key" accept="image/*" (change)="onFirmaECChange(item.key,$event)" style="display:none"></label><div *ngIf="firmasEC[item.key]" class="firma-mini-ok"><img [src]="firmasEC[item.key]" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado(item.key)" class="firma-mini-clear" (click)="clearFirmaEC(item.key)">✕</button>
-                    <span *ngIf="esCampoGuardado(item.key)" class="firma-guardada-badge" title="Firma guardada — no se puede modificar">🔒</span></div><span *ngIf="firmasECRequired[item.key] && !firmasEC[item.key]" class="firma-mini-req">* requerida</span></td>
+                  <td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:item.key}"></ng-container></td>
                 </tr>
-                <tr><td class="doc-resp-item">Oficial de Seguridad Institucional</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('seg_oficial')?.value || '—' }}</td><td class="doc-resp-firma"><label *ngIf="!firmasEC['seg_oficial'] && firmasECRequired['seg_oficial']" class="btn-firma-mini" for="fec-seg-oficial">✍ FirmaEC<input type="file" id="fec-seg-oficial" accept="image/*" (change)="onFirmaECChange('seg_oficial',$event)" style="display:none"></label><div *ngIf="firmasEC['seg_oficial']" class="firma-mini-ok"><img [src]="firmasEC['seg_oficial']" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado('seg_oficial')" class="firma-mini-clear" (click)="clearFirmaEC('seg_oficial')">✕</button><span *ngIf="esCampoGuardado('seg_oficial')" class="firma-guardada-badge" title="Firma guardada">🔒</span></div><span *ngIf="firmasECRequired['seg_oficial'] && !firmasEC['seg_oficial']" class="firma-mini-req">* requerida</span></td></tr>
+                <tr><td class="doc-resp-item">Oficial de Seguridad Institucional</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('seg_oficial')?.value || '—' }}</td><td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:'seg_oficial'}"></ng-container></td></tr>
               </tbody>
             </table>
           </div>
@@ -779,10 +865,9 @@
                 <tr *ngFor="let item of [{key:'rrhh_r1',ctrl:'rrhh_resp_capacitacion',label:'Capacitación'},{key:'rrhh_r2',ctrl:'rrhh_resp_evaluacion',label:'Evaluación'},{key:'rrhh_r3',ctrl:'rrhh_resp_viajes',label:'Viajes'},{key:'rrhh_r4',ctrl:'rrhh_resp_siith',label:'SIITH'},{key:'rrhh_r5',ctrl:'rrhh_resp_vacaciones',label:'Vacaciones'},{key:'rrhh_r6',ctrl:'rrhh_resp_juramentada',label:'Declaración juramentada'},{key:'rrhh_r7',ctrl:'rrhh_resp_credencial2',label:'Credencial'},{key:'rrhh_r8',ctrl:'rrhh_resp_acta',label:'Acta bienes / CD / Ropa'}]">
                   <td class="doc-resp-item">{{ item.label }}</td>
                   <td class="doc-resp-nombre"><span class="doc-muted" *ngIf="['rrhh_r1','rrhh_r2','rrhh_r3','rrhh_r4'].includes(item.key)">{{ formularioPazSalvo.get(item.ctrl)?.value || '—' }}</span><ng-container *ngIf="!['rrhh_r1','rrhh_r2','rrhh_r3','rrhh_r4'].includes(item.key)"><input class="doc-input" [formControlName]="item.ctrl" placeholder="Nombre *" maxlength="80" [readonly]="!puedeEditarCampo(item.ctrl)"><span class="doc-error" *ngIf="formularioPazSalvo.get(item.ctrl)?.invalid && formularioPazSalvo.get(item.ctrl)?.touched">⚠ Requerido</span></ng-container></td>
-                  <td class="doc-resp-firma"><label *ngIf="!firmasEC[item.key] && firmasECRequired[item.key]" class="btn-firma-mini" [for]="'fec-'+item.key">✍ FirmaEC<input type="file" [id]="'fec-'+item.key" accept="image/*" (change)="onFirmaECChange(item.key,$event)" style="display:none"></label><div *ngIf="firmasEC[item.key]" class="firma-mini-ok"><img [src]="firmasEC[item.key]" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado(item.key)" class="firma-mini-clear" (click)="clearFirmaEC(item.key)">✕</button>
-                    <span *ngIf="esCampoGuardado(item.key)" class="firma-guardada-badge" title="Firma guardada — no se puede modificar">🔒</span></div><span *ngIf="firmasECRequired[item.key] && !firmasEC[item.key]" class="firma-mini-req">* requerida</span></td>
+                  <td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:item.key}"></ng-container></td>
                 </tr>
-                <tr><td class="doc-resp-item">Director/a de RRHH</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_director')?.value || '—' }}</td><td class="doc-resp-firma"><label *ngIf="!firmasEC['rrhh_dir'] && firmasECRequired['rrhh_dir']" class="btn-firma-mini" for="fec-rrhh-dir">✍ FirmaEC<input type="file" id="fec-rrhh-dir" accept="image/*" (change)="onFirmaECChange('rrhh_dir',$event)" style="display:none"></label><div *ngIf="firmasEC['rrhh_dir']" class="firma-mini-ok"><img [src]="firmasEC['rrhh_dir']" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado('rrhh_dir')" class="firma-mini-clear" (click)="clearFirmaEC('rrhh_dir')">✕</button><span *ngIf="esCampoGuardado('rrhh_dir')" class="firma-guardada-badge" title="Firma guardada">🔒</span></div><span *ngIf="firmasECRequired['rrhh_dir'] && !firmasEC['rrhh_dir']" class="firma-mini-req">* requerida</span></td></tr>
+                <tr><td class="doc-resp-item">Director/a de RRHH</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('rrhh_director')?.value || '—' }}</td><td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:'rrhh_dir'}"></ng-container></td></tr>
               </tbody>
             </table>
           </div>
@@ -801,7 +886,7 @@
             <table class="doc-resp-table">
               <thead><tr><th>ÍTEM</th><th>NOMBRE RESPONSABLE</th><th>FIRMA (FirmaEC) *</th></tr></thead>
               <tbody>
-                <tr><td class="doc-resp-item">Servidor/a RRHH que recibe el Paz y Salvo</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('recepcion_servidor')?.value || '—' }}</td><td class="doc-resp-firma"><label *ngIf="!firmasEC['recepcion_r1'] && firmasECRequired['recepcion_r1']" class="btn-firma-mini" for="fec-recepcion-r1">✍ FirmaEC<input type="file" id="fec-recepcion-r1" accept="image/*" (change)="onFirmaECChange('recepcion_r1',$event)" style="display:none"></label><div *ngIf="firmasEC['recepcion_r1']" class="firma-mini-ok"><img [src]="firmasEC['recepcion_r1']" class="firma-mini-img" alt="F"><button type="button" *ngIf="!esCampoGuardado('recepcion_r1')" class="firma-mini-clear" (click)="clearFirmaEC('recepcion_r1')">✕</button><span *ngIf="esCampoGuardado('recepcion_r1')" class="firma-guardada-badge" title="Firma guardada">🔒</span></div><span *ngIf="firmasECRequired['recepcion_r1'] && !firmasEC['recepcion_r1']" class="firma-mini-req">* requerida</span></td></tr>
+                <tr><td class="doc-resp-item">Servidor/a RRHH que recibe el Paz y Salvo</td><td class="doc-resp-nombre doc-muted">{{ formularioPazSalvo.get('recepcion_servidor')?.value || '—' }}</td><td class="doc-resp-firma"><ng-container [ngTemplateOutlet]="celdaFirma" [ngTemplateOutletContext]="{key:'recepcion_r1'}"></ng-container></td></tr>
               </tbody>
             </table>
           </div>

@@ -2,6 +2,95 @@
    ESTILOS GLOBALES — Sistema INAMHI
 ═══════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════════════════════════════
+   MODAL FIRMAEC — overrides globales SweetAlert2
+══════════════════════════════════════════════════════ */
+.swal-firmaec-popup.swal2-popup {
+  padding: 0 !important;
+  border-radius: 28px !important;
+  overflow: hidden !important;
+  box-shadow: 0 40px 100px rgba(15,23,42,.28), 0 0 0 1px rgba(255,255,255,.15) !important;
+  animation: firmaecIn .4s cubic-bezier(.34,1.56,.64,1) both !important;
+  background: #fff !important;
+  width: 460px !important;
+  max-width: 96vw !important;
+}
+
+@keyframes firmaecIn {
+  0%   { opacity:0; transform: scale(.8) translateY(30px); }
+  100% { opacity:1; transform: scale(1)  translateY(0); }
+}
+
+.swal-firmaec-popup .swal2-title {
+  background: linear-gradient(135deg,#0f172a 0%,#1e3a8a 45%,#1d4ed8 100%) !important;
+  margin: 0 !important;
+  padding: 28px 32px 24px !important;
+  font-size: 21px !important;
+  font-weight: 800 !important;
+  color: #fff !important;
+  letter-spacing: -.025em !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+}
+
+.swal-firmaec-popup .swal2-html-container {
+  padding: 24px 28px 4px !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+.swal-firmaec-popup .swal2-actions {
+  padding: 8px 28px 26px !important;
+  gap: 12px !important;
+  justify-content: stretch !important;
+  flex-wrap: nowrap !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+.swal-firmaec-popup .swal2-confirm {
+  flex: 1 !important;
+  border-radius: 14px !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  min-height: 48px !important;
+  background: linear-gradient(135deg,#1d4ed8,#0ea5e9) !important;
+  box-shadow: 0 8px 24px rgba(29,78,216,.45) !important;
+  border: none !important;
+  transition: transform .2s, box-shadow .2s !important;
+  letter-spacing: -.01em !important;
+  &:hover { transform: translateY(-2px) !important; box-shadow: 0 14px 32px rgba(29,78,216,.5) !important; }
+  &:active { transform: translateY(0) !important; }
+}
+
+.swal-firmaec-popup .swal2-cancel {
+  flex: 1 !important;
+  border-radius: 14px !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  min-height: 48px !important;
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border: none !important;
+  transition: background .2s !important;
+  &:hover { background: #e2e8f0 !important; }
+}
+
+.swal-firmaec-popup .swal2-validation-message {
+  background: #fff1f2 !important;
+  color: #b91c1c !important;
+  border-radius: 10px !important;
+  margin: 0 28px 10px !important;
+  border: 1px solid #fecaca !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+}
+
+/* Animación del ícono del popup */
+.swal-firmaec-popup .swal2-icon { display: none !important; }
+
 /* Elimina scroll horizontal en TODAS las páginas */
 html {
   overflow-x: hidden;

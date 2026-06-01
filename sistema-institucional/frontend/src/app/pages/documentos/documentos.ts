@@ -101,28 +101,76 @@ export class Documentos implements OnInit {
     window.open(`${this.api}/formularios/${f.id}/pdf`, '_blank');
   }
 
-  aprobarFormulario(f: any): void {
+  accionFormulario(f: any, estado: 'APROBADO' | 'EN_REVISION'): void {
+    const config: Record<string, { title: string; text: string; icon: any; btn: string }> = {
+      APROBADO: {
+        title: '¿Aprobar formulario?',
+        text: `El formulario "${f.titulo}" quedará aprobado y el ex funcionario será inhabilitado.`,
+        icon: 'question',
+        btn: 'Sí, aprobar'
+      },
+      EN_REVISION: {
+        title: '¿Marcar en revisión?',
+        text: `El formulario "${f.titulo}" quedará pendiente de revisión.`,
+        icon: 'info',
+        btn: 'Sí, en revisión'
+      }
+    };
+    const c = config[estado];
     Swal.fire({
-      title: '¿Aprobar formulario?',
-      text: `Se marcará como aprobado el formulario "${f.titulo}"`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, aprobar',
-      cancelButtonText: 'Cancelar',
+      title: c.title, text: c.text, icon: c.icon,
+      showCancelButton: true, confirmButtonText: c.btn, cancelButtonText: 'Cancelar'
     }).then(result => {
       if (!result.isConfirmed) return;
-      this.http.patch(`${this.api}/formularios/${f.id}/aprobar`, {}, this.getHeaders()).pipe(
-        timeout(8000),
-        catchError((err: any) => {
-          Swal.fire('Error', err?.error?.mensaje ?? 'Error al aprobar.', 'error');
-          return of(null);
-        })
-      ).subscribe((res: any) => {
-        if (!res) return;
-        Swal.fire('Aprobado', res.mensaje ?? 'Formulario aprobado.', 'success');
-        f.estado = 'APROBADO';
-        this.cdr.detectChanges();
-      });
+      this.enviarEstadoFormulario(f, estado, '');
+    });
+  }
+
+  negarFormulario(f: any): void {
+    Swal.fire({
+      title: 'Negar formulario',
+      html: `
+        <p style="margin-bottom:12px">Ingrese la observación obligatoria para negar el formulario <strong>${f.titulo}</strong>:</p>
+        <textarea id="swal-obs" class="swal2-textarea" placeholder="Indique el motivo del rechazo..." style="height:100px;width:90%"></textarea>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Negar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#ef4444',
+      preConfirm: () => {
+        const obs = (document.getElementById('swal-obs') as HTMLTextAreaElement)?.value?.trim();
+        if (!obs) {
+          Swal.showValidationMessage('La observación es obligatoria para negar el formulario.');
+          return false;
+        }
+        return obs;
+      }
+    }).then(result => {
+      if (!result.isConfirmed || !result.value) return;
+      this.enviarEstadoFormulario(f, 'NEGADO', result.value as string);
+    });
+  }
+
+  private enviarEstadoFormulario(f: any, estado: string, observacion: string): void {
+    this.http.patch(
+      `${this.api}/formularios/${f.id}/estado`,
+      { estado, observacion },
+      this.getHeaders()
+    ).pipe(
+      timeout(10000),
+      catchError((err: any) => {
+        Swal.fire('Error', err?.error?.mensaje ?? 'No se pudo actualizar el estado.', 'error');
+        return of(null);
+      })
+    ).subscribe((res: any) => {
+      if (!res) return;
+      f.estado = estado;
+      if (estado === 'NEGADO') f.observacion = observacion;
+      const icono = estado === 'APROBADO' ? 'success' : estado === 'NEGADO' ? 'error' : 'info';
+      Swal.fire('Listo', res.mensaje, icono);
+      this.cargarFormulariosPazSalvo();
+      this.cdr.detectChanges();
     });
   }
 

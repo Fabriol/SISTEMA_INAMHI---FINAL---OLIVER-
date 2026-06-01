@@ -142,4 +142,26 @@ export class FormulariosService {
       { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) }
     );
   }
+
+  /**
+   * Obtiene el PDF como ArrayBuffer. Usa el endpoint /pdf que genera el documento
+   * en tiempo real si aún no existe — garantiza que siempre haya un PDF disponible.
+   */
+  obtenerPdfBytes(formularioId: number): Observable<ArrayBuffer> {
+    const token = localStorage.getItem('token') || '';
+    return this.http.get(
+      `${this.api}/formularios/${formularioId}/pdf`,
+      { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }), responseType: 'arraybuffer' }
+    );
+  }
+
+  /** Sube el PDF ya firmado por FirmaEC Desktop para validación y registro en BD. */
+  subirFirmaEcDesktop(formularioId: number, formData: FormData): Observable<any> {
+    const token = localStorage.getItem('token') || '';
+    return this.http.post(
+      `${this.api}/formularios/${formularioId}/firmar-ec-desktop`,
+      formData,
+      { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) }
+    );
+  }
 }
