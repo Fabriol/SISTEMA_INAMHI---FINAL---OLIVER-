@@ -506,7 +506,7 @@
         </div>
       </div>
 
-      <form [formGroup]="formularioPazSalvo" novalidate>
+      <form [formGroup]="formularioPazSalvo" novalidate (input)="onFormInput($event)">
 
         <!-- ═══ 1. DATOS PERSONALES ═══ -->
         <div class="doc-section">
@@ -1107,7 +1107,7 @@
                     <td class="ep-tfd">QUIPUX bandeja en cero</td>
                     <td class="ep-tfy"><span class="ep-yn" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('tramites_quipux_cero')?.value==='SI','ep-yn--n':formularioPazSalvo.get('tramites_quipux_cero')?.value==='NO'}">{{formularioPazSalvo.get('tramites_quipux_cero')?.value||'—'}}</span></td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('tramites_nombre_resp1')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['tramites_r1']" [src]="firmasEC['tramites_r1']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('tramites_r1')" [src]="getFirmaImagen('tramites_r1')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('tramites_r1')" class="ep-firma-ec-nombre">{{ getFirmaNombre('tramites_r1') }}</span></div></td>
                   </tr>
                   <tr class="ep-tr">
                     <td class="ep-tfd">Fe de presentación</td>
@@ -1115,7 +1115,7 @@
                     <td class="ep-tfd">Claves de acceso asignadas</td>
                     <td class="ep-tfy"><span class="ep-yn" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('tramites_claves_asignadas')?.value==='SI','ep-yn--n':formularioPazSalvo.get('tramites_claves_asignadas')?.value==='NO'}">{{formularioPazSalvo.get('tramites_claves_asignadas')?.value||'—'}}</span></td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('tramites_nombre_resp2')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['tramites_r2']" [src]="firmasEC['tramites_r2']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('tramites_r2')" [src]="getFirmaImagen('tramites_r2')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('tramites_r2')" class="ep-firma-ec-nombre">{{ getFirmaNombre('tramites_r2') }}</span></div></td>
                   </tr>
                   <tr class="ep-tr">
                     <td class="ep-tfd">Archivo físico/digital LOSEP</td>
@@ -1123,12 +1123,12 @@
                     <td class="ep-tfd">Acta entrega claves</td>
                     <td class="ep-tfy"><span class="ep-yn" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('tramites_acta_claves')?.value==='SI','ep-yn--n':formularioPazSalvo.get('tramites_acta_claves')?.value==='NO'}">{{formularioPazSalvo.get('tramites_acta_claves')?.value||'—'}}</span></td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('tramites_nombre_resp3')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['tramites_r3']" [src]="firmasEC['tramites_r3']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('tramites_r3')" [src]="getFirmaImagen('tramites_r3')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('tramites_r3')" class="ep-firma-ec-nombre">{{ getFirmaNombre('tramites_r3') }}</span></div></td>
                   </tr>
                   <tr class="ep-tr">
                     <td class="ep-tfd" colspan="4"><strong>Jefe Inmediato:</strong> {{formularioPazSalvo.get('tramites_jefe_inmediato')?.value||'—'}} &nbsp;|&nbsp; <strong>Recibe trámites:</strong> {{formularioPazSalvo.get('tramites_servidor_recibe')?.value||'—'}} &nbsp;|&nbsp; <strong>Obs:</strong> {{formularioPazSalvo.get('tramites_obs')?.value||'—'}}</td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('tramites_nombre_responsable')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['tramites_jefe']" [src]="firmasEC['tramites_jefe']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('tramites_jefe')" [src]="getFirmaImagen('tramites_jefe')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('tramites_jefe')" class="ep-firma-ec-nombre">{{ getFirmaNombre('tramites_jefe') }}</span></div></td>
                   </tr>
                 </tbody>
               </table>
@@ -1167,12 +1167,12 @@
                       <span *ngIf="!r.vk">—</span>
                     </td>
                     <td class="ep-tfr">{{formularioPazSalvo.get(r.nk)?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC[r.rk]" [src]="firmasEC[r.rk]" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen(r.rk)" [src]="getFirmaImagen(r.rk)!" class="ep-firma-img"><span *ngIf="getFirmaNombre(r.rk)" class="ep-firma-ec-nombre">{{ getFirmaNombre(r.rk) }}</span></div></td>
                   </tr>
                   <tr class="ep-tr ep-tr--dir">
                     <td class="ep-tfd ep-td--dir" colspan="3"><strong>Director/a Administrativo/a Financiero/a:</strong> <span class="ep-valor-dir">{{formularioPazSalvo.get('admin_responsable')?.value||'—'}}</span></td>
                     <td class="ep-tfr"></td>
-                    <td class="ep-tff"><div class="ep-firma-box ep-firma-box--dir"><img *ngIf="firmasEC['admin_dir']" [src]="firmasEC['admin_dir']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box ep-firma-box--dir"><img *ngIf="getFirmaImagen('admin_dir')" [src]="getFirmaImagen('admin_dir')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('admin_dir')" class="ep-firma-ec-nombre">{{ getFirmaNombre('admin_dir') }}</span></div></td>
                   </tr>
                 </tbody>
               </table>
@@ -1203,14 +1203,14 @@
                     <td class="ep-tfy"><span class="ep-yn" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('tic_verificacion')?.value==='SI','ep-yn--n':formularioPazSalvo.get('tic_verificacion')?.value==='NO'}">{{formularioPazSalvo.get('tic_verificacion')?.value||'—'}}</span></td>
                     <td class="ep-tfd ep-td--dato">IP Fija: <span class="ep-yn ep-yn--sm" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('tic_ip_fija')?.value==='SI','ep-yn--n':formularioPazSalvo.get('tic_ip_fija')?.value==='NO'}">{{formularioPazSalvo.get('tic_ip_fija')?.value||'—'}}</span> Liberación: <span class="ep-yn ep-yn--sm" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('tic_liberacion')?.value==='SI','ep-yn--n':formularioPazSalvo.get('tic_liberacion')?.value==='NO'}">{{formularioPazSalvo.get('tic_liberacion')?.value||'—'}}</span></td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('tic_nombre_resp1')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['tic_r1']" [src]="firmasEC['tic_r1']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('tic_r1')" [src]="getFirmaImagen('tic_r1')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('tic_r1')" class="ep-firma-ec-nombre">{{ getFirmaNombre('tic_r1') }}</span></div></td>
                   </tr>
                   <tr class="ep-tr">
                     <td class="ep-tfd">Entrega backup de información</td>
                     <td class="ep-tfy"><span class="ep-yn" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('tic_backup')?.value==='SI','ep-yn--n':formularioPazSalvo.get('tic_backup')?.value==='NO'}">{{formularioPazSalvo.get('tic_backup')?.value||'—'}}</span></td>
                     <td class="ep-tfd ep-td--dato">Ruta: {{formularioPazSalvo.get('tic_ruta_backup')?.value||'—'}}</td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('tic_nombre_resp2')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['tic_r2']" [src]="firmasEC['tic_r2']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('tic_r2')" [src]="getFirmaImagen('tic_r2')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('tic_r2')" class="ep-firma-ec-nombre">{{ getFirmaNombre('tic_r2') }}</span></div></td>
                   </tr>
                   <tr class="ep-tr">
                     <td class="ep-tfd">Retiro control de acceso (contraseñas)</td>
@@ -1223,19 +1223,19 @@
                       eSByE: <span class="ep-yn ep-yn--sm" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('tic_esbye')?.value==='SI','ep-yn--n':formularioPazSalvo.get('tic_esbye')?.value==='NO'}">{{formularioPazSalvo.get('tic_esbye')?.value||'—'}}</span>
                     </td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('tic_nombre_resp3')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['tic_r3']" [src]="firmasEC['tic_r3']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('tic_r3')" [src]="getFirmaImagen('tic_r3')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('tic_r3')" class="ep-firma-ec-nombre">{{ getFirmaNombre('tic_r3') }}</span></div></td>
                   </tr>
                   <tr class="ep-tr">
                     <td class="ep-tfd">Entrega tarjeta acceso / cierre cuentas</td>
                     <td class="ep-tfy"><span class="ep-yn" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('tic_tarjeta_cuentas')?.value==='SI','ep-yn--n':formularioPazSalvo.get('tic_tarjeta_cuentas')?.value==='NO'}">{{formularioPazSalvo.get('tic_tarjeta_cuentas')?.value||'—'}}</span></td>
                     <td class="ep-tfd ep-td--dato">Obs: {{formularioPazSalvo.get('tic_obs')?.value||'—'}}</td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('tic_nombre_resp4')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['tic_r4']" [src]="firmasEC['tic_r4']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('tic_r4')" [src]="getFirmaImagen('tic_r4')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('tic_r4')" class="ep-firma-ec-nombre">{{ getFirmaNombre('tic_r4') }}</span></div></td>
                   </tr>
                   <tr class="ep-tr ep-tr--dir">
                     <td class="ep-tfd ep-td--dir" colspan="3"><strong>Responsable TIC:</strong> <span class="ep-valor-dir">{{formularioPazSalvo.get('tic_responsable')?.value||'—'}}</span></td>
                     <td class="ep-tfr"></td>
-                    <td class="ep-tff"><div class="ep-firma-box ep-firma-box--dir"><img *ngIf="firmasEC['tic_r5']" [src]="firmasEC['tic_r5']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box ep-firma-box--dir"><img *ngIf="getFirmaImagen('tic_r5')" [src]="getFirmaImagen('tic_r5')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('tic_r5')" class="ep-firma-ec-nombre">{{ getFirmaNombre('tic_r5') }}</span></div></td>
                   </tr>
                 </tbody>
               </table>
@@ -1271,12 +1271,12 @@
                     <td class="ep-tfy"><span class="ep-yn" [ngClass]="{'ep-yn--s':formularioPazSalvo.get(r.k)?.value==='SI','ep-yn--n':formularioPazSalvo.get(r.k)?.value==='NO'}">{{formularioPazSalvo.get(r.k)?.value||'—'}}</span></td>
                     <td class="ep-tfd ep-td--dato"><span class="ep-money" *ngIf="formularioPazSalvo.get(r.vk)?.value!=null">$ {{formularioPazSalvo.get(r.vk)?.value}}</span><span *ngIf="!formularioPazSalvo.get(r.vk)?.value">—</span> <span *ngIf="formularioPazSalvo.get(r.ok)?.value"> | {{formularioPazSalvo.get(r.ok)?.value}}</span></td>
                     <td class="ep-tfr">{{formularioPazSalvo.get(r.nk)?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC[r.rk]" [src]="firmasEC[r.rk]" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen(r.rk)" [src]="getFirmaImagen(r.rk)!" class="ep-firma-img"><span *ngIf="getFirmaNombre(r.rk)" class="ep-firma-ec-nombre">{{ getFirmaNombre(r.rk) }}</span></div></td>
                   </tr>
                   <tr class="ep-tr ep-tr--dir">
                     <td class="ep-tfd ep-td--dir" colspan="3"><strong>Director/a Administrativo/a Financiero/a:</strong> <span class="ep-valor-dir">{{formularioPazSalvo.get('fin_director')?.value||'—'}}</span></td>
                     <td class="ep-tfr"></td>
-                    <td class="ep-tff"><div class="ep-firma-box ep-firma-box--dir"><img *ngIf="firmasEC['fin_dir']" [src]="firmasEC['fin_dir']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box ep-firma-box--dir"><img *ngIf="getFirmaImagen('fin_dir')" [src]="getFirmaImagen('fin_dir')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('fin_dir')" class="ep-firma-ec-nombre">{{ getFirmaNombre('fin_dir') }}</span></div></td>
                   </tr>
                 </tbody>
               </table>
@@ -1336,7 +1336,7 @@
                     <td class="ep-tfd">Entrega copia de actividades</td>
                     <td class="ep-tfy"><span class="ep-yn" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('seg_entrega_copia')?.value==='SI','ep-yn--n':formularioPazSalvo.get('seg_entrega_copia')?.value==='NO'}">{{formularioPazSalvo.get('seg_entrega_copia')?.value||'—'}}</span></td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('seg_nombre_resp1')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['seg_r1']" [src]="firmasEC['seg_r1']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('seg_r1')" [src]="getFirmaImagen('seg_r1')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('seg_r1')" class="ep-firma-ec-nombre">{{ getFirmaNombre('seg_r1') }}</span></div></td>
                   </tr>
                   <tr class="ep-tr">
                     <td class="ep-tfd">Archivos físicos (Archivo Central)</td>
@@ -1344,12 +1344,12 @@
                     <td class="ep-tfd">Verificación información institucional</td>
                     <td class="ep-tfy"><span class="ep-yn" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('seg_verificacion_info')?.value==='SI','ep-yn--n':formularioPazSalvo.get('seg_verificacion_info')?.value==='NO'}">{{formularioPazSalvo.get('seg_verificacion_info')?.value||'—'}}</span></td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('seg_nombre_resp2')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['seg_r2']" [src]="firmasEC['seg_r2']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('seg_r2')" [src]="getFirmaImagen('seg_r2')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('seg_r2')" class="ep-firma-ec-nombre">{{ getFirmaNombre('seg_r2') }}</span></div></td>
                   </tr>
                   <tr class="ep-tr ep-tr--dir">
                     <td class="ep-tfd ep-td--dir" colspan="3"><strong>Oficial de Seguridad:</strong> <span class="ep-valor-dir">{{formularioPazSalvo.get('seg_oficial')?.value||'—'}}</span> &nbsp;|&nbsp; <strong>Responsable:</strong> {{formularioPazSalvo.get('seg_responsable')?.value||'—'}}</td>
                     <td class="ep-tfr"></td>
-                    <td class="ep-tff"><div class="ep-firma-box ep-firma-box--dir"><img *ngIf="firmasEC['seg_oficial']" [src]="firmasEC['seg_oficial']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box ep-firma-box--dir"><img *ngIf="getFirmaImagen('seg_oficial')" [src]="getFirmaImagen('seg_oficial')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('seg_oficial')" class="ep-firma-ec-nombre">{{ getFirmaNombre('seg_oficial') }}</span></div></td>
                   </tr>
                 </tbody>
               </table>
@@ -1392,19 +1392,19 @@
                       <span *ngIf="!r.dk || !formularioPazSalvo.get(r.dk)?.value">—</span>
                     </td>
                     <td class="ep-tfr">{{formularioPazSalvo.get(r.nk)?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC[r.rk]" [src]="firmasEC[r.rk]" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen(r.rk)" [src]="getFirmaImagen(r.rk)!" class="ep-firma-img"><span *ngIf="getFirmaNombre(r.rk)" class="ep-firma-ec-nombre">{{ getFirmaNombre(r.rk) }}</span></div></td>
                   </tr>
                   <tr class="ep-tr">
                     <td class="ep-tfd">Vacaciones acumuladas no gozadas</td>
                     <td class="ep-tfy"><span class="ep-yn ep-yn--neutral">{{formularioPazSalvo.get('rrhh_vacaciones')?.value ?? '—'}} días</span></td>
                     <td class="ep-tfd ep-td--dato">N° Cert: {{formularioPazSalvo.get('rrhh_num_certificado')?.value||'—'}}</td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('rrhh_resp_vacaciones')?.value||'—'}}</td>
-                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="firmasEC['rrhh_r5']" [src]="firmasEC['rrhh_r5']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('rrhh_r5')" [src]="getFirmaImagen('rrhh_r5')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('rrhh_r5')" class="ep-firma-ec-nombre">{{ getFirmaNombre('rrhh_r5') }}</span></div></td>
                   </tr>
                   <tr class="ep-tr ep-tr--dir">
                     <td class="ep-tfd ep-td--dir" colspan="3"><strong>Director/a de RRHH:</strong> <span class="ep-valor-dir">{{formularioPazSalvo.get('rrhh_director')?.value||'—'}}</span></td>
                     <td class="ep-tfr"></td>
-                    <td class="ep-tff"><div class="ep-firma-box ep-firma-box--dir"><img *ngIf="firmasEC['rrhh_dir']" [src]="firmasEC['rrhh_dir']" class="ep-firma-img" alt="FirmaEC"></div></td>
+                    <td class="ep-tff"><div class="ep-firma-box ep-firma-box--dir"><img *ngIf="getFirmaImagen('rrhh_dir')" [src]="getFirmaImagen('rrhh_dir')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('rrhh_dir')" class="ep-firma-ec-nombre">{{ getFirmaNombre('rrhh_dir') }}</span></div></td>
                   </tr>
                 </tbody>
               </table>
@@ -1430,7 +1430,7 @@
                     <th class="ep-th">FIRMA RRHH</th>
                     <td class="ep-td ep-td--firma-cel">
                       <div class="ep-firma-box ep-firma-box--rec">
-                        <img *ngIf="firmasEC['recepcion_r1']" [src]="firmasEC['recepcion_r1']" class="ep-firma-img" alt="FirmaEC">
+                        <img *ngIf="getFirmaImagen('recepcion_r1')" [src]="getFirmaImagen('recepcion_r1')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('recepcion_r1')" class="ep-firma-ec-nombre">{{ getFirmaNombre('recepcion_r1') }}</span>
                       </div>
                     </td>
                   </tr>

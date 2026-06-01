@@ -2272,9 +2272,12 @@ def _draw_firma_row(c, y: float, item: str, nombre: str, firma_val: str,
     c.rect(_CX[2], y_bot, _CW[2], _RH, fill=1, stroke=1)
 
     if firma_val and firma_val.startswith("FIRMADO_EC:"):
-        parts = firma_val.split(":")
-        firmante = parts[1] if len(parts) > 1 else "Firmado"
-        fecha_f  = parts[2][:10] if len(parts) > 2 else ""
+        # Soporta formato viejo "FIRMADO_EC:name:date"
+        # y nuevo "FIRMADO_EC:name:date|base64png"
+        meta_part = firma_val.split("|")[0] if "|" in firma_val else firma_val
+        parts     = meta_part.split(":")
+        firmante  = parts[1] if len(parts) > 1 else "Firmado"
+        fecha_f   = parts[2][:10] if len(parts) > 2 else ""
         # Fondo verde muy tenue
         c.setFillColorRGB(0.90, 0.97, 0.90)
         c.rect(_CX[2] + 1, y_bot + 1, _CW[2] - 2, _RH - 2, fill=1, stroke=0)
@@ -2986,21 +2989,21 @@ def firmar_ec_pdf(formulario_id):
         pdf_firmado = pdf_signed
         try:
             _pyhanko_firmar(
-                src_path     = pdf_src,
-                dst_path     = pdf_firmado,
-                p12_bytes    = p12_bytes,
-                password     = password_raw,
-                signer_name  = signer_name,
-                campo_firma  = campo_firma,
-                formulario_id= formulario_id,
-                json_path    = json_path,
-                signer_obj   = _signer_obj,   # ya cargado — evita re-leer el .p12
+                src_path    = pdf_src,
+                dst_path    = pdf_firmado,
+                p12_bytes   = p12_bytes,
+                password    = password_raw,
+                signer_name = signer_name,
+                campo_firma = campo_firma,
+                json_path   = json_path,
+                signer_obj  = _signer_obj,   # ya cargado — evita re-leer el .p12
             )
         except RuntimeError as exc:
             return jsonify({"mensaje": str(exc)}), 400
 
         # ── Guardar resultado en BD ──────────────────────────────
-        marca = f"FIRMADO_EC:{signer_name}:{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        fecha_firma = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        marca = f"FIRMADO_EC:{signer_name}:{fecha_firma}"
         cursor.execute("""
             INSERT INTO formulario_respuestas
                    (formulario_id, pregunta_id, asignacion_id, respondido_por, respuesta)
@@ -3059,7 +3062,6 @@ def _pyhanko_firmar(
     password: str,
     signer_name: str,
     campo_firma: str,
-    formulario_id: int,
     json_path: str,
     signer_obj=None,          # objeto SimpleSigner ya cargado (evita releer el .p12)
 ) -> None:
@@ -3137,23 +3139,20 @@ def _pyhanko_firmar(
     SIG_BOX  = (coords[0], coords[1], coords[2], coords[3])
     SIG_PAGE = int(coords[4])                # 0-indexed
 
-    # ── Apariencia visual del sello: QR + texto (nativo pyHanko) ─
-    # QRStampStyle genera: QR code a la izquierda + texto a la derecha.
-    # appearance_text_params pasa 'url' (para el QR) y 'signer' al template.
-    qr_url = (
-        f"https://validar.firmaec.ec/"
-        f"?id={formulario_id}&campo={campo_firma}"
-    )
-    nombre_disp = signer_name[:28] if len(signer_name) > 28 else signer_name
+    # ── Apariencia visual del sello en el PDF (nativo pyHanko) ────
+    # QR apunta a https://validar.firmaec.ec (portal oficial de validación).
+    # El PDF firmado con el certificado FirmaEC real puede verificarse ahí.
+    qr_url      = "https://validar.firmaec.ec"
+    nombre_disp = signer_name[:40] if len(signer_name) > 40 else signer_name
     stamp_style = QRStampStyle(
         stamp_text=(
-            "Firmado electronicamente por:\n"
-            "%(signer)s\n"
-            "Validar en FirmaEC"
+            "Validar únicamente en FirmaEC.\n"
+            "Firmado electrónicamente por:\n"
+            "%(signer)s"
         ),
         text_box_style=TextBoxStyle(
-            font_size    = 7,
-            text_color   = (0.0, 0.19, 0.53),   # azul institucional
+            font_size  = 10,
+            text_color = (0.0, 0.0, 0.0),
         ),
         background_opacity = 1.0,
     )

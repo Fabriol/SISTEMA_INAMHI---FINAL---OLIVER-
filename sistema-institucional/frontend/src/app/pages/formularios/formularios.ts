@@ -1011,6 +1011,20 @@ export class Formularios implements OnInit, OnDestroy {
     return this.camposBloqueados.includes(campo);
   }
 
+  /** Devuelve el src de imagen si firmasEC[campo] es una imagen base64, o null. */
+  getFirmaImagen(campo: string): string | null {
+    const v = this.firmasEC[campo];
+    if (v && (v as string).startsWith('data:image')) return v as string;
+    return null;
+  }
+
+  /** Devuelve el nombre del firmante si firmasEC[campo] es texto (firma FirmaEC real), o null. */
+  getFirmaNombre(campo: string): string | null {
+    const v = this.firmasEC[campo];
+    if (v && !(v as string).startsWith('data:image')) return v as string;
+    return null;
+  }
+
   private limpiarTexto(texto: unknown): string {
     return String(texto ?? '').trim().replace(/\s+/g, ' ');
   }
@@ -1443,7 +1457,8 @@ export class Formularios implements OnInit, OnDestroy {
       .subscribe((resp: any) => {
         if (!resp) return;
         this.p12NombreFirmante[campoFirma] = resp.firmado_por ?? '';
-        // Marcar como bloqueado localmente (ya no se puede volver a firmar)
+        // Guardar nombre del firmante para el preview de la tabla
+        this.firmasEC[campoFirma] = resp.firmado_por ?? 'FIRMADO';
         if (!this.camposBloqueados.includes(campoFirma)) {
           this.camposBloqueados.push(campoFirma);
         }
@@ -1454,7 +1469,6 @@ export class Formularios implements OnInit, OnDestroy {
           html: `Firmado por: <b>${resp.firmado_por}</b><br>
                  Progreso del formulario: <b>${resp.porcentaje}%</b>`,
         });
-        // Recargar estado del formulario desde el servidor
         this.cargarDetalleFormulario(this.formularioSeleccionado);
       });
   }
@@ -2147,7 +2161,14 @@ export class Formularios implements OnInit, OnDestroy {
         this.camposAsignadosUsuario.push(campo);
 
         if (p.respuesta !== null && p.respuesta !== undefined && p.respuesta !== '') {
-          this.firmasEC[campo] = p.respuesta as string;
+          // Si es firma FirmaEC, guardar solo el nombre del firmante (no el texto completo)
+          const resp = p.respuesta as string;
+          if (resp.startsWith('FIRMADO_EC:')) {
+            const partes = resp.split(':');
+            this.firmasEC[campo] = partes[1] ?? 'FIRMADO';
+          } else {
+            this.firmasEC[campo] = resp;
+          }
           this.camposBloqueados.push(campo);
         }
 
@@ -2716,13 +2737,50 @@ export class Formularios implements OnInit, OnDestroy {
     });
   }
 
-  /** Dispara markForCheck en cada cambio del formulario para actualizar el espejo. */
+  /** Dispara markForCheck en cada cambio del formulario y convierte textos a mayúsculas. */
   private syncEspejo(): void {
     this.formularioPazSalvo.valueChanges
       .pipe(debounceTime(0), takeUntil(this.destroy$))
-      .subscribe(() => {
+      .subscribe(values => {
+        // Auto-mayúsculas: recorre todos los controles de texto
+        const updates: { [key: string]: string } = {};
+        let hayNuevo = false;
+        const camposExcluidos = ['email1', 'email2'];
+        Object.entries(values as Record<string, unknown>).forEach(([key, val]) => {
+          if (typeof val === 'string' && val !== val.toUpperCase()
+              && !camposExcluidos.includes(key)) {
+            updates[key] = val.toUpperCase();
+            hayNuevo = true;
+          }
+        });
+        if (hayNuevo) {
+          this.formularioPazSalvo.patchValue(updates, { emitEvent: false });
+        }
         this.cdr.markForCheck();
       });
+  }
+
+  /**
+   * Handler de evento input del formulario DOM.
+   * Convierte a mayúsculas en tiempo real para mantener el cursor en posición correcta.
+   */
+  onFormInput(event: Event): void {
+    const el = event.target as HTMLInputElement | HTMLTextAreaElement;
+    const tag = el.tagName;
+    const type = (el as HTMLInputElement).type ?? '';
+    if ((tag === 'INPUT' && type !== 'number' && type !== 'file'
+         && type !== 'checkbox' && type !== 'radio' && type !== 'password'
+         && type !== 'email')
+        || tag === 'TEXTAREA') {
+      const val = el.value;
+      const upper = val.toUpperCase();
+      if (val !== upper) {
+        const start = el.selectionStart ?? upper.length;
+        const end   = el.selectionEnd   ?? upper.length;
+        el.value = upper;
+        el.setSelectionRange(start, end);
+      }
+    }
   }
 
   limpiarFormulario(): void {
