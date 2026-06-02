@@ -213,6 +213,8 @@ export class Formularios implements OnInit, OnDestroy {
     rrhh_r5: null, rrhh_r6: null, rrhh_r7: null, rrhh_r8: null, rrhh_dir: null,
     // Recepción
     recepcion_r1: null,
+    // Autorización — Servidor Saliente
+    servidor_saliente: null,
   };
   firmasECRequired: Record<string, boolean> = {
     tramites_r1: false, tramites_r2: false, tramites_r3: false, tramites_jefe: false,
@@ -223,6 +225,7 @@ export class Formularios implements OnInit, OnDestroy {
     rrhh_r1: false, rrhh_r2: false, rrhh_r3: false, rrhh_r4: false,
     rrhh_r5: false, rrhh_r6: false, rrhh_r7: false, rrhh_r8: false, rrhh_dir: false,
     recepcion_r1: false,
+    servidor_saliente: false,
   };
 
   // ── Datos del sistema ───────────────────────────────────────
@@ -486,6 +489,7 @@ export class Formularios implements OnInit, OnDestroy {
     { id: 'rrhh_r8', nombre: 'rrhh_r8', etiqueta: 'FirmaEC — RRHH: Fila 8', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
     { id: 'rrhh_dir', nombre: 'rrhh_dir', etiqueta: 'FirmaEC — RRHH: Director/a', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
     { id: 'recepcion_r1', nombre: 'recepcion_r1', etiqueta: 'FirmaEC — Recepción: Servidor/a que recibe', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
+    { id: 'servidor_saliente', nombre: 'servidor_saliente', etiqueta: 'FirmaEC — Autorización: Servidor Saliente', seccion: 'Firmas Electrónicas', tipo: 'FIRMA', seleccionado: false, bloqueado: false },
   ];
 
   // ── FormGroup PLANO (1:1 con el HTML) ───────────────────────
@@ -1012,32 +1016,55 @@ export class Formularios implements OnInit, OnDestroy {
   }
 
   /**
-   * Devuelve la URL/base64 de la imagen del sello QR FirmaEC para el campo.
-   * - Si tiene base64 guardado (nueva firma): lo devuelve directamente.
-   * - Si tiene nombre (firma antigua): usa el endpoint /api/sello-preview para generar QR on-demand.
-   * - Si no hay nada: devuelve null.
+   * Devuelve el base64 de la imagen del sello QR si ya fue precargado.
+   * Las imágenes se precargan con cargarImagenesFirma() al cargar el formulario.
    */
   getFirmaImagen(campo: string): string | null {
     const v = this.firmasEC[campo];
-    if (!v) return null;
-    const s = v as string;
-    if (s.startsWith('data:image')) return s;
-    // Firma antigua: nombre de texto → generar QR on-demand via backend
-    if (s && s !== 'FIRMADO') {
-      return `http://localhost:5000/api/sello-preview?nombre=${encodeURIComponent(s)}`;
-    }
+    if (v && (v as string).startsWith('data:image')) return v as string;
     return null;
   }
 
-  /** Solo devuelve nombre cuando NO hay imagen disponible (fallback de último recurso). */
+  /** Nombre de firmante como fallback mientras se carga la imagen QR. */
   getFirmaNombre(campo: string): string | null {
     const v = this.firmasEC[campo];
     if (!v) return null;
     const s = v as string;
-    // Hay imagen → no mostrar texto
-    if (s.startsWith('data:image') || s.startsWith('http')) return null;
-    if (s === 'FIRMADO') return 'FIRMADO';
-    return null;
+    if (s.startsWith('data:image')) return null;
+    return s !== 'FIRMADO' ? s : null;
+  }
+
+  /** Pre-carga como base64 las imágenes QR de firmas antiguas que solo tienen nombre. */
+  private async cargarImagenesFirma(): Promise<void> {
+    const token  = localStorage.getItem('token') ?? '';
+    const campos = Object.keys(this.firmasEC);
+    const pendientes = campos.filter(c => {
+      const v = this.firmasEC[c];
+      return v && typeof v === 'string'
+          && !(v as string).startsWith('data:image')
+          && (v as string) !== 'FIRMADO';
+    });
+
+    await Promise.all(pendientes.map(async campo => {
+      const nombre = this.firmasEC[campo] as string;
+      try {
+        const resp = await fetch(
+          `http://localhost:5000/api/sello-preview?nombre=${encodeURIComponent(nombre)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const b64  = await new Promise<string>(res => {
+            const reader = new FileReader();
+            reader.onload = () => res(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+          this.firmasEC[campo] = b64;
+        }
+      } catch { /* ignorar si backend no disponible */ }
+    }));
+
+    this.cdr.markForCheck();
   }
 
   private limpiarTexto(texto: unknown): string {
@@ -1484,7 +1511,7 @@ export class Formularios implements OnInit, OnDestroy {
           html: `Firmado por: <b>${resp.firmado_por}</b><br>
                  Progreso del formulario: <b>${resp.porcentaje}%</b>`,
         });
-        this.cargarDetalleFormulario(this.formularioSeleccionado);
+        this.cargarDetalleFormulario(this.formularioSeleccionado, true);
       });
   }
 
@@ -1746,27 +1773,62 @@ export class Formularios implements OnInit, OnDestroy {
       allowOutsideClick: false,
       allowEscapeKey:    false,
       html: `
-        <div style="text-align:left;font-size:13px;line-height:1.7">
-          <p style="margin-bottom:10px;font-weight:700;color:#1d4ed8">
-            El PDF <b>${nombrePdf}</b> se ha descargado en su carpeta de Descargas.
-          </p>
-          <ol style="margin:0;padding-left:18px;color:#334155">
-            <li>Abra <b>FirmaEC 5.1.0</b> en su equipo.</li>
-            <li>En la pestaña <b>"Firmar Documento (1)"</b>, haga clic en <b>"Buscar Documento(s)"</b> y seleccione el PDF descargado.</li>
-            <li>Haga clic en <b>"Buscar Certificado"</b> y seleccione su archivo <b>.p12</b>.</li>
-            <li>Ingrese su <b>contraseña</b> del certificado.</li>
-            <li>Haga clic en el botón <b>Firmar</b> dentro de FirmaEC.</li>
-            <li>Guarde el PDF firmado que genera FirmaEC.</li>
-            <li>Seleccione ese PDF firmado aquí abajo:</li>
-          </ol>
-          <div style="margin-top:14px">
-            <label style="display:block;font-weight:700;margin-bottom:6px;color:#1e3a8a">
-              📎 PDF firmado por FirmaEC:
-            </label>
-            <input type="file" id="swal-pdf-firmado" accept=".pdf,application/pdf"
-              style="width:100%;padding:8px;border:2px dashed #93c5fd;border-radius:10px;
-                     background:#eff6ff;font-size:13px;cursor:pointer">
+        <div style="text-align:left;font-size:12.5px;line-height:1.65;font-family:system-ui,sans-serif">
+
+          <!-- Diagrama de flujo -->
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px;
+                      background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 12px">
+            <div style="text-align:center;flex:1">
+              <div style="font-size:20px">📥</div>
+              <div style="font-size:10px;font-weight:700;color:#0369a1">1. Descargar</div>
+              <code style="font-size:9px;background:#e0f2fe;padding:1px 4px;border-radius:3px">${nombrePdf}</code>
+            </div>
+            <div style="color:#94a3b8;font-size:18px">→</div>
+            <div style="text-align:center;flex:1">
+              <div style="font-size:20px">✍️</div>
+              <div style="font-size:10px;font-weight:700;color:#0369a1">2. Firmar</div>
+              <div style="font-size:9px;color:#475569">FirmaEC tab (1)</div>
+            </div>
+            <div style="color:#94a3b8;font-size:18px">→</div>
+            <div style="text-align:center;flex:1">
+              <div style="font-size:20px">📤</div>
+              <div style="font-size:10px;font-weight:700;color:#16a34a">3. Subir aquí</div>
+              <div style="font-size:9px;color:#475569">archivo firmado</div>
+            </div>
           </div>
+
+          <!-- Alerta archivo correcto -->
+          <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:7px;
+                      padding:9px 12px;margin-bottom:12px;font-size:11.5px;color:#78350f">
+            ⚠️ <strong>IMPORTANTE:</strong> Borre el archivo
+            <code style="background:#fde68a;padding:1px 4px;border-radius:3px">${nombrePdf}</code>
+            de Descargas <strong>si ya existe</strong> antes de descargarlo de nuevo.<br>
+            Las copias con <strong>(1)</strong>, <strong>(2)</strong>... son el PDF <em>original sin firmar</em>
+            — FirmaEC dirá "Documento sin firmas" si las carga.
+          </div>
+
+          <!-- Pasos -->
+          <ol style="margin:0 0 12px;padding-left:18px;color:#1e293b;font-size:12.5px">
+            <li>Abra <b>FirmaEC 5.1.0</b> → pestaña <b>"Firmar Documento (1)"</b>.</li>
+            <li>Haga clic en <b>"Buscar Documento(s)"</b> → seleccione
+                <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px;font-size:11px">${nombrePdf}</code>.</li>
+            <li>Haga clic en <b>"Buscar Certificado"</b> → seleccione su <b>.p12</b> y contraseña.</li>
+            <li>Haga clic en <b>"Firmar"</b> — FirmaEC genera el archivo firmado automáticamente.</li>
+            <li style="color:#dc2626;font-weight:700">
+              ⛔ NO use la pestaña "Verificar (2)" de FirmaEC — suba el PDF firmado directamente aquí.
+            </li>
+          </ol>
+
+          <!-- Input archivo -->
+          <label style="display:block;font-weight:700;margin-bottom:6px;color:#1e3a8a;font-size:12.5px">
+            📎 Seleccione el PDF que FirmaEC generó después de firmar:
+          </label>
+          <input type="file" id="swal-pdf-firmado" accept=".pdf,application/pdf"
+            style="width:100%;padding:8px 10px;border:2px dashed #6366f1;border-radius:8px;
+                   background:#eef2ff;font-size:12.5px;cursor:pointer;box-sizing:border-box">
+          <p style="font-size:10.5px;color:#64748b;margin:4px 0 0">
+            El nombre del archivo firmado suele terminar en <b>_signed.pdf</b> o tener el mismo nombre del original.
+          </p>
         </div>`,
       showCancelButton:   true,
       confirmButtonText:  'Validar y registrar firma',
@@ -1833,7 +1895,7 @@ export class Formularios implements OnInit, OnDestroy {
           html:  `Firmado por: <b>${resp.firmado_por}</b><br>
                   Progreso del formulario: <b>${resp.porcentaje}%</b>`,
         });
-        this.cargarDetalleFormulario(this.formularioSeleccionado);
+        this.cargarDetalleFormulario(this.formularioSeleccionado, true);
       });
   }
 
@@ -1891,23 +1953,27 @@ export class Formularios implements OnInit, OnDestroy {
       return;
     }
 
-    // Firma del servidor saliente: solo requerida si ese campo fue asignado al usuario
+    // FirmaEC del servidor saliente: requerida si le asignaron ese campo
     const debeFirmarServidor =
       this.esAdmin() ||
+      this.camposAsignadosUsuario.includes('servidor_saliente') ||
       this.camposAsignadosUsuario.includes('cedula_firmante') ||
       this.camposAsignadosUsuario.includes('fecha_firma');
 
-    if (debeFirmarServidor && !this.hasFirma) {
-      this.firmaRequired = true;
+    const firmaYaGuardada = this.camposBloqueados.includes('servidor_saliente');
+    const firmaECOk       = !!this.firmasEC['servidor_saliente'];
+
+    if (debeFirmarServidor && !firmaECOk && !firmaYaGuardada) {
+      this.firmasECRequired['servidor_saliente'] = true;
       this.cdr.markForCheck();
       this.alertaRapida(
         'Firma requerida',
-        'Debe registrar su firma (servidor saliente) para continuar.'
+        'Debe firmar digitalmente con su certificado FirmaEC antes de guardar.'
       );
       return;
     }
 
-    this.firmaRequired = false;
+    this.firmasECRequired['servidor_saliente'] = false;
 
     if (this.esAdmin()) {
       this.validarTodoYEnviar();
@@ -1958,7 +2024,21 @@ export class Formularios implements OnInit, OnDestroy {
     const total = camposAGuardar.length + firmasAGuardar.length;
 
     if (total === 0) {
-      this.alertaRapida('Sin cambios', 'No hay campos ni firmas nuevas para guardar.');
+      // Si todos los campos asignados ya están bloqueados (guardados), informar éxito
+      const todosYaGuardados =
+        this.camposAsignadosUsuario.length > 0 &&
+        this.camposAsignadosUsuario.every(c => this.camposBloqueados.includes(c));
+      if (todosYaGuardados) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Todo guardado correctamente',
+          text: 'Todos sus campos asignados ya han sido guardados.',
+          confirmButtonText: 'Entendido',
+          confirmButtonColor: '#16a34a',
+        });
+      } else {
+        this.alertaRapida('Sin cambios', 'No hay campos ni firmas nuevas para guardar.');
+      }
       return;
     }
 
@@ -1993,7 +2073,7 @@ export class Formularios implements OnInit, OnDestroy {
       this.cdr.markForCheck();
       if (errores === 0) {
         localStorage.removeItem('pazYSalvoDraft');
-        this.cargarDetalleFormulario(this.formularioSeleccionado);
+        this.cargarDetalleFormulario(this.formularioSeleccionado, true);
         // Verificar si el usuario ya completó todos sus campos
         const pendientes = this.camposAsignadosUsuario.filter(
           c => ![...this.camposBloqueados, ...camposAGuardar, ...firmasAGuardar].includes(c)
@@ -2014,14 +2094,14 @@ export class Formularios implements OnInit, OnDestroy {
         const etiquetas = camposFallidos
           .map(c => this.camposFormulario.find(x => x.id === c)?.etiqueta ?? c)
           .join(', ');
-        this.cargarDetalleFormulario(this.formularioSeleccionado);
+        this.cargarDetalleFormulario(this.formularioSeleccionado, true);
         Swal.fire('Advertencia',
           `Se guardaron ${guardados} de ${total}.\nFallaron (${errores}): ${etiquetas}`, 'warning')
           .then(() => {
             if (camposFallidos[0]) this.navegarACampo(camposFallidos[0]);
           });
       } else {
-        this.cargarDetalleFormulario(this.formularioSeleccionado);
+        this.cargarDetalleFormulario(this.formularioSeleccionado, true);
         Swal.fire('Error', `No se pudo guardar ningún campo. Fallaron ${errores}.`, 'error');
       }
     };
@@ -2119,8 +2199,15 @@ export class Formularios implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  cargarDetalleFormulario(f: any): void {
+  cargarDetalleFormulario(f: any, preservarNoGuardados = false): void {
     this.cargando = true;
+
+    // Guardar snapshot de valores actuales ANTES de resetear,
+    // para restaurar campos no guardados si se llama tras una firma.
+    const snapshotAntes = preservarNoGuardados
+      ? this.formularioPazSalvo.getRawValue()
+      : null;
+
     this.formularioPazSalvo.reset();
 
     Object.keys(this.firmasEC).forEach(key => {
@@ -2210,11 +2297,26 @@ export class Formularios implements OnInit, OnDestroy {
       });
 
       this.formularioPazSalvo.patchValue(valores, { emitEvent: false });
-      // patchValue con emitEvent:false no dispara valueChanges, por lo que los
-      // validadores condicionales no se actualizan. Los sincronizamos manualmente.
+
+      // Restaurar valores no guardados del snapshot (los del servidor ya se aplicaron y sobreescriben)
+      if (snapshotAntes) {
+        const restaurar: Record<string, unknown> = {};
+        Object.entries(snapshotAntes).forEach(([k, v]) => {
+          if (k in valores) return;              // ya vino del servidor — no tocar
+          if (v === null || v === undefined || v === '') return;
+          restaurar[k] = v;
+        });
+        if (Object.keys(restaurar).length > 0) {
+          this.formularioPazSalvo.patchValue(restaurar, { emitEvent: false });
+        }
+      }
+
       this.sincronizarValidadoresCondicionales();
       this.aplicarPermisosCampos();
       this.cdr.markForCheck();
+
+      // Pre-cargar imágenes QR para firmas antiguas (sin base64 guardado)
+      this.cargarImagenesFirma();
     });
   }
 
@@ -2450,6 +2552,54 @@ export class Formularios implements OnInit, OnDestroy {
     window.print();
   }
 
+  /**
+   * Descarga el PDF oficial con autenticación.
+   * Si hay _firmaec.pdf (firmado por FirmaEC Desktop) → lo sirve → verificable en FirmaEC tab 2.
+   * Si no, sirve el PDF visual generado por ReportLab.
+   */
+  async descargarPDFOficial(): Promise<void> {
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Sin formulario', 'Seleccione un formulario primero.');
+      return;
+    }
+    const id    = this.formularioSeleccionado.id;
+    const token = localStorage.getItem('token') ?? '';
+    try {
+      const resp = await fetch(`http://localhost:5000/api/formularios/${id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!resp.ok) { this.alertaRapida('Error', 'No se pudo descargar el PDF.'); return; }
+
+      const blob     = await resp.blob();
+      const disposition = resp.headers.get('Content-Disposition') ?? '';
+      const match       = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      const filename    = match?.[1]?.replace(/['"]/g, '') ?? `PazSalvo_${id}.pdf`;
+
+      const url  = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href     = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      const esFirmado = filename.includes('firmado');
+      this.showSwalToast(
+        esFirmado
+          ? '✅ PDF firmado descargado — cárgalo en FirmaEC pestaña 2 para verificar'
+          : '📄 PDF visual descargado — usa el botón FirmaEC Desktop para firmar primero',
+        esFirmado ? 'success' : 'info'
+      );
+    } catch {
+      this.alertaRapida('Error', 'No se pudo descargar el PDF. Verifique que el backend esté activo.');
+    }
+  }
+
+  /**
+   * Genera PDF de la HOJA ESPEJO (el formato visual del formulario en pantalla).
+   * Primero pre-carga todas las imágenes QR de firmas para que aparezcan en el PDF.
+   */
   async exportarHojaEspejoPDF(): Promise<void> {
     const element = document.querySelector('#hojaEspejo') as HTMLElement;
     if (!element) {
@@ -2457,80 +2607,78 @@ export class Formularios implements OnInit, OnDestroy {
       return;
     }
 
+    // Asegurar que las imágenes QR de todas las firmas estén cargadas como base64
+    await this.cargarImagenesFirma();
+
+    // Esperar a que el DOM actualice las imágenes
+    await new Promise(r => setTimeout(r, 400));
+
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const jsPDF    = (await import('jspdf')).default;
+      const jsPDF       = (await import('jspdf')).default;
 
-      const SCALE      = 2;
-      const PAGE_W_MM  = 210;
-      const PAGE_H_MM  = 297;
-      const MARGIN_MM  = 10;                              // margen en todos los lados
-      const CONT_W_MM  = PAGE_W_MM - MARGIN_MM * 2;      // 190 mm — ancho de contenido
-      const CONT_H_MM  = PAGE_H_MM - MARGIN_MM * 2;      // 277 mm — alto de contenido por página
+      const SCALE     = 2;
+      const PAGE_W_MM = 210;
+      const PAGE_H_MM = 297;
+      const MARGIN_MM = 8;
+      const CONT_W_MM = PAGE_W_MM - MARGIN_MM * 2;
+      const CONT_H_MM = PAGE_H_MM - MARGIN_MM * 2;
 
-      // ── 1. Recoger posiciones de cada fila ANTES de capturar ──────────────
+      // Posiciones de filas para no cortar una fila a la mitad
       const elementAbsTop = element.getBoundingClientRect().top + window.scrollY;
-      const rowBottomsPx: number[] = Array.from(element.querySelectorAll('tr'))
+      const rowBottomsPx  = Array.from(element.querySelectorAll('tr'))
         .map(row => {
           const r = row.getBoundingClientRect();
           return (r.bottom + window.scrollY - elementAbsTop) * SCALE;
         })
         .sort((a, b) => a - b);
 
-      // ── 2. Capturar el elemento completo ──────────────────────────────────
       const canvas = await html2canvas(element, {
         scale: SCALE,
         useCORS: true,
+        allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
+        imageTimeout: 8000,
       });
 
-      const canvasW   = canvas.width;
-      const canvasH   = canvas.height;
-      // Relación: el contenido ocupa CONT_W_MM mm en el PDF
-      const pxPerMm   = canvasW / CONT_W_MM;             // canvas px por mm de contenido
-      const pageHpx   = CONT_H_MM * pxPerMm;             // px por página de contenido (277mm)
-
-      // ── 3. Generar páginas cortando justo al final de una fila ────────────
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      let sliceTop    = 0;
-      let firstPage   = true;
+      const canvasW  = canvas.width;
+      const canvasH  = canvas.height;
+      const pxPerMm  = canvasW / CONT_W_MM;
+      const pageHpx  = CONT_H_MM * pxPerMm;
+      const pdf      = new jsPDF('p', 'mm', 'a4');
+      let   sliceTop = 0;
+      let   firstPage = true;
 
       while (sliceTop < canvasH) {
         const naiveEnd = sliceTop + pageHpx;
+        let   sliceEnd: number;
 
-        let sliceEnd: number;
         if (naiveEnd >= canvasH) {
           sliceEnd = canvasH;
         } else {
-          // Última fila que termina DENTRO de esta página
-          const lastRowInPage = rowBottomsPx
-            .filter(b => b > sliceTop && b <= naiveEnd)
-            .pop();
-          sliceEnd = lastRowInPage ?? naiveEnd;
+          const lastRow = rowBottomsPx.filter(b => b > sliceTop && b <= naiveEnd).pop();
+          sliceEnd = lastRow ?? naiveEnd;
         }
 
-        const sliceH    = sliceEnd - sliceTop;
-        const sliceHmm  = sliceH / pxPerMm;
-
-        // Sub-canvas con solo el trozo de esta página
-        const slice     = document.createElement('canvas');
-        slice.width     = canvasW;
-        slice.height    = sliceH;
-        slice.getContext('2d')!
-          .drawImage(canvas, 0, sliceTop, canvasW, sliceH, 0, 0, canvasW, sliceH);
+        const sliceH   = sliceEnd - sliceTop;
+        const sliceHmm = sliceH / pxPerMm;
+        const slice    = document.createElement('canvas');
+        slice.width    = canvasW;
+        slice.height   = sliceH;
+        slice.getContext('2d')!.drawImage(canvas, 0, sliceTop, canvasW, sliceH, 0, 0, canvasW, sliceH);
 
         if (!firstPage) pdf.addPage();
         firstPage = false;
-
-        // Posicionar con márgenes: x=MARGIN_MM, y=MARGIN_MM
-        pdf.addImage(slice.toDataURL('image/png'), 'PNG',
+        pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG',
           MARGIN_MM, MARGIN_MM, CONT_W_MM, sliceHmm);
 
         sliceTop = sliceEnd;
       }
 
-      pdf.save(`paz-y-salvo-${this.formularioSeleccionado?.id ?? 'formulario'}.pdf`);
+      const nombre = this.formularioSeleccionado?.id ?? 'formulario';
+      pdf.save(`PazSalvo_${nombre}.pdf`);
+
     } catch (err) {
       console.error(err);
       Swal.fire('Error', 'No se pudo generar el PDF. Intente de nuevo.', 'error');

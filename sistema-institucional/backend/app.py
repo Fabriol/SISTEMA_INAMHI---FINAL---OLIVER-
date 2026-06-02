@@ -2200,6 +2200,13 @@ _FIRMAEC_SECTIONS = [
              "recepcion_servidor", "recepcion_r1"),
         ],
     },
+    {
+        "titulo": "8. AUTORIZACIÓN — SERVIDOR SALIENTE",
+        "rows": [
+            ("Firma de Autorización del Servidor Saliente (Art. 110 Reglamento LOSEP)",
+             "nombres_apellidos", "servidor_saliente"),
+        ],
+    },
 ]
 
 
@@ -2327,17 +2334,10 @@ def _draw_firma_row(c, y: float, item: str, nombre: str, firma_val: str,
         c.setFillColorRGB(*_C_PEND)
         c.drawString(_CX[2] + 5, y_bot + 6, fecha_f)
     else:
-        # Zona reservada para pyHanko — líneas guía internas
-        c.setStrokeColorRGB(0.80, 0.80, 0.80)
-        c.setLineWidth(0.3)
-        # línea vertical interna a 40 pts (separa QR del texto)
-        c.line(_CX[2] + 40, y_bot + 4, _CX[2] + 40, y_top - 4)
-        c.setFillColorRGB(*_C_PEND)
-        c.setFont("Helvetica-Oblique", 6)
-        c.drawString(_CX[2] + 44, y_top - 18, "Validar únicamente en FirmaEC.")
-        c.drawString(_CX[2] + 44, y_top - 30, "Firmado electrónicamente por:")
-        c.setLineWidth(0.4)
-        c.setStrokeColorRGB(*_C_BLACK)
+        # Celda reservada para pyHanko — fondo blanco limpio.
+        # El sello QR se superpone automáticamente al firmar; no hay texto previo
+        # que interfiera con la firma digital.
+        pass
 
     c.setFillColorRGB(*_C_BLACK)
 
@@ -2480,18 +2480,22 @@ def generar_pdf(formulario_id):
         with open(json_path, "w", encoding="utf-8") as jf:
             json.dump(sig_coords, jf)
 
-        # Si existe el PDF firmado con sellos QR, servirlo directamente.
-        # El original regenerado se guarda solo para registrar coordenadas.
-        signed_path = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
-        if os.path.exists(signed_path):
+        # Prioridad de descarga:
+        # 1. _firmaec.pdf  → firmado por FirmaEC Desktop → VERIFICABLE en FirmaEC tab 2
+        # 2. Original      → visual-only (ReportLab) → no tiene firmas criptográficas
+        # NUNCA _signed.pdf (pyHanko) porque FirmaEC Desktop no lo puede verificar.
+        pdf_firmaec = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_firmaec.pdf")
+        if os.path.exists(pdf_firmaec):
             return send_from_directory(
                 UPLOAD_FOLDER,
-                f"formulario_{formulario_id}_signed.pdf",
+                f"formulario_{formulario_id}_firmaec.pdf",
                 as_attachment=True,
                 download_name=f"PazSalvo_{formulario_id}_firmado.pdf",
             )
-
-        return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+        return send_from_directory(
+            UPLOAD_FOLDER, filename, as_attachment=True,
+            download_name=f"PazSalvo_{formulario_id}.pdf"
+        )
 
     except Exception as e:
         return jsonify({"mensaje": "Error al generar PDF", "error": str(e)}), 500
@@ -2543,41 +2547,62 @@ def firmar_ec_desktop(formulario_id):
             return jsonify({"mensaje": "El archivo recibido no es un PDF válido"}), 400
 
         # ── Validar firma digital incrustada ─────────────────────
-        signer_name = None
+        # FirmaEC Desktop 5.x usa PAdES/PKCS#7. pyHanko puede no reconocerlo
+        # dependiendo de la versión; por eso validamos con múltiples métodos.
+        signer_name      = None
+        firma_encontrada = False
+
+        # Método 1: pyHanko embedded_signatures
         try:
             import io as _io
             from pyhanko.pdf_utils.reader import PdfFileReader as _PdfR
-            reader = _PdfR(_io.BytesIO(pdf_bytes))
-            sigs   = list(reader.embedded_signatures)
+            _reader = _PdfR(_io.BytesIO(pdf_bytes))
+            _sigs   = list(_reader.embedded_signatures)
 
-            if not sigs:
-                return jsonify({
-                    "mensaje": "El PDF no contiene firma digital. "
-                               "Asegúrese de firmar con FirmaEC Desktop antes de enviar."
-                }), 400
-
-            # Extraer nombre del firmante del último certificado
-            try:
-                from asn1crypto import pem as _pem, x509 as _x509
-                raw_cert = sigs[-1].signer_cert.dump()
-                cert_obj = _x509.Certificate.load(raw_cert)
-                signer_name = cert_obj.subject.human_friendly
-            except Exception:
-                pass
-
-            if not signer_name:
-                # Fallback: leer del campo de firma en el PDF
+            if _sigs:
+                firma_encontrada = True
                 try:
-                    signer_name = sigs[-1].sig_object.get('/Name', '').strip() or None
+                    from asn1crypto import x509 as _x509
+                    _raw = _sigs[-1].signer_cert.dump()
+                    _c   = _x509.Certificate.load(_raw)
+                    signer_name = _c.subject.human_friendly
                 except Exception:
                     pass
-
+                if not signer_name:
+                    try:
+                        signer_name = _sigs[-1].sig_object.get('/Name', '').strip() or None
+                    except Exception:
+                        pass
         except ImportError:
-            # pyhanko no disponible para lectura (raro) — aceptar de igual modo
-            signer_name = None
-        except Exception as ve:
-            print(f"[firmar-ec-desktop] Advertencia validación: {ve}")
-            signer_name = None
+            pass
+        except Exception as _ve:
+            print(f"[firmar-ec-desktop] pyhanko check: {_ve}")
+
+        # Método 2: inspección raw del PDF (FirmaEC usa /Sig con /ByteRange + /Contents)
+        if not firma_encontrada:
+            _scan = pdf_bytes[:300_000]
+            _hard = [b'/ByteRange', b'adbe.pkcs7', b'ETSI.CAdES', b'ETSI.RFC3161',
+                     b'pkcs7-detached', b'pkcs7.sha1', b'ETSI.CAdES.detached']
+            _soft = [b'/Sig', b'/SubFilter', b'/Contents', b'/Filter', b'Adobe.PPKLite']
+            _hard_found = sum(1 for i in _hard if i in _scan)
+            _soft_found = sum(1 for i in _soft if i in _scan)
+            # Firma válida si hay al menos 1 indicador fuerte O 3 débiles
+            if _hard_found >= 1 or _soft_found >= 3:
+                firma_encontrada = True
+                print(f"[firmar-ec-desktop] Firma detectada raw: hard={_hard_found} soft={_soft_found}")
+
+        if not firma_encontrada:
+            return jsonify({
+                "mensaje": (
+                    "El PDF no contiene una firma digital reconocida. "
+                    "Pasos para firmar correctamente:\n"
+                    "1. Abra FirmaEC 5.1 → pestaña 'Firmar Documento (1)'.\n"
+                    "2. Cargue el PDF descargado (el original, no una copia).\n"
+                    "3. Seleccione su certificado .p12 y contraseña.\n"
+                    "4. Haga clic en 'Firmar' y espere que FirmaEC genere el PDF firmado.\n"
+                    "5. El PDF FIRMADO (no el original) es el que debe subir aquí."
+                )
+            }), 400
 
         # Si no se pudo extraer del PDF, intentar con cert_b64 provisto por el cliente
         if not signer_name and cert_b64:
@@ -2627,9 +2652,11 @@ def firmar_ec_desktop(formulario_id):
         if cursor.fetchone():
             return jsonify({"mensaje": "Esta celda ya fue firmada y no puede modificarse."}), 400
 
-        # ── Guardar PDF firmado ───────────────────────────────────
-        pdf_signed = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
-        with open(pdf_signed, "wb") as fout:
+        # ── Guardar PDF firmado por FirmaEC Desktop ───────────────
+        # Se guarda en _firmaec.pdf (separado de _signed.pdf de pyHanko)
+        # para que generar_pdf pueda servirlo y FirmaEC pueda verificarlo.
+        pdf_firmaec = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_firmaec.pdf")
+        with open(pdf_firmaec, "wb") as fout:
             fout.write(pdf_bytes)
 
         # ── Registrar en BD ──────────────────────────────────────
@@ -2746,8 +2773,14 @@ def obtener_pdf_bytes(formulario_id):
             if hasattr(gen_resp, 'status_code') and gen_resp.status_code not in (200,):
                 return jsonify({"mensaje": "No se pudo generar el PDF automáticamente."}), 500
 
-        if os.path.exists(pdf_signed):
-            ruta = pdf_signed
+        # Para el flujo FirmaEC Desktop:
+        # - Si ya existe _firmaec.pdf (alguien firmó con FirmaEC antes), servir ESE
+        #   para que FirmaEC pueda agregar su firma INCREMENTAL sobre las anteriores.
+        # - Si no, servir el original limpio.
+        # NUNCA servir _signed.pdf (pyHanko) porque FirmaEC no puede firmar encima.
+        pdf_firmaec = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_firmaec.pdf")
+        if os.path.exists(pdf_firmaec):
+            ruta = pdf_firmaec
         elif os.path.exists(pdf_orig):
             ruta = pdf_orig
         else:
@@ -3040,13 +3073,31 @@ def firmar_ec_pdf(formulario_id):
                 "mensaje": "El PDF no se pudo generar. Use 'Descargar PDF' primero."
             }), 400
 
-        if not os.path.exists(json_path):
-            return jsonify({
-                "mensaje": (
-                    "El mapa de coordenadas no existe. "
-                    "Regenere el PDF con el botón 'Descargar PDF' para actualizarlo."
-                )
-            }), 400
+        # Si no existe el JSON o al campo le faltan coordenadas → regenerar PDF
+        _json_ok = os.path.exists(json_path)
+        _campo_falta = False
+        if _json_ok:
+            try:
+                with open(json_path, "r", encoding="utf-8") as _jf_chk:
+                    _map_chk = json.load(_jf_chk)
+                if campo_firma not in _map_chk:
+                    _campo_falta = True
+            except Exception:
+                _json_ok = False
+
+        if not _json_ok or _campo_falta:
+            # Auto-regenerar PDF para actualizar coordenadas
+            try:
+                close_db(cursor, conn)
+                cursor = conn = None
+                generar_pdf(formulario_id)
+                conn   = get_connection()
+                cursor = conn.cursor(dictionary=True)
+            except Exception:
+                if not _json_ok:
+                    return jsonify({
+                        "mensaje": "El mapa de coordenadas no existe. Use 'Descargar PDF' primero."
+                    }), 400
 
         # ── Firmar con pyHanko ───────────────────────────────────
         # Destino siempre es _signed.pdf (se sobreescribe incrementalmente)
@@ -3128,57 +3179,179 @@ def firmar_ec_pdf(formulario_id):
 
 def _generar_sello_preview(signer_name: str) -> str:
     """
-    Genera PNG del sello FirmaEC (QR + texto) y lo devuelve como data-URL base64.
-    Mismo formato visual que el sello pyHanko en el PDF:
-        [QR]  Validar únicamente en FirmaEC.
-              Firmado electrónicamente por:
-              NOMBRE COMPLETO
+    Genera PNG del sello FirmaEC — fiel copia del formato oficial.
+
+    Layout (idéntico al sello que imprime FirmaEC Ecuador):
+    ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+    │  [QR grande]  │  Validar únicamente en FirmaEC.         │
+    │               │  Firmado electrónicamente por:          │
+    │               │  NOMBRE FIRMANTE (negrita grande)        │
+    └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
     """
     import qrcode as _qrc
-    from PIL import Image as _Img, ImageDraw as _Drw
-    import io as _io2, base64 as _b64
+    from PIL import Image as _Img, ImageDraw as _Drw, ImageFont as _Font
+    import io as _io2, base64 as _b64, unicodedata as _ud
 
-    IMG_W, IMG_H = 400, 130
-    QR_SIZE      = 110
-    DIV_X        = QR_SIZE + 12
-    TX           = DIV_X + 10
+    # Normalizar a NFC para evitar bugs de PIL con chars compuestos (é, ó, ú…)
+    def _nfc(s):
+        return _ud.normalize('NFC', s)
+
+    # ── Dimensiones ────────────────────────────────────────────
+    SCALE  = 3                        # factor de super-sampling (mejor calidad QR)
+    IMG_W  = 620 * SCALE
+    IMG_H  = 180 * SCALE
+    PAD    = 6  * SCALE
+    QR_SZ  = (IMG_H - PAD * 2)       # QR ocupa casi toda la altura
+    DIV_X  = PAD + QR_SZ + 8 * SCALE
+    TX     = DIV_X + 8 * SCALE
+    TW     = IMG_W - TX - PAD
 
     img  = _Img.new("RGB", (IMG_W, IMG_H), "white")
     draw = _Drw.Draw(img)
 
-    qr = _qrc.QRCode(version=2, box_size=4, border=1,
-                     error_correction=_qrc.constants.ERROR_CORRECT_M)
+    # ── QR Code — ERROR_CORRECT_H para máxima legibilidad ────────
+    # Generamos el QR a un tamaño fijo grande y escalamos al área disponible
+    qr = _qrc.QRCode(
+        version          = None,
+        box_size         = 15,            # módulos grandes = QR más fácil de escanear
+        border           = 2,
+        error_correction = _qrc.constants.ERROR_CORRECT_H,
+    )
     qr.add_data("https://validar.firmaec.ec")
     qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
-    qr_img = qr_img.resize((QR_SIZE, QR_SIZE), _Img.LANCZOS)
-    img.paste(qr_img, (4, (IMG_H - QR_SIZE) // 2))
+    # Usar colores puros para máximo contraste negro/blanco
+    qr_pil   = qr.make_image(fill_color=(0, 0, 0), back_color=(255, 255, 255))
+    qr_rgb   = qr_pil.convert("RGB")
+    # NEAREST preserve los módulos nítidos — sin antialiasing/blur
+    qr_final = qr_rgb.resize((QR_SZ, QR_SZ), _Img.NEAREST)
+    img.paste(qr_final, (PAD, PAD))
 
-    draw.line([(DIV_X, 8), (DIV_X, IMG_H - 8)], fill="#888888", width=1)
+    # ── Divisor vertical ───────────────────────────────────────
+    draw.line([(DIV_X, PAD + 4 * SCALE), (DIV_X, IMG_H - PAD - 4 * SCALE)],
+              fill=(180, 180, 180), width=SCALE)
 
-    draw.text((TX, 12), "Validar únicamente en FirmaEC.", fill=(0, 30, 130))
-    draw.text((TX, 30), "Firmado electrónicamente por:",  fill=(60, 60, 60))
+    # ── Cargar fuentes TTF con fallback ────────────────────────
+    SZ_LABEL = 12 * SCALE
+    SZ_SUB   = 11 * SCALE
+    SZ_NAME  = 16 * SCALE
 
-    # Nombre: dividir en líneas de máx 24 chars
-    words, lines, cur = (signer_name or "FIRMANTE").split(), [], ""
-    for w in words:
-        test = (cur + " " + w).strip() if cur else w
-        if len(test) <= 24:
-            cur = test
+    _REG = [
+        "C:/Windows/Fonts/arial.ttf",    "C:/Windows/Fonts/Arial.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    _BLD = [
+        "C:/Windows/Fonts/arialbd.ttf",  "C:/Windows/Fonts/ArialBD.ttf",
+        "C:/Windows/Fonts/cour.ttf",     "C:/Windows/Fonts/Cour.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    ]
+    _MONO = [
+        "C:/Windows/Fonts/courbd.ttf",   "C:/Windows/Fonts/CourBD.ttf",
+        "C:/Windows/Fonts/cour.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+    ]
+
+    def _tf(paths, sz):
+        for p in paths:
+            try:
+                return _Font.truetype(p, sz)
+            except Exception:
+                pass
+        try:
+            return _Font.load_default(size=sz)
+        except Exception:
+            return _Font.load_default()
+
+    f_label = _tf(_REG,  SZ_LABEL)
+    f_sub   = _tf(_REG,  SZ_SUB)
+    f_name  = _tf(_MONO, SZ_NAME)   # Courier Bold — idéntico al sello FirmaEC real
+
+    # ── Dibujar texto — NFC para evitar bugs PIL con acentos ──────
+    # Dibujamos palabra por palabra midiendo con textbbox para evitar
+    # el bug de PIL donde los acentos distorsionan el avance del cursor.
+    def _draw_words(text, x_start, y, font, color):
+        words = _nfc(text).split(' ')
+        x = x_start
+        SPACE_W = max(SZ_LABEL // 4, 4)
+        try:
+            # Medir el espacio con el font actual
+            bb_sp = draw.textbbox((0, 0), 'n n', font=font)
+            bb_n  = draw.textbbox((0, 0), 'nn',  font=font)
+            SPACE_W = max(bb_sp[2] - bb_n[2], SZ_LABEL // 5)
+        except Exception:
+            pass
+        for w in words:
+            if not w:
+                continue
+            draw.text((x, y), w, font=font, fill=color)
+            try:
+                bb = draw.textbbox((0, 0), w, font=font)
+                x += bb[2] + SPACE_W
+            except Exception:
+                x += len(w) * (SZ_LABEL // 2) + SPACE_W
+
+    Y1 = PAD + 12 * SCALE
+    # Negro puro para máximo contraste — fácil de leer en cualquier impresión
+    _draw_words("Validar únicamente en FirmaEC.", TX, Y1, f_label, (0, 0, 0))
+
+    Y2 = Y1 + 20 * SCALE
+    _draw_words("Firmado electrónicamente por:", TX, Y2, f_sub, (30, 30, 30))
+
+    # ── Nombre en MAYÚSCULAS — Courier Bold, dividido en líneas ──
+    nombre_up = _nfc((signer_name or "FIRMANTE").upper())
+    words_n, lines_n, cur_n = nombre_up.split(), [], ""
+    for w in words_n:
+        test = (cur_n + " " + w).strip() if cur_n else w
+        try:
+            bb = draw.textbbox((0, 0), test, font=f_name)
+            fits = bb[2] <= TW
+        except Exception:
+            fits = len(test) <= 20
+        if fits:
+            cur_n = test
         else:
-            if cur: lines.append(cur)
-            cur = w
-    if cur: lines.append(cur)
+            if cur_n:
+                lines_n.append(cur_n)
+            cur_n = w
+    if cur_n:
+        lines_n.append(cur_n)
 
-    ny = 52
-    for ln in lines[:3]:
-        draw.text((TX, ny), ln, fill=(0, 0, 0))
-        ny += 18
+    ny = Y2 + 22 * SCALE
+    for ln in lines_n[:3]:
+        draw.text((TX, ny), ln, font=f_name, fill=(0, 0, 0))
+        ny += 22 * SCALE
 
-    draw.rectangle([0, 0, IMG_W - 1, IMG_H - 1], outline="#AAAAAA", width=1)
+    # ── Borde PUNTEADO (estilo FirmaEC auténtico) ──────────────
+    DASH = 8 * SCALE
+    GAP  = 5 * SCALE
+    BC   = (90, 150, 90)
+    BW   = 2 * SCALE
+    x1, y1, x2, y2 = 2, 2, IMG_W - 3, IMG_H - 3
+
+    def _dline(p1, p2, horiz):
+        if horiz:
+            x, ex = p1[0], p2[0]
+            while x < ex:
+                draw.line([(x, p1[1]), (min(x + DASH, ex), p1[1])], fill=BC, width=BW)
+                x += DASH + GAP
+        else:
+            y, ey = p1[1], p2[1]
+            while y < ey:
+                draw.line([(p1[0], y), (p1[0], min(y + DASH, ey))], fill=BC, width=BW)
+                y += DASH + GAP
+
+    _dline((x1, y1), (x2, y1), True)
+    _dline((x1, y2), (x2, y2), True)
+    _dline((x1, y1), (x1, y2), False)
+    _dline((x2, y1), (x2, y2), False)
+
+    # ── Reducir al tamaño final (anti-aliasing por downscale) ──
+    final = img.resize((IMG_W // SCALE, IMG_H // SCALE), _Img.LANCZOS)
 
     buf = _io2.BytesIO()
-    img.save(buf, format="PNG", optimize=True)
+    final.save(buf, format="PNG", optimize=True)
     return "data:image/png;base64," + _b64.b64encode(buf.getvalue()).decode()
 
 
@@ -3257,10 +3430,18 @@ def _pyhanko_firmar(
         raise RuntimeError(f"No se pudo leer el mapa de coordenadas: {exc}")
 
     if campo_firma not in sig_map:
-        raise RuntimeError(
-            f"La celda '{campo_firma}' no tiene coordenadas registradas. "
-            "Regenere el PDF para actualizar el mapa."
-        )
+        # Fallback para campos nuevos (ej: servidor_saliente) en PDFs ya generados.
+        # Se coloca la firma en el margen inferior derecho de la última página del PDF.
+        try:
+            from pyhanko.pdf_utils.reader import PdfFileReader as _PdfRfb
+            with open(src_path, "rb") as _fbrb:
+                _rdr = _PdfRfb(_fbrb)
+                _last_page = max(0, _rdr.get_num_pages() - 1)
+        except Exception:
+            _last_page = 0
+        # Posición: esquina inferior-derecha, ancho 160 pts, alto 80 pts
+        sig_map[campo_firma] = (395, 50, 555, 130, _last_page)
+        print(f"[pyhanko] Fallback coords para '{campo_firma}': página {_last_page}")
 
     coords   = sig_map[campo_firma]          # [x1, y1, x2, y2, page]
     SIG_BOX  = (coords[0], coords[1], coords[2], coords[3])
@@ -3270,7 +3451,7 @@ def _pyhanko_firmar(
     # QR apunta a https://validar.firmaec.ec (portal oficial de validación).
     # El PDF firmado con el certificado FirmaEC real puede verificarse ahí.
     qr_url      = "https://validar.firmaec.ec"
-    nombre_disp = signer_name[:40] if len(signer_name) > 40 else signer_name
+    nombre_disp = signer_name[:60] if len(signer_name) > 60 else signer_name
     stamp_style = QRStampStyle(
         stamp_text=(
             "Validar únicamente en FirmaEC.\n"
@@ -3278,10 +3459,11 @@ def _pyhanko_firmar(
             "%(signer)s"
         ),
         text_box_style=TextBoxStyle(
-            font_size  = 10,
-            text_color = (0.0, 0.0, 0.0),
+            font_size  = 9,
+            text_color = (0.0, 0.12, 0.51),
         ),
         background_opacity = 1.0,
+        border_width       = 1,
     )
 
     # ── Escribir PDF firmado (incremental) ───────────────────────
@@ -3307,12 +3489,20 @@ def _pyhanko_firmar(
             ),
         )
 
+        # Usar ETSI.CAdES.detached para máxima compatibilidad con FirmaEC Desktop 5.x
+        try:
+            from pyhanko.sign.fields import SigSeedSubFilter as _SF
+            _subfilter = _SF.ETSI_CADES_DETACHED
+        except Exception:
+            _subfilter = None
+
         meta = PdfSignatureMetadata(
             field_name = FIELD_NAME,
             reason     = f"Paz y Salvo INAMHI — {campo_firma}",
             location   = "Ecuador",
             name       = signer_name,
             certify    = False,
+            **({'subfilter': _subfilter} if _subfilter is not None else {}),
         )
 
         pdf_signer_obj = PdfSigner(meta, signer, stamp_style=stamp_style)

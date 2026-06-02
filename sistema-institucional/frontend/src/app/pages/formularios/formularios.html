@@ -903,27 +903,27 @@
               y/o especies a su cargo, los mismos que serán <strong>DESCONTADOS</strong> a través del rol
               de pagos y/o liquidación de haberes.
             </p>
-            <div class="firma-tabs" role="tablist">
-              <button type="button" class="firma-tab" [class.active]="firmaMode === 'canvas'" (click)="setFirmaMode('canvas')">✏️ Dibujar</button>
-              <button type="button" class="firma-tab" [class.active]="firmaMode === 'upload'" (click)="setFirmaMode('upload')">📎 Cargar imagen</button>
+
+            <!-- Firma FirmaEC del servidor saliente -->
+            <div class="firma-firmaec-saliente">
+              <div class="firma-firmaec-saliente__preview" *ngIf="getFirmaImagen('servidor_saliente') || getFirmaNombre('servidor_saliente') || esCampoGuardado('servidor_saliente')">
+                <img *ngIf="getFirmaImagen('servidor_saliente')" [src]="getFirmaImagen('servidor_saliente')!" class="firma-preview-img" alt="Sello FirmaEC">
+                <span *ngIf="getFirmaNombre('servidor_saliente') && !getFirmaImagen('servidor_saliente')" class="ep-firma-ec-nombre">{{ getFirmaNombre('servidor_saliente') }}</span>
+                <span *ngIf="esCampoGuardado('servidor_saliente') && !getFirmaImagen('servidor_saliente') && !getFirmaNombre('servidor_saliente')" class="firma-ok-msg">🔒 Firmado</span>
+              </div>
+              <ng-container *ngIf="!esCampoGuardado('servidor_saliente') && firmasECRequired['servidor_saliente']">
+                <button type="button" class="btn-firmaec-desktop"
+                  [disabled]="p12Cargando['servidor_saliente']"
+                  (click)="abrirModalFirmaEC('servidor_saliente')">
+                  <span *ngIf="!p12Cargando['servidor_saliente']">✍ Firmar con FirmaEC</span>
+                  <span *ngIf="p12Cargando['servidor_saliente']">⏳ Firmando…</span>
+                </button>
+              </ng-container>
+              <span *ngIf="!firmasECRequired['servidor_saliente'] && !esCampoGuardado('servidor_saliente') && !firmasEC['servidor_saliente']" class="firma-no-asignada">— No asignado aún —</span>
+              <div class="firma-requerida-msg" *ngIf="firmasECRequired['servidor_saliente'] && !firmasEC['servidor_saliente']" role="alert">⚠️ La firma FirmaEC es OBLIGATORIA para guardar.</div>
+              <div class="firma-ok-msg" *ngIf="firmasEC['servidor_saliente']">✅ Firma registrada correctamente.</div>
             </div>
-            <div class="firma-canvas-wrapper" *ngIf="firmaMode === 'canvas'">
-              <canvas #firmaCanvas class="firma-canvas" [class.firma-canvas--error]="firmaRequired && !hasFirma" width="560" height="140"
-                (mousedown)="startDrawing($event)" (mousemove)="draw($event)" (mouseup)="stopDrawing()" (mouseleave)="stopDrawing()"
-                (touchstart)="startDrawingTouch($event)" (touchmove)="drawTouch($event)" (touchend)="stopDrawing()"></canvas>
-              <p class="firma-hint" *ngIf="!hasFirma">Dibuje su firma aquí</p>
-              <button type="button" class="btn-secondary-sm" (click)="clearFirma()" [disabled]="!hasFirma">🗑 Limpiar</button>
-            </div>
-            <div class="firma-upload-wrapper" *ngIf="firmaMode === 'upload'">
-              <label class="firma-upload-area" [class.has-file]="firmaImagePreview" [class.firma-upload-area--error]="firmaRequired && !hasFirma">
-                <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" (change)="onFirmaFileChange($event)" hidden />
-                <ng-container *ngIf="!firmaImagePreview"><span class="upload-icon">📁</span><span>Arrastra o haz clic para seleccionar tu firma</span><span class="upload-hint">PNG, JPG, WEBP — máx. 2 MB</span></ng-container>
-                <img *ngIf="firmaImagePreview" [src]="firmaImagePreview" alt="Vista previa" class="firma-preview-img" />
-              </label>
-              <button type="button" class="btn-secondary-sm" *ngIf="firmaImagePreview" (click)="clearFirma()">🗑 Eliminar</button>
-            </div>
-            <div class="firma-requerida-msg" *ngIf="firmaRequired && !hasFirma" role="alert">⚠️ La firma es OBLIGATORIA para enviar el formulario.</div>
-            <div class="firma-ok-msg" *ngIf="hasFirma">✅ Firma registrada correctamente.</div>
+
             <div class="doc-fields-grid" style="margin-top:12px">
               <div class="input-group" [class.has-error]="formularioPazSalvo.get('cedula_firmante')?.invalid && formularioPazSalvo.get('cedula_firmante')?.touched" [class.has-success]="formularioPazSalvo.get('cedula_firmante')?.valid && formularioPazSalvo.get('cedula_firmante')?.touched">
                 <label>C.C. del Firmante <span class="req">*</span></label>
@@ -973,6 +973,12 @@
         <div class="espejo-actions">
           <button type="button" class="btn-ghost-sm" (click)="printMirror()">🖨 Imprimir</button>
           <button type="button" class="btn-ghost-sm" (click)="exportarHojaEspejoPDF()">⬇ PDF</button>
+          <button type="button" class="btn-ghost-sm btn-ghost-sm--firmaec"
+            *ngIf="formularioSeleccionado"
+            (click)="descargarPDFOficial()"
+            title="Descarga el PDF firmado con FirmaEC — verificable en FirmaEC tab 2">
+            🔏 PDF Oficial (FirmaEC)
+          </button>
         </div>
       </div>
 
@@ -1464,12 +1470,12 @@
               <div class="ep-auth-firma-area">
                 <div class="ep-auth-firma-box">
                   <div class="ep-auth-firma-preview">
-                    <img *ngIf="firmaImagePreview" [src]="firmaImagePreview" class="ep-auth-firma-img" alt="Firma servidor">
-                    <span *ngIf="!firmaImagePreview" class="ep-auth-firma-placeholder">[ Firma del Servidor ]</span>
+                    <img *ngIf="getFirmaImagen('servidor_saliente')" [src]="getFirmaImagen('servidor_saliente')!" class="ep-auth-firma-img" alt="Sello FirmaEC">
+                    <span *ngIf="getFirmaNombre('servidor_saliente') && !getFirmaImagen('servidor_saliente')" class="ep-firma-ec-nombre" style="font-size:11px;font-weight:700;">{{ getFirmaNombre('servidor_saliente') }}</span>
+                    <span *ngIf="!getFirmaImagen('servidor_saliente') && !getFirmaNombre('servidor_saliente')" class="ep-auth-firma-placeholder">[ FirmaEC — Servidor Saliente ]</span>
                   </div>
                   <div class="ep-auth-firma-linea"></div>
                   <div class="ep-auth-firma-datos">
-                    <div class="ep-auth-dato"><span class="ep-auth-label">NOMBRES Y APELLIDOS:</span><span class="ep-auth-val">{{formularioPazSalvo.get('nombres_apellidos')?.value||'—'}}</span></div>
                     <div class="ep-auth-dato"><span class="ep-auth-label">CÉDULA DEL FIRMANTE:</span><span class="ep-auth-val ep-td--mono">{{formularioPazSalvo.get('cedula_firmante')?.value||'—'}}</span></div>
                     <div class="ep-auth-dato"><span class="ep-auth-label">FECHA DE FIRMA:</span><span class="ep-auth-val ep-td--mono">{{formularioPazSalvo.get('fecha_firma')?.value||'—'}}</span></div>
                   </div>
