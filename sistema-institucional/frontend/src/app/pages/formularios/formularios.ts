@@ -1011,17 +1011,32 @@ export class Formularios implements OnInit, OnDestroy {
     return this.camposBloqueados.includes(campo);
   }
 
-  /** Devuelve el src de imagen si firmasEC[campo] es una imagen base64, o null. */
+  /**
+   * Devuelve la URL/base64 de la imagen del sello QR FirmaEC para el campo.
+   * - Si tiene base64 guardado (nueva firma): lo devuelve directamente.
+   * - Si tiene nombre (firma antigua): usa el endpoint /api/sello-preview para generar QR on-demand.
+   * - Si no hay nada: devuelve null.
+   */
   getFirmaImagen(campo: string): string | null {
     const v = this.firmasEC[campo];
-    if (v && (v as string).startsWith('data:image')) return v as string;
+    if (!v) return null;
+    const s = v as string;
+    if (s.startsWith('data:image')) return s;
+    // Firma antigua: nombre de texto → generar QR on-demand via backend
+    if (s && s !== 'FIRMADO') {
+      return `http://localhost:5000/api/sello-preview?nombre=${encodeURIComponent(s)}`;
+    }
     return null;
   }
 
-  /** Devuelve el nombre del firmante si firmasEC[campo] es texto (firma FirmaEC real), o null. */
+  /** Solo devuelve nombre cuando NO hay imagen disponible (fallback de último recurso). */
   getFirmaNombre(campo: string): string | null {
     const v = this.firmasEC[campo];
-    if (v && !(v as string).startsWith('data:image')) return v as string;
+    if (!v) return null;
+    const s = v as string;
+    // Hay imagen → no mostrar texto
+    if (s.startsWith('data:image') || s.startsWith('http')) return null;
+    if (s === 'FIRMADO') return 'FIRMADO';
     return null;
   }
 
@@ -1457,8 +1472,8 @@ export class Formularios implements OnInit, OnDestroy {
       .subscribe((resp: any) => {
         if (!resp) return;
         this.p12NombreFirmante[campoFirma] = resp.firmado_por ?? '';
-        // Guardar nombre del firmante para el preview de la tabla
-        this.firmasEC[campoFirma] = resp.firmado_por ?? 'FIRMADO';
+        // Guardar imagen QR del sello para el preview de la tabla
+        this.firmasEC[campoFirma] = resp.firma_imagen || resp.firmado_por || 'FIRMADO';
         if (!this.camposBloqueados.includes(campoFirma)) {
           this.camposBloqueados.push(campoFirma);
         }
@@ -2161,11 +2176,17 @@ export class Formularios implements OnInit, OnDestroy {
         this.camposAsignadosUsuario.push(campo);
 
         if (p.respuesta !== null && p.respuesta !== undefined && p.respuesta !== '') {
-          // Si es firma FirmaEC, guardar solo el nombre del firmante (no el texto completo)
           const resp = p.respuesta as string;
           if (resp.startsWith('FIRMADO_EC:')) {
-            const partes = resp.split(':');
-            this.firmasEC[campo] = partes[1] ?? 'FIRMADO';
+            // Formato: FIRMADO_EC:nombre:fecha|base64png
+            // Si hay imagen base64 guardada, usarla; si no, guardar nombre
+            const pipePart = resp.split('|');
+            if (pipePart.length > 1 && pipePart[1].startsWith('data:image')) {
+              this.firmasEC[campo] = pipePart[1]; // imagen QR guardada
+            } else {
+              const partes = pipePart[0].split(':');
+              this.firmasEC[campo] = partes[1] ?? 'FIRMADO'; // fallback: nombre
+            }
           } else {
             this.firmasEC[campo] = resp;
           }

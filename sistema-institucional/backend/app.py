@@ -2016,9 +2016,41 @@ def responder_formulario():
         porcentaje  = min(round((completados / TOTAL_CAMPOS_ESPEJO) * 100), 100)
         estado_form = "COMPLETADO" if completados >= TOTAL_CAMPOS_ESPEJO else "EN_PROCESO"
 
-        cursor.execute("""
-            UPDATE formularios SET porcentaje = %s, estado = %s WHERE id = %s
-        """, (porcentaje, estado_form, formulario_id))
+        # UPDATE con reintento automático ante deadlock (error 1213)
+        import time as _time
+        _max_reintentos = 4
+        for _intento in range(_max_reintentos):
+            try:
+                cursor.execute("""
+                    UPDATE formularios SET porcentaje = %s, estado = %s WHERE id = %s
+                """, (porcentaje, estado_form, formulario_id))
+                break
+            except mysql.connector.errors.InternalError as _de:
+                if getattr(_de, 'errno', None) == 1213 and _intento < _max_reintentos - 1:
+                    conn.rollback()
+                    _time.sleep(0.08 * (_intento + 1))
+                    # Reconectar y reiniciar la transacción
+                    close_db(cursor, conn)
+                    conn   = get_connection()
+                    cursor = conn.cursor(dictionary=True)
+                    # Re-marcar asignación como culminada y re-calcular porcentaje
+                    if asignacion_id:
+                        cursor.execute("""
+                            UPDATE formulario_asignaciones
+                            SET estado = 'CULMINADO', fecha_culminado = NOW()
+                            WHERE id = %s
+                        """, (asignacion_id,))
+                    cursor.execute("""
+                        SELECT COUNT(*) AS completados
+                        FROM formulario_asignaciones
+                        WHERE formulario_id = %s AND estado = 'CULMINADO'
+                    """, (formulario_id,))
+                    _prog   = cursor.fetchone()
+                    completados = _prog["completados"] or 0
+                    porcentaje  = min(round((completados / TOTAL_CAMPOS_ESPEJO) * 100), 100)
+                    estado_form = "COMPLETADO" if completados >= TOTAL_CAMPOS_ESPEJO else "EN_PROCESO"
+                    continue
+                raise
 
         conn.commit()
 
@@ -2448,10 +2480,16 @@ def generar_pdf(formulario_id):
         with open(json_path, "w", encoding="utf-8") as jf:
             json.dump(sig_coords, jf)
 
-        # Si existe un PDF firmado previo, borrarlo para evitar desincronía
+        # Si existe el PDF firmado con sellos QR, servirlo directamente.
+        # El original regenerado se guarda solo para registrar coordenadas.
         signed_path = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
         if os.path.exists(signed_path):
-            os.remove(signed_path)
+            return send_from_directory(
+                UPLOAD_FOLDER,
+                f"formulario_{formulario_id}_signed.pdf",
+                as_attachment=True,
+                download_name=f"PazSalvo_{formulario_id}_firmado.pdf",
+            )
 
         return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
@@ -2646,6 +2684,32 @@ def firmar_ec_desktop(formulario_id):
         return jsonify({"mensaje": "Error al procesar firma", "error": str(e)}), 500
     finally:
         close_db(cursor, conn)
+
+
+# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
+#  ENDPOINT: SELLO PREVIEW QR (sin autenticación, para img src)
+# ═══════════════════════════════════════════════════════════════
+
+@app.route("/api/sello-preview", methods=["GET"])
+def sello_preview():
+    """
+    Devuelve imagen PNG del sello FirmaEC (QR + texto) para un firmante dado.
+    No requiere autenticación — se usa como src de img en la hoja espejo.
+    Parámetros: ?nombre=NOMBRE%20APELLIDO
+    """
+    from flask import make_response
+    nombre = (request.args.get("nombre") or "FIRMANTE").strip()
+    try:
+        import base64 as _b64mod
+        b64_data_url = _generar_sello_preview(nombre)
+        png_bytes = _b64mod.b64decode(b64_data_url.split(",")[1])
+        resp = make_response(png_bytes)
+        resp.headers["Content-Type"]  = "image/png"
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -3002,8 +3066,14 @@ def firmar_ec_pdf(formulario_id):
             return jsonify({"mensaje": str(exc)}), 400
 
         # ── Guardar resultado en BD ──────────────────────────────
+        # Formato: FIRMADO_EC:{nombre}:{fecha}|{base64_png}
+        # generar_pdf lee la parte antes del "|"; el frontend usa el base64 para mostrar QR.
         fecha_firma = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        marca = f"FIRMADO_EC:{signer_name}:{fecha_firma}"
+        try:
+            _sello_b64 = _generar_sello_preview(signer_name)
+        except Exception:
+            _sello_b64 = ""
+        marca = f"FIRMADO_EC:{signer_name}:{fecha_firma}|{_sello_b64}"
         cursor.execute("""
             INSERT INTO formulario_respuestas
                    (formulario_id, pregunta_id, asignacion_id, respondido_por, respuesta)
@@ -3041,10 +3111,11 @@ def firmar_ec_pdf(formulario_id):
         )
 
         return jsonify({
-            "mensaje"    : "PDF firmado correctamente con su certificado FirmaEC.",
-            "firmado_por": signer_name,
-            "porcentaje" : porcentaje,
-            "estado"     : estado_form,
+            "mensaje"     : "PDF firmado correctamente con su certificado FirmaEC.",
+            "firmado_por" : signer_name,
+            "porcentaje"  : porcentaje,
+            "estado"      : estado_form,
+            "firma_imagen": _sello_b64,
         }), 200
 
     except Exception as exc:
@@ -3053,6 +3124,62 @@ def firmar_ec_pdf(formulario_id):
         return jsonify({"mensaje": "Error inesperado al firmar", "error": str(exc)}), 500
     finally:
         close_db(cursor, conn)
+
+
+def _generar_sello_preview(signer_name: str) -> str:
+    """
+    Genera PNG del sello FirmaEC (QR + texto) y lo devuelve como data-URL base64.
+    Mismo formato visual que el sello pyHanko en el PDF:
+        [QR]  Validar únicamente en FirmaEC.
+              Firmado electrónicamente por:
+              NOMBRE COMPLETO
+    """
+    import qrcode as _qrc
+    from PIL import Image as _Img, ImageDraw as _Drw
+    import io as _io2, base64 as _b64
+
+    IMG_W, IMG_H = 400, 130
+    QR_SIZE      = 110
+    DIV_X        = QR_SIZE + 12
+    TX           = DIV_X + 10
+
+    img  = _Img.new("RGB", (IMG_W, IMG_H), "white")
+    draw = _Drw.Draw(img)
+
+    qr = _qrc.QRCode(version=2, box_size=4, border=1,
+                     error_correction=_qrc.constants.ERROR_CORRECT_M)
+    qr.add_data("https://validar.firmaec.ec")
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    qr_img = qr_img.resize((QR_SIZE, QR_SIZE), _Img.LANCZOS)
+    img.paste(qr_img, (4, (IMG_H - QR_SIZE) // 2))
+
+    draw.line([(DIV_X, 8), (DIV_X, IMG_H - 8)], fill="#888888", width=1)
+
+    draw.text((TX, 12), "Validar únicamente en FirmaEC.", fill=(0, 30, 130))
+    draw.text((TX, 30), "Firmado electrónicamente por:",  fill=(60, 60, 60))
+
+    # Nombre: dividir en líneas de máx 24 chars
+    words, lines, cur = (signer_name or "FIRMANTE").split(), [], ""
+    for w in words:
+        test = (cur + " " + w).strip() if cur else w
+        if len(test) <= 24:
+            cur = test
+        else:
+            if cur: lines.append(cur)
+            cur = w
+    if cur: lines.append(cur)
+
+    ny = 52
+    for ln in lines[:3]:
+        draw.text((TX, ny), ln, fill=(0, 0, 0))
+        ny += 18
+
+    draw.rectangle([0, 0, IMG_W - 1, IMG_H - 1], outline="#AAAAAA", width=1)
+
+    buf = _io2.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    return "data:image/png;base64," + _b64.b64encode(buf.getvalue()).decode()
 
 
 def _pyhanko_firmar(

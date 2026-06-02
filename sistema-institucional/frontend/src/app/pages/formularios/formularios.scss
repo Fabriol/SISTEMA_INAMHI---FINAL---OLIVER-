@@ -1096,18 +1096,18 @@ select.doc-input, select.dark-input {
   vertical-align: middle;
 }
 
-// LA caja de firma — TODAS iguales, sin excepción
+// LA caja de firma — altura mayor para el sello QR
 .ep-firma-box {
   width: 100%;
-  height: 56px;       // ← ALTURA FIJA IGUAL para todas
-  min-height: 56px;
-  max-height: 56px;
+  height: 72px;
+  min-height: 72px;
+  max-height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1.5px dashed #93c5fd;
   border-radius: 4px;
-  background: linear-gradient(135deg, #fafcff, #eff6ff);
+  background: #ffffff;
   overflow: hidden;
   box-sizing: border-box;
   position: relative;
@@ -1135,7 +1135,7 @@ select.doc-input, select.dark-input {
   }
 }
 
-// Imagen dentro de la caja de firma — se ajusta sin distorsionar
+// Imagen del sello QR FirmaEC dentro de la caja de firma
 .ep-firma-img {
   display: block;
   width: 100%;
