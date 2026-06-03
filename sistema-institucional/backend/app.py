@@ -2090,7 +2090,7 @@ _MB  = 42          # Y mínima antes de salto de página (pie de página)
 _FX1 = 453         # x inicio columna firma  (575 - 122 = 453)
 _FX2 = 575         # x fin   columna firma
 _FW  = 122         # ancho   columna firma
-_FRH = 58          # altura de fila firma (suficiente para sello QR)
+_FRH = 68          # altura de fila firma (amplia para QR completo + texto)
 
 # ── Tabla 6 col: Trámites y Seguridad  (22|5|22|5|24|22 %) ───────────────────
 # Anchos: 122+28+122+28+133+122 = 555
@@ -2112,10 +2112,9 @@ _I4W = [89, 189, 89, 188]
 _I4X = [20, 109, 298, 387]
 
 # ── Alturas ───────────────────────────────────────────────────────────────────
-_BH  = 18    # cabecera de bloque (azul oscuro)
-_HH  = _BH   # alias de compatibilidad
-_CH  = 13    # cabecera de columnas (azul medio)
-_IH  = 14    # fila info (datos personales)
+_BH  = 20    # cabecera de bloque (azul oscuro)
+_CH  = 15    # cabecera de columnas (azul medio)
+_IH  = 16    # fila info (datos personales)
 
 # ── Paleta de colores — extraída exactamente del CSS de la hoja espejo ────────
 # ep-bloque__head background: #122d5e
@@ -2155,20 +2154,39 @@ _LOGO_PATH = os.path.join(
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _split_text(text: str, max_chars: int) -> list:
-    """Divide texto en líneas respetando palabras."""
-    words = str(text or "").split()
+    """
+    Divide texto en líneas respetando palabras.
+    max_chars: límite de caracteres por línea (aprox. ancho_celda / 4.2 con fuente 7.5pt).
+    Siempre devuelve al menos una lista con un elemento.
+    """
+    text = str(text or "").strip()
+    if not text:
+        return [""]
+    words = text.split()
     lines, cur = [], ""
     for w in words:
-        cand = (cur + " " + w).strip()
+        cand = (cur + " " + w).strip() if cur else w
         if len(cand) <= max_chars:
             cur = cand
         else:
             if cur:
                 lines.append(cur)
-            cur = w
+            # Si una sola palabra es más larga que max_chars, la forzamos
+            if len(w) > max_chars:
+                lines.append(w[:max_chars])
+                cur = ""
+            else:
+                cur = w
     if cur:
         lines.append(cur)
     return lines or [""]
+
+
+def _chars_for_width(pts: float, font_size: float = 7.5) -> int:
+    """Calcula máximo de caracteres que caben en 'pts' puntos con Helvetica."""
+    # Helvetica promedio: ancho ≈ 0.55 × font_size
+    char_w = font_size * 0.55
+    return max(int(pts / char_w), 8)
 
 
 def _draw_page_header(c, formulario: dict, page_num: int) -> None:
@@ -2307,9 +2325,14 @@ def _info_row(c, y: float, l1: str, v1: str,
               l2: str = "", v2: str = "", span: bool = False) -> float:
     """
     Fila de tabla de información (datos personales, recepción).
-    4 columnas: th(16%) | td(34%) | th(16%) | td(34%)
-    Con span=True: th(16%) | td(84%)
+    4 columnas: th(16%=89) | td(34%=189) | th(16%=89) | td(34%=188)
+    Con span=True: th(16%=89) | td(84%=466)
+    Fuente 7.5 pt para máxima legibilidad.
     """
+    FS_LBL = 7.5   # fuente etiqueta (th)
+    FS_VAL = 7.5   # fuente valor    (td)
+    PAD    = 4     # padding interior
+
     TH1, TD1 = _I4W[0], _I4W[1]
     TH2, TD2 = _I4W[2], _I4W[3]
     X0, X1, X2, X3 = _I4X
@@ -2321,36 +2344,35 @@ def _info_row(c, y: float, l1: str, v1: str,
     c.setFillColorRGB(*_C_TH)
     c.rect(X0, y - _IH, TH1, _IH, fill=1, stroke=1)
     c.setFillColorRGB(*_C_HEAD)
-    c.setFont("Helvetica-Bold", 6.5)
-    c.drawString(X0 + 3, y - _IH + 4, str(l1 or "")[:16])
+    c.setFont("Helvetica-Bold", FS_LBL)
+    c.drawString(X0 + PAD, y - _IH + PAD, str(l1 or "")[:_chars_for_width(TH1 - PAD * 2, FS_LBL)])
 
     if span or not l2:
-        # td spanning th2+td2+td1 space
         span_w = TD1 + TH2 + TD2
         c.setFillColorRGB(*_C_WHITE)
         c.rect(X1, y - _IH, span_w, _IH, fill=1, stroke=1)
         c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", 6.5)
-        c.drawString(X1 + 3, y - _IH + 4, str(v1 or "—")[:90])
+        c.setFont("Helvetica", FS_VAL)
+        c.drawString(X1 + PAD, y - _IH + PAD, str(v1 or "—")[:_chars_for_width(span_w - PAD * 2, FS_VAL)])
     else:
         # td1
         c.setFillColorRGB(*_C_WHITE)
         c.rect(X1, y - _IH, TD1, _IH, fill=1, stroke=1)
         c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", 6.5)
-        c.drawString(X1 + 3, y - _IH + 4, str(v1 or "—")[:28])
+        c.setFont("Helvetica", FS_VAL)
+        c.drawString(X1 + PAD, y - _IH + PAD, str(v1 or "—")[:_chars_for_width(TD1 - PAD * 2, FS_VAL)])
         # th2
         c.setFillColorRGB(*_C_TH)
         c.rect(X2, y - _IH, TH2, _IH, fill=1, stroke=1)
         c.setFillColorRGB(*_C_HEAD)
-        c.setFont("Helvetica-Bold", 6.5)
-        c.drawString(X2 + 3, y - _IH + 4, str(l2 or "")[:16])
+        c.setFont("Helvetica-Bold", FS_LBL)
+        c.drawString(X2 + PAD, y - _IH + PAD, str(l2 or "")[:_chars_for_width(TH2 - PAD * 2, FS_LBL)])
         # td2
         c.setFillColorRGB(*_C_WHITE)
         c.rect(X3, y - _IH, TD2, _IH, fill=1, stroke=1)
         c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", 6.5)
-        c.drawString(X3 + 3, y - _IH + 4, str(v2 or "—")[:28])
+        c.setFont("Helvetica", FS_VAL)
+        c.drawString(X3 + PAD, y - _IH + PAD, str(v2 or "—")[:_chars_for_width(TD2 - PAD * 2, FS_VAL)])
 
     c.setStrokeColorRGB(*_C_BLACK)
     return y - _IH
@@ -2359,24 +2381,25 @@ def _info_row(c, y: float, l1: str, v1: str,
 def _draw_firma_cell(c, y: float, firma_val: str,
                      campo: str, sig_coords: dict, page_num: int) -> None:
     """
-    Dibuja la celda de firma en la columna fija (_FX1 → _FX2).
-    • Si está firmada: fondo verde tenue + imagen QR del sello.
-    • Si no está firmada: fondo blanco con placeholder.
-    Registra coordenadas en sig_coords para pyHanko.
+    Dibuja la celda de firma en la columna fija (_FX1 → _FX2, altura _FRH).
+    - Firmada:   fondo verde tenue + imagen QR centrada (con padding 3 pts).
+    - Sin firmar: fondo blanco + placeholder centrado.
+    Registra coordenadas exactas en sig_coords para pyHanko (PAdES).
     """
     y_bot = y - _FRH
-    # Coordenadas para pyHanko — siempre registrar aunque esté vacía
+    PAD   = 3       # padding interno de la imagen
+
+    # ── Registrar coordenadas para pyHanko SIEMPRE (firmada o no) ──────────
     sig_coords[campo] = (int(_FX1), int(y_bot), int(_FX2), int(y), page_num)
 
     c.setStrokeColorRGB(*_C_HEAD)
-    c.setLineWidth(0.4)
+    c.setLineWidth(0.5)
 
     if firma_val and firma_val.startswith("FIRMADO_EC:"):
-        # Fondo verde tenue
         c.setFillColorRGB(*_C_BKGOK)
         c.rect(_FX1, y_bot, _FW, _FRH, fill=1, stroke=1)
 
-        # Intentar renderizar la imagen PNG del sello QR
+        # ── Intentar mostrar imagen PNG del sello QR ───────────────────────
         if "|" in firma_val:
             b64_raw = firma_val.split("|", 1)[1]
             if b64_raw.startswith("data:image"):
@@ -2384,42 +2407,65 @@ def _draw_firma_cell(c, y: float, firma_val: str,
             try:
                 import io as _io2, base64 as _b642
                 from reportlab.lib.utils import ImageReader as _IR2
-                img_r = _IR2(_io2.BytesIO(_b642.b64decode(b64_raw)))
-                pad = 2
-                c.drawImage(img_r,
-                            _FX1 + pad, y_bot + pad,
-                            width=_FW - 2 * pad,
-                            height=_FRH - 2 * pad,
+                img_bytes = _b642.b64decode(b64_raw)
+                img_r = _IR2(_io2.BytesIO(img_bytes))
+                # Imagen centrada con padding uniforme
+                img_x = _FX1 + PAD
+                img_y = y_bot + PAD
+                img_w = _FW - 2 * PAD
+                img_h = _FRH - 2 * PAD
+                c.drawImage(img_r, img_x, img_y,
+                            width=img_w, height=img_h,
                             preserveAspectRatio=True, anchor='c',
                             mask='auto')
+                # Borde de confirmación
+                c.setStrokeColorRGB(*_C_OK)
+                c.setLineWidth(0.8)
+                c.rect(_FX1, y_bot, _FW, _FRH, fill=0, stroke=1)
                 c.setStrokeColorRGB(*_C_BLACK)
+                c.setLineWidth(0.4)
                 return
             except Exception:
-                pass
+                pass  # imagen corrupta → fallback texto
 
-        # Fallback texto (sin imagen disponible)
-        parts   = firma_val.split("|")[0].split(":")
-        firmante = parts[1] if len(parts) > 1 else "FIRMADO"
-        fecha_f  = parts[2][:10]  if len(parts) > 2 else ""
+        # ── Fallback: texto cuando no hay imagen ────────────────────────────
+        parts    = firma_val.split("|")[0].split(":")
+        firmante = parts[1].strip() if len(parts) > 1 else "FIRMADO"
+        fecha_f  = parts[2][:10]   if len(parts) > 2 else ""
+        MAX_F    = _chars_for_width(_FW - 8, 7.0)
+
         c.setFillColorRGB(*_C_OK)
-        c.setFont("Helvetica-Bold", 6.5)
-        c.drawString(_FX1 + 4, y - 14, "✓ FIRMADO ELECTRÓNICAMENTE")
+        c.setFont("Helvetica-Bold", 7.0)
+        c.drawString(_FX1 + 4, y - 14, "✓ FIRMADO")
+        c.setFont("Helvetica-Bold", 6.0)
+        c.drawString(_FX1 + 4, y - 23, "ELECTRÓNICAMENTE")
+
         c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", 6)
-        ty = y - 26
-        for ln in _split_text(firmante, 20)[:3]:
+        c.setFont("Helvetica", 6.5)
+        ty = y - 35
+        for ln in _split_text(firmante, MAX_F)[:3]:
             c.drawString(_FX1 + 4, ty, ln)
-            ty -= 8
-        c.setFillColorRGB(*_C_PEND)
-        c.setFont("Helvetica", 5.5)
-        c.drawString(_FX1 + 4, y_bot + 5, fecha_f)
+            ty -= 9
+
+        if fecha_f:
+            c.setFillColorRGB(*_C_PEND)
+            c.setFont("Helvetica", 6.0)
+            c.drawString(_FX1 + 4, y_bot + 5, fecha_f)
     else:
-        # Celda vacía — reservada para pyHanko
+        # ── Celda vacía — reservada para la firma digital de pyHanko ───────
         c.setFillColorRGB(*_C_WHITE)
         c.rect(_FX1, y_bot, _FW, _FRH, fill=1, stroke=1)
-        c.setFillColorRGB(0.8, 0.8, 0.8)
-        c.setFont("Helvetica", 6)
-        c.drawCentredString(_FX1 + _FW / 2, y_bot + _FRH / 2 - 3, "[ FirmaEC ]")
+        # Línea punteada de firma (visual como en documentos oficiales)
+        c.setStrokeColorRGB(*_C_PEND)
+        c.setLineWidth(0.5)
+        cx = _FX1 + _FW / 2
+        sign_y = y_bot + _FRH * 0.38
+        c.line(_FX1 + 8, sign_y, _FX2 - 8, sign_y)
+        c.setFillColorRGB(*_C_PEND)
+        c.setFont("Helvetica", 6.5)
+        c.drawCentredString(cx, y_bot + _FRH * 0.55, "Firma Electrónica")
+        c.setFont("Helvetica", 6.0)
+        c.drawCentredString(cx, y_bot + _FRH * 0.42 - 6, "FirmaEC")
 
     c.setFillColorRGB(*_C_BLACK)
     c.setStrokeColorRGB(*_C_BLACK)
@@ -2430,9 +2476,15 @@ def _firma_row(c, y: float, xs: list, ws: list, cells: list,
                campo: str, firma_val: str,
                sig_coords: dict, page_num: int) -> float:
     """
-    Dibuja una fila completa de la tabla de firmas.
-    cells: [(texto, color_fondo), ...] para cada columna EXCEPTO la de firma.
+    Dibuja una fila completa de tabla de firmas.
+    cells: [(texto, color_fondo), ...] — una tupla por cada columna EXCEPTO la firma.
+    El texto se ajusta automáticamente al ancho de la celda con fuente 7.5 pt.
+    Nunca desborda el borde de la celda.
     """
+    FS   = 7.5    # fuente normal en celdas de datos
+    LH   = 10     # interlineado (pts)
+    PAD  = 4      # padding horizontal
+
     y_bot = y - _FRH
     c.setStrokeColorRGB(*_C_HEAD)
     c.setLineWidth(0.4)
@@ -2441,21 +2493,36 @@ def _firma_row(c, y: float, xs: list, ws: list, cells: list,
         c.setFillColorRGB(*bg)
         c.rect(xs[i], y_bot, ws[i], _FRH, fill=1, stroke=1)
         c.setFillColorRGB(*_C_BLACK)
-        s = str(txt or "")
-        if s and not s.startswith("data:") and not s.startswith("FIRMADO_EC:"):
-            # Para celdas SI/NO (columnas 1 y 3 de tablas 6-col)
-            if s in ("SI", "NO"):
-                col = _C_SI_T if s == "SI" else _C_NO_T
-                c.setFillColorRGB(*col)
-                c.setFont("Helvetica-Bold", 7)
-                c.drawCentredString(xs[i] + ws[i] / 2, y_bot + _FRH / 2 - 3, s)
-            else:
-                c.setFont("Helvetica", 7)
-                lns = _split_text(s, max(ws[i] // 4, 10))
-                ty  = y - 10
-                for ln in lns[:6]:
-                    c.drawString(xs[i] + 3, ty, ln)
-                    ty -= 9
+
+        s = str(txt or "").strip()
+        if not s or s.startswith("data:") or s.startswith("FIRMADO_EC:"):
+            continue
+
+        if s in ("SI", "NO", "—"):
+            # Valores cortos: centrar vertical y horizontalmente
+            col = _C_SI_T if s == "SI" else (_C_NO_T if s == "NO" else _C_PEND)
+            c.setFillColorRGB(*col)
+            fs_yn = 8.0 if s != "—" else FS
+            c.setFont("Helvetica-Bold", fs_yn)
+            c.drawCentredString(xs[i] + ws[i] / 2, y_bot + _FRH / 2 - fs_yn / 3, s)
+        else:
+            # Texto multi-línea — calcular chars máximos según ancho real
+            max_ch = _chars_for_width(ws[i] - PAD * 2, FS)
+            lines  = _split_text(s, max_ch)
+            # Máximas líneas que caben en la fila
+            max_lines = max(1, int((_FRH - PAD * 2) / LH))
+            lines = lines[:max_lines]
+
+            # Calcular Y de inicio para centrar verticalmente el bloque de texto
+            block_h = len(lines) * LH
+            ty_start = y_bot + (_FRH + block_h) / 2 - LH + 1
+
+            c.setFont("Helvetica", FS)
+            ty = ty_start
+            for ln in lines:
+                c.drawString(xs[i] + PAD, ty, ln)
+                ty -= LH
+
         c.setFillColorRGB(*_C_BLACK)
 
     _draw_firma_cell(c, y, firma_val, campo, sig_coords, page_num)
@@ -2466,9 +2533,14 @@ def _firma_row(c, y: float, xs: list, ws: list, cells: list,
 def _dir_row(c, y: float, texto: str,
              sig_coords: dict, campo: str, firma_val: str, page_num: int) -> float:
     """
-    Fila de Director/Responsable: celda fusionada (de col 0 hasta la columna firma)
-    más celda de firma al lado derecho.
+    Fila de Director/Responsable: celda fusionada del ancho de todas las columnas
+    de datos (de _ML a _FX1) + celda de firma a la derecha.
+    Fuente 7.5 pt, texto verticalmente centrado.
     """
+    FS   = 7.5
+    LH   = 10
+    PAD  = 4
+
     y_bot = y - _FRH
     ancho = _FX1 - _ML   # 453 - 20 = 433 pts
 
@@ -2477,15 +2549,24 @@ def _dir_row(c, y: float, texto: str,
     c.setFillColorRGB(*_C_DIRFG)
     c.rect(_ML, y_bot, ancho, _FRH, fill=1, stroke=1)
 
+    # Etiqueta
     c.setFillColorRGB(*_C_HEAD)
-    c.setFont("Helvetica-Bold", 7)
-    c.drawString(_ML + 4, y - 13, "Director/a — Responsable:")
+    c.setFont("Helvetica-Bold", FS)
+    label_y = y - PAD - FS
+    c.drawString(_ML + PAD, label_y, "Director/a — Responsable:")
+
+    # Texto del responsable (ajustado al ancho)
+    max_ch = _chars_for_width(ancho - PAD * 2, FS)
+    lines  = _split_text(texto, max_ch)
+    max_ln = max(1, int((_FRH - PAD * 2 - LH * 2) / LH))
+    lines  = lines[:max_ln]
+
     c.setFillColorRGB(*_C_BLACK)
-    c.setFont("Helvetica", 7)
-    ty = y - 24
-    for ln in _split_text(texto, 68)[:3]:
-        c.drawString(_ML + 4, ty, ln)
-        ty -= 9
+    c.setFont("Helvetica", FS)
+    ty = label_y - LH - 1
+    for ln in lines:
+        c.drawString(_ML + PAD, ty, ln)
+        ty -= LH
 
     _draw_firma_cell(c, y, firma_val, campo, sig_coords, page_num)
     c.setStrokeColorRGB(*_C_BLACK)
@@ -2690,8 +2771,21 @@ def generar_pdf(formulario_id):
             c.showPage(); pg += 1; y = _MT
             _draw_page_header(c, formulario, pg)
 
+        # _SECMIN = espacio mínimo para arrancar una sección: header + col_header + 2 filas
+        # Esto evita headers huérfanos al pie de página sin contenido debajo.
+        _SECMIN = _BH + _CH + 2 * _FRH
+
         def _need(h: float):
+            """Salta de página si no hay espacio suficiente para h puntos."""
             if y - h < _MB:
+                _npage()
+
+        def _need_dir():
+            """
+            Antes de una fila de director: asegura que quepan 2 filas.
+            Así la fila director nunca queda sola en una página sin la última fila regular.
+            """
+            if y - 2 * _FRH < _MB:
                 _npage()
 
         def _v(campo: str) -> str:
@@ -2708,27 +2802,29 @@ def generar_pdf(formulario_id):
             if val == "NO": return _C_NO
             return _C_WHITE
 
-        # ─── Título ─────────────────────────────────────────────────────────
-        _need(30)
-        c.setFont("Helvetica-Bold", 12)
+        # ─── Título del documento ────────────────────────────────────────────
+        _need(38)
+        c.setFont("Helvetica-Bold", 13)
         c.setFillColorRGB(*_C_HEAD)
-        c.drawCentredString(W / 2, y - 15, "PAZ Y SALVO INSTITUCIONAL")
-        c.setFont("Helvetica", 7)
+        c.drawCentredString(W / 2, y - 16, "PAZ Y SALVO INSTITUCIONAL")
+        c.setFont("Helvetica", 8)
         c.setFillColorRGB(*_C_PEND)
-        c.drawCentredString(W / 2, y - 25,
+        c.drawCentredString(W / 2, y - 28,
             f"Estado: {formulario.get('estado','—')}  |  Progreso: {formulario.get('porcentaje',0)}%")
         c.setFillColorRGB(*_C_BLACK)
-        y -= 32
+        y -= 38
 
-        # ═══ 01 DATOS PERSONALES ═══════════════════════════════════════════
-        _need(_HH + 6 * _IH + 4)
+        # ═══════════════════════════════════════════════════════════════════════
+        # 01 — DATOS PERSONALES Y LABORALES
+        # ═══════════════════════════════════════════════════════════════════════
+        _need(_BH + 6 * _IH + 6)
         y = _sec_header(c, y, "01", "DATOS PERSONALES Y LABORALES")
         y = _info_row(c, y, "NOMBRES Y APELLIDOS", _v("nombres_apellidos"), span=True)
         y = _info_row(c, y, "CÉDULA / PASAPORTE",  _v("cedula"),
                              "MODALIDAD LABORAL",   _v("modalidad"))
         y = _info_row(c, y, "FECHA DE INGRESO",     _v("fecha_ingreso"),
                              "FECHA DE SALIDA",      _v("fecha_salida"))
-        _dir_val = f"{_v('direccion')} {_v('numero_domicilio')}".strip("— ")
+        _dir_val = " ".join(p for p in [_v("direccion"), _v("numero_domicilio")] if p != "—")
         y = _info_row(c, y, "DIRECCIÓN DOMICILIARIA", _dir_val or "—", span=True)
         y = _info_row(c, y, "PROVINCIA / CANTÓN",
                              f"{_v('provincia')} / {_v('canton')}",
@@ -2736,19 +2832,23 @@ def generar_pdf(formulario_id):
                              f"{_v('celular')} / {_v('emergencia')}")
         y = _info_row(c, y, "EMAIL PRINCIPAL", _v("email1"),
                              "EMAIL SECUNDARIO", _v("email2"))
-        y -= 4
+        y -= 6
 
-        # ═══ 02 DIRECCIÓN / UNIDAD ══════════════════════════════════════════
-        _need(_HH + 3 * _IH + 4)
+        # ═══════════════════════════════════════════════════════════════════════
+        # 02 — DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS
+        # ═══════════════════════════════════════════════════════════════════════
+        _need(_BH + 3 * _IH + 6)
         y = _sec_header(c, y, "02", "DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS")
         y = _info_row(c, y, "LUGAR DE TRABAJO", _v("lugar_trabajo"),
                              "GRUPO OCUPACIONAL", _v("grupo_ocupacional"))
         y = _info_row(c, y, "DIRECCIÓN / UNIDAD", _v("unidad"), span=True)
         y = _info_row(c, y, "CARGO DESEMPEÑADO",  _v("cargo"),  span=True)
-        y -= 4
+        y -= 6
 
-        # ═══ 03 TRÁMITES — 6 columnas ══════════════════════════════════════
-        _need(_HH + _CH + 4 * _FRH + 4)
+        # ═══════════════════════════════════════════════════════════════════════
+        # 03 — ENTREGA / GESTIÓN DOCUMENTAL Y DE TRÁMITES  (6 columnas)
+        # ═══════════════════════════════════════════════════════════════════════
+        _need(_SECMIN)
         y = _sec_header(c, y, "03", "ENTREGA / GESTIÓN DOCUMENTAL Y DE TRÁMITES")
         y = _col_header(c, y, _T6X, _T6W, _T6L)
 
@@ -2772,25 +2872,26 @@ def generar_pdf(formulario_id):
             ], cam, _f(cam), sig_coords, pg)
 
         _need(_FRH)
-        jt = (f"Jefe: {_v('tramites_jefe_inmediato')} | "
-              f"Recibe: {_v('tramites_servidor_recibe')}")
+        jt = f"Jefe Inmediato: {_v('tramites_jefe_inmediato')}  |  Recibe: {_v('tramites_servidor_recibe')}"
         y = _firma_row(c, y, _T6X, _T6W, [
             (jt, _C_WHITE), ("", _C_WHITE), ("", _C_WHITE),
             ("", _C_WHITE), (_v("tramites_nombre_responsable"), _C_WHITE),
         ], "tramites_jefe", _f("tramites_jefe"), sig_coords, pg)
-        y -= 4
+        y -= 6
 
-        # ═══ 04 GESTIÓN ADMINISTRATIVA — 5 columnas ═════════════════════════
-        _need(_HH + _CH + 5 * _FRH + 4)
-        y = _sec_header(c, y, "04", "GESTIÓN ADMINISTRATIVA — DIR. ADMINISTRATIVA FINANCIERA")
+        # ═══════════════════════════════════════════════════════════════════════
+        # 04 — GESTIÓN ADMINISTRATIVA  (5 columnas)
+        # ═══════════════════════════════════════════════════════════════════════
+        _need(_SECMIN)
+        y = _sec_header(c, y, "04", "GESTIÓN ADMINISTRATIVA — DIRECCIÓN ADMINISTRATIVA FINANCIERA")
         y = _col_header(c, y, _T5X, _T5W, _T5L)
 
         for (desc, yk, dato, nk, cam) in [
-            ("Entrega informe de actividades",    "admin_informe",
+            ("Entrega informe fin de gestión",    "admin_informe",
              "—",                                  "admin_nombre_resp1", "admin_r1"),
-            ("Entrega bienes muebles / equipos",  "admin_bienes",
+            ("Entrega bienes muebles y equipos",  "admin_bienes",
              f"$ {_v('admin_valor_bienes')}",      "admin_nombre_resp2", "admin_r2"),
-            ("Deducibles pendientes",             "admin_deducibles",
+            ("Valores por deducibles pendientes", "admin_deducibles",
              f"$ {_v('admin_deducibles_valor')}",  "admin_nombre_resp3", "admin_r3"),
             ("Pasajes aéreos por justificar",     "admin_pasajes",
              f"$ {_v('admin_pasajes_valor')}",     "admin_nombre_resp4", "admin_r4"),
@@ -2801,28 +2902,29 @@ def generar_pdf(formulario_id):
                 (desc, _C_WHITE), (yn, _yb(yn)), (dato, _C_WHITE), (_v(nk), _C_WHITE),
             ], cam, _f(cam), sig_coords, pg)
 
-        _need(_FRH)
+        _need_dir()
         y = _dir_row(c, y, _v("admin_responsable"),
                      sig_coords, "admin_dir", _f("admin_dir"), pg)
-        y -= 4
+        y -= 6
 
-        # ═══ 05 GESTIÓN TIC — 5 columnas ════════════════════════════════════
-        _need(_HH + _CH + 5 * _FRH + 4)
-        y = _sec_header(c, y, "05",
-                        "GESTIÓN DE TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIÓN")
+        # ═══════════════════════════════════════════════════════════════════════
+        # 05 — GESTIÓN TIC  (5 columnas)
+        # ═══════════════════════════════════════════════════════════════════════
+        _need(_SECMIN)
+        y = _sec_header(c, y, "05", "GESTIÓN DE TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIÓN")
         y = _col_header(c, y, _T5X, _T5W, _T5L)
 
         for (desc, yk, dato, nk, cam) in [
-            ("Verificación equipo / IP / accesos", "tic_verificacion",
-             f"IP:{_v('tic_ip_fija')} Lib:{_v('tic_liberacion')}",
+            ("Verificación equipo / IP / accesos",  "tic_verificacion",
+             f"IP Fija: {_v('tic_ip_fija')}  Lib: {_v('tic_liberacion')}",
              "tic_nombre_resp1", "tic_r1"),
-            ("Entrega backup de información",      "tic_backup",
-             f"Ruta: {_v('tic_ruta_backup')}",     "tic_nombre_resp2", "tic_r2"),
+            ("Entrega backup de información",       "tic_backup",
+             f"Ruta: {_v('tic_ruta_backup')}",      "tic_nombre_resp2", "tic_r2"),
             ("Retiro control acceso / contraseñas", "tic_retiro_acceso",
-             f"Correo:{_v('tic_cierre_correo')} eSIGEF:{_v('tic_esigef')}",
+             f"Correo: {_v('tic_cierre_correo')}  eSIGEF: {_v('tic_esigef')}",
              "tic_nombre_resp3", "tic_r3"),
-            ("Entrega tarjeta acceso / cuentas",  "tic_tarjeta_cuentas",
-             f"SPRYN:{_v('tic_spryn')} eSByE:{_v('tic_esbye')}",
+            ("Entrega tarjeta acceso / cuentas",   "tic_tarjeta_cuentas",
+             f"SPRYN: {_v('tic_spryn')}  eSByE: {_v('tic_esbye')}",
              "tic_nombre_resp4", "tic_r4"),
         ]:
             _need(_FRH)
@@ -2831,26 +2933,28 @@ def generar_pdf(formulario_id):
                 (desc, _C_WHITE), (yn, _yb(yn)), (dato, _C_WHITE), (_v(nk), _C_WHITE),
             ], cam, _f(cam), sig_coords, pg)
 
-        _need(_FRH)
+        _need_dir()
         y = _dir_row(c, y, _v("tic_responsable"),
                      sig_coords, "tic_r5", _f("tic_r5"), pg)
-        y -= 4
+        y -= 6
 
-        # ═══ 06 GESTIÓN FINANCIERA — 5 columnas ══════════════════════════════
-        _need(_HH + _CH + 5 * _FRH + 4)
+        # ═══════════════════════════════════════════════════════════════════════
+        # 06 — GESTIÓN FINANCIERA  (5 columnas)
+        # ═══════════════════════════════════════════════════════════════════════
+        _need(_SECMIN)
         y = _sec_header(c, y, "06", "GESTIÓN FINANCIERA")
         y = _col_header(c, y, _T5X, _T5W, _T5L)
 
         for (desc, yk, dato, nk, cam) in [
-            ("Saldos contables pendientes",      "fin_saldos",
-             f"$ {_v('fin_saldos_valor')} | {_v('fin_saldos_obs')}",
+            ("Saldos contables pendientes",           "fin_saldos",
+             f"$ {_v('fin_saldos_valor')}  {_v('fin_saldos_obs')}",
              "fin_nombre_resp1", "fin_r1"),
-            ("Anticipo de sueldos pendiente",    "fin_anticipo",
-             f"$ {_v('fin_anticipo_valor')}",    "fin_nombre_resp2", "fin_r2"),
-            ("Recuperación de valores",          "fin_recuperacion",
-             f"$ {_v('fin_recuperacion_valor')}", "fin_nombre_resp3", "fin_r3"),
-            ("Devolución muebles / equipos",     "fin_devolucion",
-             f"$ {_v('fin_devolucion_valor')}",  "fin_nombre_resp4", "fin_r4"),
+            ("Anticipo de sueldos pendiente",         "fin_anticipo",
+             f"$ {_v('fin_anticipo_valor')}",          "fin_nombre_resp2", "fin_r2"),
+            ("Recuperación de valores pendiente",     "fin_recuperacion",
+             f"$ {_v('fin_recuperacion_valor')}",      "fin_nombre_resp3", "fin_r3"),
+            ("Devolución de muebles y equipos",       "fin_devolucion",
+             f"$ {_v('fin_devolucion_valor')}",        "fin_nombre_resp4", "fin_r4"),
         ]:
             _need(_FRH)
             yn = _v(yk)
@@ -2858,23 +2962,24 @@ def generar_pdf(formulario_id):
                 (desc, _C_WHITE), (yn, _yb(yn)), (dato, _C_WHITE), (_v(nk), _C_WHITE),
             ], cam, _f(cam), sig_coords, pg)
 
-        _need(_FRH)
+        _need_dir()
         y = _dir_row(c, y, _v("fin_director"),
                      sig_coords, "fin_dir", _f("fin_dir"), pg)
-        y -= 4
+        y -= 6
 
-        # ═══ 07 SEGURIDAD — 6 columnas ══════════════════════════════════════
-        _need(_HH + _CH + 3 * _FRH + 4)
-        y = _sec_header(c, y, "07",
-                        "SEGURIDAD DE LA INFORMACIÓN — ACUERDO MINISTERIAL 166 (EGSI)")
+        # ═══════════════════════════════════════════════════════════════════════
+        # 07 — SEGURIDAD DE LA INFORMACIÓN  (6 columnas)
+        # ═══════════════════════════════════════════════════════════════════════
+        _need(_SECMIN)
+        y = _sec_header(c, y, "07", "SEGURIDAD DE LA INFORMACIÓN — ACUERDO MINISTERIAL 166 (EGSI)")
         y = _col_header(c, y, _T6X, _T6W, _T6L)
 
         for (d1, k1, d2, k2, nk, cam) in [
-            ("Archivos digitales (EGSI)",           "seg_archivos",
-             "Entrega copia de actividades",         "seg_entrega_copia",
+            ("Archivos digitales (EGSI)",          "seg_archivos",
+             "Entrega copia de actividades",        "seg_entrega_copia",
              "seg_nombre_resp1", "seg_r1"),
-            ("Archivos físicos (Archivo Central)",  "seg_archivos_fisicos",
-             "Verificación información institucional", "seg_verificacion_info",
+            ("Archivos físicos (Archivo Central)", "seg_archivos_fisicos",
+             "Verificación información inst.",      "seg_verificacion_info",
              "seg_nombre_resp2", "seg_r2"),
         ]:
             _need(_FRH)
@@ -2885,35 +2990,36 @@ def generar_pdf(formulario_id):
                 (_v(nk), _C_WHITE),
             ], cam, _f(cam), sig_coords, pg)
 
-        _need(_FRH)
+        _need_dir()
         y = _dir_row(c, y,
-                     f"Oficial: {_v('seg_oficial')} | Resp: {_v('seg_responsable')}",
+                     f"Oficial de Seg.: {_v('seg_oficial')}  |  Responsable: {_v('seg_responsable')}",
                      sig_coords, "seg_oficial", _f("seg_oficial"), pg)
-        y -= 4
+        y -= 6
 
-        # ═══ 08 RRHH — 5 columnas ════════════════════════════════════════════
-        _need(_HH + _CH + 9 * _FRH + 4)
-        y = _sec_header(c, y, "08",
-                        "DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS")
+        # ═══════════════════════════════════════════════════════════════════════
+        # 08 — DIRECCIÓN DE ADMINISTRACIÓN DE RRHH  (5 columnas, 8+1 filas)
+        # ═══════════════════════════════════════════════════════════════════════
+        _need(_SECMIN)
+        y = _sec_header(c, y, "08", "DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS")
         y = _col_header(c, y, _T5X, _T5W, _T5L)
 
         for (desc, yk, dato, nk, cam) in [
-            ("Capacitación: devengó cursos",         "rrhh_capacitacion",
-             "—",                                     "rrhh_resp_capacitacion",  "rrhh_r1"),
-            ("Evaluación del Desempeño aplicada",    "rrhh_evaluacion",
-             "—",                                     "rrhh_resp_evaluacion",    "rrhh_r2"),
-            ("Viajes exterior: devengación",         "rrhh_viajes",
-             "—",                                     "rrhh_resp_viajes",        "rrhh_r3"),
-            ("SIITH: desvinculación del sistema",   "rrhh_siith",
-             "—",                                     "rrhh_resp_siith",         "rrhh_r4"),
+            ("Capacitación: devengó cursos recibidos", "rrhh_capacitacion",
+             "—",                                       "rrhh_resp_capacitacion",  "rrhh_r1"),
+            ("Evaluación del Desempeño aplicada",      "rrhh_evaluacion",
+             "—",                                       "rrhh_resp_evaluacion",    "rrhh_r2"),
+            ("Viajes al exterior: devengación",        "rrhh_viajes",
+             "—",                                       "rrhh_resp_viajes",        "rrhh_r3"),
+            ("SIITH: desvinculación del sistema",      "rrhh_siith",
+             "—",                                       "rrhh_resp_siith",         "rrhh_r4"),
             (f"Vacaciones no gozadas: {_v('rrhh_vacaciones')} días", "—",
-             f"N° Cert: {_v('rrhh_num_certificado')}", "rrhh_resp_vacaciones",  "rrhh_r5"),
-            ("Declaración juramentada de bienes",   "rrhh_juramentada",
-             f"N° Decl: {_v('rrhh_num_declaracion')}",  "rrhh_resp_juramentada", "rrhh_r6"),
-            ("Credencial institucional",            "rrhh_credencial",
-             "—",                                     "rrhh_resp_credencial2",   "rrhh_r7"),
-            ("Acta bienes / Copia activ. / Ropa",  "rrhh_entrega_informe_cd",
-             "—",                                     "rrhh_resp_acta",          "rrhh_r8"),
+             f"N° Cert: {_v('rrhh_num_certificado')}",  "rrhh_resp_vacaciones",   "rrhh_r5"),
+            ("Declaración juramentada de bienes",      "rrhh_juramentada",
+             f"N° Decl: {_v('rrhh_num_declaracion')}", "rrhh_resp_juramentada",   "rrhh_r6"),
+            ("Credencial institucional / Porta cred.", "rrhh_credencial",
+             "—",                                       "rrhh_resp_credencial2",   "rrhh_r7"),
+            ("Acta bienes / Copia activ. / Ropa",     "rrhh_entrega_informe_cd",
+             "—",                                       "rrhh_resp_acta",          "rrhh_r8"),
         ]:
             _need(_FRH)
             yn = _v(yk) if yk != "—" else "—"
@@ -2921,53 +3027,61 @@ def generar_pdf(formulario_id):
                 (desc, _C_WHITE), (yn, _yb(yn)), (dato, _C_WHITE), (_v(nk), _C_WHITE),
             ], cam, _f(cam), sig_coords, pg)
 
-        _need(_FRH)
+        _need_dir()
         y = _dir_row(c, y, _v("rrhh_director"),
                      sig_coords, "rrhh_dir", _f("rrhh_dir"), pg)
-        y -= 4
+        y -= 6
 
-        # ═══ 09 RECEPCIÓN ═════════════════════════════════════════════════════
-        _need(_HH + 2 * _IH + _FRH + 4)
+        # ═══════════════════════════════════════════════════════════════════════
+        # 09 — RECEPCIÓN DE DOCUMENTOS
+        # ═══════════════════════════════════════════════════════════════════════
+        _need(_BH + 2 * _IH + _FRH + 6)
         y = _sec_header(c, y, "09", "RECEPCIÓN DE DOCUMENTOS — DIRECCIÓN DE RRHH")
         y = _info_row(c, y, "FECHA ENTREGA",         _v("recepcion_fecha"),
-                             "N° HOJAS",              _v("recepcion_hojas"))
+                             "N° HOJAS RECIBIDAS",    _v("recepcion_hojas"))
         y = _info_row(c, y, "SERVIDOR/A QUE RECIBE", _v("recepcion_servidor"),
                              "CARGO",                 _v("recepcion_cargo"))
         _need(_FRH)
         y = _firma_row(c, y, _T5X, _T5W, [
-            ("Servidor/a que recibe el Paz y Salvo — RRHH", _C_WHITE),
+            ("Firma Servidor/a que recibe el Paz y Salvo — RRHH", _C_WHITE),
             ("—", _C_WHITE), ("—", _C_WHITE), ("—", _C_WHITE),
         ], "recepcion_r1", _f("recepcion_r1"), sig_coords, pg)
-        y -= 4
+        y -= 6
 
-        # ═══ 10 AUTORIZACIÓN — SERVIDOR SALIENTE ══════════════════════════════
-        _LH = 68
-        _need(_HH + _LH + _FRH + 8)
-        y = _sec_header(c, y, "10",
-                        "AUTORIZACIÓN — SERVIDOR SALIENTE (ART. 110 REGLAMENTO LOSEP)")
+        # ═══════════════════════════════════════════════════════════════════════
+        # 10 — AUTORIZACIÓN — SERVIDOR SALIENTE
+        # ═══════════════════════════════════════════════════════════════════════
+        LEGAL_H = 80          # caja de texto legal (pts)
+        LEGAL_FS = 7.5        # fuente del texto legal
+        LEGAL_LH = 10         # interlineado
+        LEGAL_MAX = _chars_for_width(_CW - 16, LEGAL_FS)
+
+        _need(_BH + LEGAL_H + _FRH + 10)
+        y = _sec_header(c, y, "10", "AUTORIZACIÓN — SERVIDOR SALIENTE (ART. 110 REGLAMENTO LOSEP)")
         legal = (
             "Conforme lo establecido en el artículo 110 del Reglamento a la Ley Orgánica de "
-            "Servicio Público (LOSEP), quien suscribe el presente formulario PAZ Y SALVO "
+            "Servicio Público (LOSEP), quien suscribe el presente formulario 'PAZ Y SALVO' "
             "AUTORIZA a la DIRECCIÓN ADMINISTRATIVA FINANCIERA del INAMHI para que efectúe "
             "los descuentos detallados en este documento por reintegro y/o recuperación de "
-            "valores, bienes y/o especies encontrados a su cargo, los cuales serán "
-            "DESCONTADOS a través del rol de pagos y/o liquidación de haberes."
+            "valores, bienes y/o especies que se hayan encontrado a su cargo, los mismos que "
+            "serán DESCONTADOS a través del rol de pagos y/o liquidación de haberes."
         )
         c.setFillColorRGB(0.97, 0.97, 1.0)
-        c.rect(_ML, y - _LH, _CW, _LH, fill=1, stroke=1)
+        c.rect(_ML, y - LEGAL_H, _CW, LEGAL_H, fill=1, stroke=1)
         c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", 6.5)
-        ly = y - 10
-        for ln in _split_text(legal, 106)[:7]:
-            c.drawString(_ML + 6, ly, ln)
-            ly -= 9
-        c.setFont("Helvetica-Bold", 6.5)
-        c.drawString(_ML + 6, ly - 2,
-                     f"C.C. FIRMANTE: {_v('cedula_firmante')}   "
-                     f"FECHA DE FIRMA: {_v('fecha_firma')}")
-        y -= _LH + 4
+        c.setFont("Helvetica", LEGAL_FS)
+        ly = y - 12
+        for ln in _split_text(legal, LEGAL_MAX)[:6]:
+            c.drawString(_ML + 8, ly, ln)
+            ly -= LEGAL_LH
+        c.setFont("Helvetica-Bold", LEGAL_FS)
+        c.drawString(_ML + 8, ly - 4,
+                     f"C.C. DEL FIRMANTE: {_v('cedula_firmante')}"
+                     f"   FECHA DE FIRMA: {_v('fecha_firma')}")
+        y -= LEGAL_H + 6
+
         _need(_FRH)
-        y = _dir_row(c, y, "FIRMA DEL SERVIDOR SALIENTE — AUTORIZACIÓN",
+        y = _dir_row(c, y, "FIRMA DE AUTORIZACIÓN — SERVIDOR SALIENTE",
                      sig_coords, "servidor_saliente", _f("servidor_saliente"), pg)
 
         # Pie de página
