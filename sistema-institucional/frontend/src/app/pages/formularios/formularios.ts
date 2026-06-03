@@ -2550,98 +2550,64 @@ export class Formularios implements OnInit, OnDestroy {
   //  EXPORTAR / IMPRIMIR
   // ─────────────────────────────────────────────────────────────
 
-  printMirror(): void {
-    window.print();
-  }
-
-
   /**
-   * Genera PDF de la HOJA ESPEJO (el formato visual del formulario en pantalla).
-   * Primero pre-carga todas las imágenes QR de firmas para que aparezcan en el PDF.
+   * Abre el PDF firmado generado por el backend en una nueva pestaña para imprimir.
+   * El PDF es el _signed.pdf (pyHanko) que conserva la firma digital intacta.
+   * NO usa window.print() sobre el HTML porque eso destruye la firma criptográfica.
    */
-  async exportarHojaEspejoPDF(): Promise<void> {
-    const element = document.querySelector('#hojaEspejo') as HTMLElement;
-    if (!element) {
-      Swal.fire('Error', 'No se encontró el documento para exportar.', 'error');
+  printMirror(): void {
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Sin formulario', 'Seleccione un formulario antes de imprimir.');
       return;
     }
-
-    // Asegurar que las imágenes QR de todas las firmas estén cargadas como base64
-    await this.cargarImagenesFirma();
-
-    // Esperar a que el DOM actualice las imágenes
-    await new Promise(r => setTimeout(r, 400));
-
-    try {
-      const html2canvas = (await import('html2canvas')).default;
-      const jsPDF       = (await import('jspdf')).default;
-
-      const SCALE     = 2;
-      const PAGE_W_MM = 210;
-      const PAGE_H_MM = 297;
-      const MARGIN_MM = 8;
-      const CONT_W_MM = PAGE_W_MM - MARGIN_MM * 2;
-      const CONT_H_MM = PAGE_H_MM - MARGIN_MM * 2;
-
-      // Posiciones de filas para no cortar una fila a la mitad
-      const elementAbsTop = element.getBoundingClientRect().top + window.scrollY;
-      const rowBottomsPx  = Array.from(element.querySelectorAll('tr'))
-        .map(row => {
-          const r = row.getBoundingClientRect();
-          return (r.bottom + window.scrollY - elementAbsTop) * SCALE;
+    this.formulariosService
+      .obtenerPdfBytes(this.formularioSeleccionado.id)
+      .pipe(
+        catchError(() => {
+          Swal.fire('Error', 'No se pudo cargar el PDF del servidor.', 'error');
+          return of(null);
         })
-        .sort((a, b) => a - b);
-
-      const canvas = await html2canvas(element, {
-        scale: SCALE,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        imageTimeout: 8000,
+      )
+      .subscribe((bytes: ArrayBuffer | null) => {
+        if (!bytes) return;
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const url  = URL.createObjectURL(blob);
+        const win  = window.open(url, '_blank');
+        if (win) win.focus();
       });
+  }
 
-      const canvasW  = canvas.width;
-      const canvasH  = canvas.height;
-      const pxPerMm  = canvasW / CONT_W_MM;
-      const pageHpx  = CONT_H_MM * pxPerMm;
-      const pdf      = new jsPDF('p', 'mm', 'a4');
-      let   sliceTop = 0;
-      let   firstPage = true;
-
-      while (sliceTop < canvasH) {
-        const naiveEnd = sliceTop + pageHpx;
-        let   sliceEnd: number;
-
-        if (naiveEnd >= canvasH) {
-          sliceEnd = canvasH;
-        } else {
-          const lastRow = rowBottomsPx.filter(b => b > sliceTop && b <= naiveEnd).pop();
-          sliceEnd = lastRow ?? naiveEnd;
-        }
-
-        const sliceH   = sliceEnd - sliceTop;
-        const sliceHmm = sliceH / pxPerMm;
-        const slice    = document.createElement('canvas');
-        slice.width    = canvasW;
-        slice.height   = sliceH;
-        slice.getContext('2d')!.drawImage(canvas, 0, sliceTop, canvasW, sliceH, 0, 0, canvasW, sliceH);
-
-        if (!firstPage) pdf.addPage();
-        firstPage = false;
-        pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG',
-          MARGIN_MM, MARGIN_MM, CONT_W_MM, sliceHmm);
-
-        sliceTop = sliceEnd;
-      }
-
-      const nombre = this.formularioSeleccionado?.id ?? 'formulario';
-      pdf.save(`PazSalvo_${nombre}.pdf`);
-
-    } catch (err) {
-      console.error(err);
-      Swal.fire('Error', 'No se pudo generar el PDF. Intente de nuevo.', 'error');
+  /**
+   * Descarga el PDF firmado generado por el backend (diseño hoja espejo + firma PAdES).
+   * Sirve el _signed.pdf si existe (con todas las firmas digitales), si no el original.
+   * NO usa html2canvas ni jsPDF porque esos métodos destruyen la firma criptográfica.
+   */
+  exportarHojaEspejoPDF(): void {
+    if (!this.formularioSeleccionado?.id) {
+      this.alertaRapida('Sin formulario', 'Seleccione un formulario antes de descargar.');
+      return;
     }
+    const fid = this.formularioSeleccionado.id;
+    this.formulariosService
+      .obtenerPdfBytes(fid)
+      .pipe(
+        catchError(() => {
+          Swal.fire('Error', 'No se pudo descargar el PDF del servidor.', 'error');
+          return of(null);
+        })
+      )
+      .subscribe((bytes: ArrayBuffer | null) => {
+        if (!bytes) return;
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `PazSalvo_${fid}_firmado.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
   }
 
   // ─────────────────────────────────────────────────────────────
