@@ -1759,7 +1759,9 @@ export class Formularios implements OnInit, OnDestroy {
       return;
     }
 
-    const nombrePdf = `formulario_${this.formularioSeleccionado.id}_para_firmar.pdf`;
+    // Timestamp en el nombre para evitar copias "(1)" "(2)" que confunden al usuario
+    const ts       = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const nombrePdf = `PazSalvo_${this.formularioSeleccionado.id}_FIRMAR_${ts}.pdf`;
 
     // ── Paso 2: Descargar el PDF en el equipo del usuario ─────────
     this.firmaEcDesktop.descargarPdf(pdfBytes, nombrePdf);
@@ -2552,49 +2554,6 @@ export class Formularios implements OnInit, OnDestroy {
     window.print();
   }
 
-  /**
-   * Descarga el PDF oficial con autenticación.
-   * Si hay _firmaec.pdf (firmado por FirmaEC Desktop) → lo sirve → verificable en FirmaEC tab 2.
-   * Si no, sirve el PDF visual generado por ReportLab.
-   */
-  async descargarPDFOficial(): Promise<void> {
-    if (!this.formularioSeleccionado?.id) {
-      this.alertaRapida('Sin formulario', 'Seleccione un formulario primero.');
-      return;
-    }
-    const id    = this.formularioSeleccionado.id;
-    const token = localStorage.getItem('token') ?? '';
-    try {
-      const resp = await fetch(`http://localhost:5000/api/formularios/${id}/pdf`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!resp.ok) { this.alertaRapida('Error', 'No se pudo descargar el PDF.'); return; }
-
-      const blob     = await resp.blob();
-      const disposition = resp.headers.get('Content-Disposition') ?? '';
-      const match       = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      const filename    = match?.[1]?.replace(/['"]/g, '') ?? `PazSalvo_${id}.pdf`;
-
-      const url  = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href     = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-
-      const esFirmado = filename.includes('firmado');
-      this.showSwalToast(
-        esFirmado
-          ? '✅ PDF firmado descargado — cárgalo en FirmaEC pestaña 2 para verificar'
-          : '📄 PDF visual descargado — usa el botón FirmaEC Desktop para firmar primero',
-        esFirmado ? 'success' : 'info'
-      );
-    } catch {
-      this.alertaRapida('Error', 'No se pudo descargar el PDF. Verifique que el backend esté activo.');
-    }
-  }
 
   /**
    * Genera PDF de la HOJA ESPEJO (el formato visual del formulario en pantalla).

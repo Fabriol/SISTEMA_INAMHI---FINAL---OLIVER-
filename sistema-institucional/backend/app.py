@@ -9,7 +9,6 @@ import datetime
 import os
 import re
 import json
-import sys
 import traceback
 
 app = Flask(__name__)
@@ -2799,6 +2798,158 @@ def obtener_pdf_bytes(formulario_id):
 #  FIRMA DIGITAL EC  (pyHanko + PAdES)
 # ═══════════════════════════════════════════════════════════════
 
+# ── Helpers para carga de certificados FirmaEC Ecuador ──────────────────────
+
+def _encontrar_openssl_git() -> str:
+    """
+    Localiza openssl.exe de Git for Windows.
+    Git for Windows incluye OpenSSL 3.x con el proveedor legacy (RC2/3DES)
+    correctamente configurado, a diferencia del OpenSSL que bundlea Python.
+    """
+    import shutil as _sh
+    for _c in [
+        r'C:\Program Files\Git\mingw64\bin\openssl.exe',
+        r'C:\Program Files (x86)\Git\mingw64\bin\openssl.exe',
+        r'C:\Program Files\Git\usr\bin\openssl.exe',
+        r'C:\Git\mingw64\bin\openssl.exe',
+    ]:
+        if os.path.isfile(_c):
+            return _c
+    return _sh.which('openssl') or ''
+
+
+def _separar_primer_cert_pem(combined_path: str, out_path: str) -> bool:
+    """
+    Extrae solo el primer bloque BEGIN CERTIFICATE del PEM combinado
+    (cert del firmante).  El resto son CAs intermedias/raíz.
+    """
+    with open(combined_path, 'r', encoding='utf-8', errors='replace') as _f:
+        _txt = _f.read()
+    _blocks = re.findall(
+        r'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----',
+        _txt, re.DOTALL
+    )
+    if not _blocks:
+        return False
+    with open(out_path, 'w', encoding='utf-8') as _f:
+        _f.write(_blocks[0] + '\n')
+    return True
+
+
+def _cargar_signer_firmaec(p12_bytes: bytes, password_raw: str):
+    """
+    Carga un PKCS#12 de FirmaEC Ecuador en un SimpleSigner de pyHanko.
+    Soporta algoritmos legacy RC2/3DES (ANF, Security Data, BCE, eCOM).
+
+    Estrategia:
+      1. SimpleSigner.load_pkcs12 directo — funciona si oscrypto tiene acceso
+         al proveedor OpenSSL legacy (Linux/macOS o Windows con config correcta).
+      2. Extraer clave+cert a PEM NO cifrado via openssl.exe de Git for Windows
+         (que SÍ tiene RC2/3DES), luego cargar con SimpleSigner.load() que no
+         pasa por el CNG de Windows (que no soporta RC2).
+
+    Returns: (signer_obj, error_o_None)
+    """
+    import tempfile as _tm2
+    import subprocess as _sub2
+    from pyhanko.sign import signers as _ph2
+
+    # ── Intento 1: load_pkcs12 directo ─────────────────────────────────────
+    _tmp1 = None
+    try:
+        with _tm2.NamedTemporaryFile(suffix='.p12', delete=False) as _f:
+            _f.write(p12_bytes)
+            _tmp1 = _f.name
+        return _ph2.SimpleSigner.load_pkcs12(
+            pfx_file=_tmp1,
+            passphrase=password_raw.encode('utf-8'),
+        ), None
+    except Exception as _e1:
+        _last = _e1
+    finally:
+        if _tmp1 and os.path.exists(_tmp1):
+            try:
+                os.unlink(_tmp1)
+            except Exception:
+                pass
+
+    # ── Intento 2: openssl de Git → PEM sin cifrar → SimpleSigner.load ─────
+    # Root cause: oscrypto usa Windows CNG que NO soporta RC2 (cifrado del
+    # contenedor PKCS#12 de los certificados ecuatorianos). La solución es
+    # extraer la clave privada a PEM no cifrado usando el openssl.exe de Git
+    # (que sí tiene el proveedor legacy) y cargar el PEM con SimpleSigner.load()
+    # que usa oscrypto solo para el formato de clave, no para el contenedor P12.
+    _ossl = _encontrar_openssl_git()
+    if not _ossl:
+        return None, Exception(
+            "Git for Windows no encontrado. Instálelo desde https://git-scm.com "
+            "para poder usar certificados FirmaEC en Windows."
+        )
+
+    _p12t = _keyt = _certt = _sct = None
+    try:
+        with _tm2.NamedTemporaryFile(suffix='.p12', delete=False) as _f:
+            _f.write(p12_bytes)
+            _p12t = _f.name
+
+        _fd, _keyt  = _tm2.mkstemp(suffix='_key.pem')
+        os.close(_fd)
+        _fd, _certt = _tm2.mkstemp(suffix='_certs.pem')
+        os.close(_fd)
+        _fd, _sct   = _tm2.mkstemp(suffix='_sc.pem')
+        os.close(_fd)
+
+        # Extraer clave privada sin cifrado (-nodes = no DES/encrypt)
+        _rk = _sub2.run([
+            _ossl, 'pkcs12', '-legacy', '-nocerts', '-nodes',
+            '-in',     _p12t,
+            '-passin', f'pass:{password_raw}',
+            '-out',    _keyt,
+        ], capture_output=True, timeout=25)
+
+        # Extraer solo certificados (sin clave privada)
+        _rc = _sub2.run([
+            _ossl, 'pkcs12', '-legacy', '-nokeys',
+            '-in',      _p12t,
+            '-passin',  f'pass:{password_raw}',
+            '-out',     _certt,
+            '-passout', 'pass:',
+        ], capture_output=True, timeout=25)
+
+        if _rk.returncode != 0 or _rc.returncode != 0:
+            _ek  = _rk.stderr.decode('utf-8', errors='replace')[:400]
+            _ec2 = _rc.stderr.decode('utf-8', errors='replace')[:400]
+            return None, Exception(
+                f"openssl pkcs12 falló (key_rc={_rk.returncode}, "
+                f"cert_rc={_rc.returncode}). "
+                f"key_stderr: {_ek} | cert_stderr: {_ec2}"
+            )
+
+        if os.path.getsize(_keyt) == 0 or os.path.getsize(_certt) == 0:
+            return None, Exception("openssl extrajo archivos vacíos del .p12 — contraseña incorrecta")
+
+        # Primer cert del PEM combinado = certificado del firmante
+        _cert_para_cargar = _certt
+        if _separar_primer_cert_pem(_certt, _sct):
+            _cert_para_cargar = _sct
+
+        signer = _ph2.SimpleSigner.load(
+            key_file=_keyt,
+            cert_file=_cert_para_cargar,
+        )
+        return signer, None
+
+    except Exception as _e2:
+        return None, _e2
+    finally:
+        for _p in [_p12t, _keyt, _certt, _sct]:
+            if _p and os.path.exists(_p):
+                try:
+                    os.unlink(_p)
+                except Exception:
+                    pass
+
+
 @app.route("/api/formularios/<int:formulario_id>/firmar-ec", methods=["POST"])
 def firmar_ec_pdf(formulario_id):
     """
@@ -2836,174 +2987,45 @@ def firmar_ec_pdf(formulario_id):
         # Los certificados FirmaEC Ecuador (ANF, Security Data, BCE, etc.) usan
         # algoritmos legacy (RC2/3DES) que OpenSSL 3.x rechaza. pyHanko tiene
         # mejor compatibilidad con estos formatos al usar oscrypto internamente.
-        signer_name = None
-        _signer_obj = None
-        _encodings  = ['utf-8', 'latin-1', 'cp1252', 'utf-16-le']
-        _pyhanko_err = None
-
-        try:
-            from pyhanko.sign import signers as _ph_signers
-        except ImportError:
+        # ── Cargar certificado .p12 (FirmaEC Ecuador — soporta RC2/3DES legacy) ──
+        # Root cause del problema en Windows: oscrypto usa el CNG del sistema que
+        # NO soporta RC2/3DES.  _cargar_signer_firmaec() resuelve esto extrayendo
+        # la clave a PEM via openssl.exe de Git for Windows y luego cargando el PEM
+        # con SimpleSigner.load() que no involucra el CNG para el contenedor P12.
+        import importlib as _ilib
+        if _ilib.util.find_spec('pyhanko') is None:
             return jsonify({"mensaje": "pyHanko no está instalado en el servidor"}), 500
 
-        # pyHanko.load_pkcs12 espera una RUTA de archivo (str), no bytes del contenido.
-        # Escribimos el .p12 a un archivo temporal y pasamos la ruta.
-        import tempfile as _tempfile
-
-        _tmp_p12_path = None
-
-        try:
-            with _tempfile.NamedTemporaryFile(suffix=".p12", delete=False) as _tmp:
-                _tmp.write(p12_bytes)
-                _tmp_p12_path = _tmp.name
-
-            try:
-                _signer_obj = _ph_signers.SimpleSigner.load_pkcs12(
-                    pfx_file=_tmp_p12_path,
-                    passphrase=password_raw.encode("utf-8"),
-                )
-            except Exception as _e:
-                _pyhanko_err = _e
-                _signer_obj = None
-
-        finally:
-            if _tmp_p12_path and os.path.exists(_tmp_p12_path):
-                os.unlink(_tmp_p12_path)
-
-        # ── Fallback: convertir p12 legacy usando openssl.exe de Git ──────────
-        # Si pyHanko no pudo cargar el .p12 (algoritmos RC2/3DES de FirmaEC),
-        # usamos el openssl.exe de Git for Windows (que incluye legacy.dll) para
-        # convertir el p12 a formato moderno en dos pasos:
-        #   1) p12 -legacy -> PEM intermediario
-        #   2) PEM -> nuevo p12 con AES256
-        if _signer_obj is None and sys.platform == 'win32':
-            import subprocess as _subprocess
-            _git_openssl_candidates = [
-                r"C:\Program Files\Git\mingw64\bin\openssl.exe",
-                r"C:\Program Files (x86)\Git\mingw64\bin\openssl.exe",
-            ]
-            _git_openssl = next(
-                (c for c in _git_openssl_candidates if os.path.isfile(c)), None
-            )
-            if _git_openssl:
-                _tmp_leg_in = _tmp_leg_pem = _tmp_leg_out = None
-                try:
-                    with _tempfile.NamedTemporaryFile(suffix='.p12', delete=False) as _fl:
-                        _fl.write(p12_bytes)
-                        _tmp_leg_in = _fl.name
-                    with _tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as _fp:
-                        _tmp_leg_pem = _fp.name
-                    _tmp_leg_out = _tmp_leg_in + '_modern.p12'
-                    _TMP_PASS = '_claudetmp_'
-
-                    # Paso 1: p12 (RC2/3DES) -> PEM con -legacy
-                    _r1 = _subprocess.run([
-                        _git_openssl, 'pkcs12', '-legacy',
-                        '-in',      _tmp_leg_in,
-                        '-passin',  f'pass:{password_raw}',
-                        '-out',     _tmp_leg_pem,
-                        '-passout', f'pass:{_TMP_PASS}',
-                    ], capture_output=True, timeout=15)
-                    if _r1.returncode != 0:
-                        print(f"[firmar-ec] Paso1 legacy falló: "
-                              f"{_r1.stderr.decode('utf-8', errors='replace')}")
-                    else:
-                        # Paso 2: PEM -> p12 moderno (AES256)
-                        _r2 = _subprocess.run([
-                            _git_openssl, 'pkcs12', '-export',
-                            '-in',      _tmp_leg_pem,
-                            '-passin',  f'pass:{_TMP_PASS}',
-                            '-out',     _tmp_leg_out,
-                            '-passout', f'pass:{password_raw}',
-                        ], capture_output=True, timeout=15)
-                        if _r2.returncode != 0:
-                            print(f"[firmar-ec] Paso2 export falló: "
-                                  f"{_r2.stderr.decode('utf-8', errors='replace')}")
-                        elif os.path.getsize(_tmp_leg_out) > 0:
-                            _tmp_mod_path = None
-                            try:
-                                with open(_tmp_leg_out, 'rb') as _fm:
-                                    _mod_bytes = _fm.read()
-                                with _tempfile.NamedTemporaryFile(
-                                    suffix='.p12', delete=False
-                                ) as _tm:
-                                    _tm.write(_mod_bytes)
-                                    _tmp_mod_path = _tm.name
-                                _signer_obj = _ph_signers.SimpleSigner.load_pkcs12(
-                                    pfx_file=_tmp_mod_path,
-                                    passphrase=password_raw.encode('utf-8'),
-                                )
-                                print("[firmar-ec] Certificado cargado via conversión legacy ✓")
-                            except Exception as _e_mod:
-                                _pyhanko_err = _e_mod
-                                _signer_obj = None
-                                print(f"[firmar-ec] Fallo carga post-conversión: {_e_mod}")
-                            finally:
-                                if _tmp_mod_path and os.path.exists(_tmp_mod_path):
-                                    os.unlink(_tmp_mod_path)
-                except Exception as _e_git:
-                    print(f"[firmar-ec] Error en fallback Git openssl: {_e_git}")
-                finally:
-                    for _pth in [_tmp_leg_in, _tmp_leg_pem, _tmp_leg_out]:
-                        if _pth and os.path.exists(_pth):
-                            try:
-                                os.unlink(_pth)
-                            except Exception:
-                                pass
+        _signer_obj, _load_err = _cargar_signer_firmaec(p12_bytes, password_raw)
 
         if _signer_obj is None:
-            print("===================================")
-            print("ERROR FIRMA EC")
-            print("Archivo:", p12_file.filename)
-            print("Bytes recibidos:", len(p12_bytes))
-            print("Tipo error:", type(_pyhanko_err))
-            print("Error repr:", repr(_pyhanko_err))
-            print("Error texto:", str(_pyhanko_err))
-            print("===================================")
+            _err_msg = str(_load_err) if _load_err else "Error desconocido"
+            print(f"[firmar-ec] No se pudo cargar el .p12 '{p12_file.filename}': {_err_msg}")
             return jsonify({
-        "mensaje": (
-            "No se pudo cargar el certificado. Posibles causas:\n"
-            "• Contraseña incorrecta\n"
-            "• Certificado expirado o revocado\n"
-            "• Formato no compatible (pruebe exportar el .p12 nuevamente desde FirmaEC)"
-        )
+                "mensaje": (
+                    "No se pudo cargar el certificado. Verifique:\n"
+                    "• Contraseña incorrecta\n"
+                    "• Certificado expirado o revocado\n"
+                    "• En Windows se requiere Git for Windows (https://git-scm.com)\n"
+                    "• Pruebe exportar el .p12 nuevamente desde la aplicación FirmaEC"
+                )
             }), 400
 
-        # ── Extraer nombre del firmante del certificado ─────────────
+        # ── Nombre del firmante desde el CN del certificado ─────────────────
+        signer_name = None
         try:
-            _cert_obj  = _signer_obj.signing_cert
-            _subj_str  = _cert_obj.subject.human_friendly
+            _subj_str = _signer_obj.signing_cert.subject.human_friendly
             signer_name = (
                 _subj_str.split("Common Name:")[1].split(",")[0].strip().upper()
                 if "Common Name:" in _subj_str
                 else _subj_str.split("=")[-1].strip().upper()
             )
         except Exception:
-            try:
-                # Fallback usando cryptography si está disponible
-                from cryptography.hazmat.primitives.serialization.pkcs12 import (
-                    load_key_and_certificates,
-                )
-                for _enc in _encodings:
-                    try:
-                        _, _cert_c, _ = load_key_and_certificates(
-                            p12_bytes, password_raw.encode(_enc)
-                        )
-                        if _cert_c:
-                            from cryptography import x509 as _cx509
-                            signer_name = _cert_c.subject.get_attributes_for_oid(
-                                _cx509.NameOID.COMMON_NAME
-                            )[0].value.upper()
-                            break
-                    except Exception:
-                        continue
-            except Exception:
-                pass
-
+            pass
         if not signer_name:
             signer_name = user.get("usuario", "FIRMANTE").upper()
 
-        # _signer_obj ya está listo — se pasa directo a _pyhanko_firmar
+        # _signer_obj listo — se pasa directamente a _pyhanko_firmar
 
         # ── Consultas a la BD ────────────────────────────────────
         conn    = get_connection()
@@ -3196,14 +3218,14 @@ def _generar_sello_preview(signer_name: str) -> str:
     def _nfc(s):
         return _ud.normalize('NFC', s)
 
-    # ── Dimensiones ────────────────────────────────────────────
-    SCALE  = 3                        # factor de super-sampling (mejor calidad QR)
-    IMG_W  = 620 * SCALE
-    IMG_H  = 180 * SCALE
-    PAD    = 6  * SCALE
-    QR_SZ  = (IMG_H - PAD * 2)       # QR ocupa casi toda la altura
-    DIV_X  = PAD + QR_SZ + 8 * SCALE
-    TX     = DIV_X + 8 * SCALE
+    # ── Dimensiones (super-sampling x3 → downscale final con LANCZOS) ─
+    SCALE  = 3
+    IMG_W  = 660 * SCALE   # un poco más ancho para dar espacio al texto
+    IMG_H  = 200 * SCALE   # un poco más alto para el nombre largo
+    PAD    = 8  * SCALE
+    QR_SZ  = IMG_H - PAD * 2
+    DIV_X  = PAD + QR_SZ + 10 * SCALE
+    TX     = DIV_X + 10 * SCALE
     TW     = IMG_W - TX - PAD
 
     img  = _Img.new("RGB", (IMG_W, IMG_H), "white")
@@ -3231,9 +3253,9 @@ def _generar_sello_preview(signer_name: str) -> str:
               fill=(180, 180, 180), width=SCALE)
 
     # ── Cargar fuentes TTF con fallback ────────────────────────
-    SZ_LABEL = 12 * SCALE
-    SZ_SUB   = 11 * SCALE
-    SZ_NAME  = 16 * SCALE
+    SZ_LABEL = 14 * SCALE   # aumentado para mejor legibilidad
+    SZ_SUB   = 13 * SCALE
+    SZ_NAME  = 18 * SCALE   # nombre más grande
 
     _REG = [
         "C:/Windows/Fonts/arial.ttf",    "C:/Windows/Fonts/Arial.ttf",
@@ -3507,15 +3529,17 @@ def _pyhanko_firmar(
 
         pdf_signer_obj = PdfSigner(meta, signer, stamp_style=stamp_style)
         out_buf = _io.BytesIO()
-        pdf_signer_obj.sign_pdf(
-            writer,
-            existing_fields_only = False,
-            output               = out_buf,
-            appearance_text_params = {
-                'url':    qr_url,
-                'signer': nombre_disp,
-            },
+        _sign_kw = dict(
+            existing_fields_only=False,
+            output=out_buf,
+            appearance_text_params={'url': qr_url, 'signer': nombre_disp},
         )
+        import inspect as _insp
+        if _insp.iscoroutinefunction(pdf_signer_obj.sign_pdf):
+            import asyncio as _aio
+            _aio.run(pdf_signer_obj.sign_pdf(writer, **_sign_kw))
+        else:
+            pdf_signer_obj.sign_pdf(writer, **_sign_kw)
     finally:
         if not use_tmp:
             in_stream.close()

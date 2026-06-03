@@ -216,11 +216,6 @@ button {
   background:transparent; color:var(--slate-700); border:1.5px solid var(--slate-300);
   font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:8px; min-height:36px;
   &:hover:not(:disabled){background:#fff;border-color:var(--blue-600);color:var(--blue-600);transform:none;box-shadow:none;filter:none;}
-  &--firmaec {
-    color: #065f46; border-color: #6ee7b7;
-    background: linear-gradient(135deg, #f0fdf4, #d1fae5);
-    &:hover:not(:disabled){ background:#fff;border-color:#059669;color:#065f46; }
-  }
 }
 .btn-guardar-principal {
   width:100%; min-height:54px; font-size:16px; font-weight:800;
@@ -912,8 +907,9 @@ select.doc-input, select.dark-input {
     display:block !important; position:static !important; max-height:none !important;
     padding:0 !important; margin:0 !important; background:#fff !important;
     border:none !important; box-shadow:none !important; overflow:visible !important;
+    width:100% !important; min-width:0 !important;
   }
-  #hojaEspejo { display:block !important; }
+  #hojaEspejo { display:block !important; width:100% !important; }
 
   .espejo-page {
     box-shadow:none !important; border:none !important; border-radius:0 !important;
@@ -1125,9 +1121,9 @@ select.doc-input, select.dark-input {
 // LA caja de firma — altura mayor para el sello QR
 .ep-firma-box {
   width: 100%;
-  height: 72px;
-  min-height: 72px;
-  max-height: 72px;
+  height: 88px;       // aumentado para que el sello sea más visible
+  min-height: 88px;
+  max-height: 88px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1167,7 +1163,7 @@ select.doc-input, select.dark-input {
   width: 100%;
   height: 100%;
   max-width: 100%;
-  max-height: 50px;
+  max-height: 82px;    // aumentado para coincidir con la nueva altura de la caja
   object-fit: contain;
   object-position: center;
 }
@@ -1261,8 +1257,9 @@ select.doc-input, select.dark-input {
     display: block !important; position: static !important; max-height: none !important;
     padding: 0 !important; margin: 0 !important; background: #fff !important;
     border: none !important; box-shadow: none !important; overflow: visible !important;
+    width: 100% !important; min-width: 0 !important;
   }
-  #hojaEspejo { display: block !important; }
+  #hojaEspejo { display: block !important; width: 100% !important; }
 
   // Documentos A4 — flujo inteligente
   .ep-doc {
@@ -1324,15 +1321,15 @@ select.doc-input, select.dark-input {
   .ep-tff { padding: 2px !important; width: 20% !important; }
 
   .ep-firma-box {
-    height: 50px !important;
-    min-height: 50px !important;
-    max-height: 50px !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    max-height: 64px !important;
     border-width: 1px !important;
     border-radius: 2px !important;
-    &--rec { height: 36px !important; min-height: 36px !important; max-height: 36px !important; }
+    &--rec { height: 44px !important; min-height: 44px !important; max-height: 44px !important; }
   }
   .ep-firma-img {
-    max-height: 44px !important;
+    max-height: 58px !important;
     object-fit: contain !important;
     object-position: center !important;
     display: block !important;
