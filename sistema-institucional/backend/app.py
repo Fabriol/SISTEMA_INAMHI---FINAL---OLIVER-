@@ -2074,52 +2074,88 @@ def responder_formulario():
 # ═══════════════════════════════════════════════════════════════
 #  A4 = 595.28 × 841.89 pts.  Origen (0,0) = esquina inferior-izquierda.
 
-# ── Márgenes ─────────────────────────────────────────────────────────────────
-_ML  = 30          # margen izquierdo
-_MR  = 565         # margen derecho (595 - 30)
-_CW  = 535         # ancho de contenido
-_MT  = 782         # Y inicial bajo el header institucional
-_MB  = 50          # Y mínima antes de salto de página
+# ════════════════════════════════════════════════════════════════════════════════
+#  PDF PAZ Y SALVO — RÉPLICA EXACTA DE LA HOJA ESPEJO DEL FRONTEND ANGULAR
+#  A4 = 595.28 × 841.89 pts  ·  Origen (0,0) = esquina inferior-izquierda
+# ════════════════════════════════════════════════════════════════════════════════
 
-# ── Columna FIRMA: siempre la última a la derecha (22% de _CW) ───────────────
-_FX1 = 448          # x izquierdo de la columna firma
-_FX2 = 565          # x derecho
-_FW  = 117          # ancho de la columna firma
-_FRH = 55           # altura de fila firma
+# ── Márgenes ──────────────────────────────────────────────────────────────────
+_ML  = 20          # margen izquierdo
+_MR  = 575         # margen derecho (595 - 20)
+_CW  = 555         # ancho contenido (_MR - _ML)
+_MT  = 776         # Y inicial del contenido (debajo del header de 57 pts)
+_MB  = 42          # Y mínima antes de salto de página (pie de página)
 
-# ── Tablas 6-col: Trámites y Seguridad (HTML: 22|5|22|5|24|22 %) ─────────────
-_T6W = [118, 27, 118, 27, 128, 117]
-_T6X = [30, 148, 175, 293, 320, 448]
+# ── Columna FIRMA siempre al extremo derecho: 22% de 555 = 122 pts ────────────
+_FX1 = 453         # x inicio columna firma  (575 - 122 = 453)
+_FX2 = 575         # x fin   columna firma
+_FW  = 122         # ancho   columna firma
+_FRH = 58          # altura de fila firma (suficiente para sello QR)
+
+# ── Tabla 6 col: Trámites y Seguridad  (22|5|22|5|24|22 %) ───────────────────
+# Anchos: 122+28+122+28+133+122 = 555
+_T6W = [122, 28, 122, 28, 133, 122]
+_T6X = [20, 142, 170, 292, 320, 453]
 _T6L = ["DESCRIPCIÓN", "S/N", "DESCRIPCIÓN", "S/N",
         "NOMBRE RESPONSABLE", "FIRMA ELECTRÓNICA"]
 
-# ── Tablas 5-col: Admin, TIC, Fin, RRHH (HTML: 29|5|22|22|22 %) ─────────────
-_T5W = [155, 27, 118, 118, 117]
-_T5X = [30, 185, 212, 330, 448]
+# ── Tabla 5 col: Admin, TIC, Fin, RRHH  (29|5|22|22|22 %) ───────────────────
+# Anchos: 161+28+122+122+122 = 555
+_T5W = [161, 28, 122, 122, 122]
+_T5X = [20, 181, 209, 331, 453]
 _T5L = ["DESCRIPCIÓN", "S/N", "DATO ADICIONAL",
         "NOMBRE RESPONSABLE", "FIRMA ELECTRÓNICA"]
 
+# ── Tabla info 4 col: Datos Personales  (16|34|16|34 %) ──────────────────────
+# Anchos: 89+189+89+188 = 555
+_I4W = [89, 189, 89, 188]
+_I4X = [20, 109, 298, 387]
+
 # ── Alturas ───────────────────────────────────────────────────────────────────
-_HH  = 16    # cabecera sección
-_CH  = 12    # cabecera columnas
-_IH  = 12    # fila info (datos personales)
+_BH  = 18    # cabecera de bloque (azul oscuro)
+_HH  = _BH   # alias de compatibilidad
+_CH  = 13    # cabecera de columnas (azul medio)
+_IH  = 14    # fila info (datos personales)
 
-# ── Paleta de colores (R, G, B en 0–1) ───────────────────────────────────────
-_C_HEAD  = (0.07, 0.17, 0.37)   # azul oscuro
-_C_COLS  = (0.18, 0.34, 0.61)   # azul medio
-_C_TH    = (0.91, 0.93, 0.97)   # gris-azul claro — celdas th
-_C_WHITE = (1.0,  1.0,  1.0)
-_C_BLACK = (0.0,  0.0,  0.0)
-_C_OK    = (0.08, 0.45, 0.08)   # verde
-_C_PEND  = (0.55, 0.55, 0.55)   # gris
-_C_BKGOK = (0.90, 0.97, 0.90)   # fondo verde tenue — firmado
-_C_SI    = (0.06, 0.55, 0.06)   # verde SI
-_C_NO    = (0.75, 0.07, 0.07)   # rojo NO
-_C_GRAY  = (0.96, 0.96, 0.96)   # compatibilidad
+# ── Paleta de colores — extraída exactamente del CSS de la hoja espejo ────────
+# ep-bloque__head background: #122d5e
+_C_HEAD  = (18/255,  45/255,  94/255)
+# ep-tabla-firmas th background: #2d579c
+_C_COLS  = (45/255,  87/255, 156/255)
+# ep-th background: #e8edf8
+_C_TH    = (232/255, 237/255, 248/255)
+_C_WHITE = (1.0, 1.0, 1.0)
+_C_BLACK = (0.0, 0.0, 0.0)
+# SI badge: #16a34a (verde)
+_C_SI    = (22/255, 163/255, 74/255)
+# NO badge: #dc2626 (rojo)
+_C_NO    = (220/255, 38/255, 38/255)
+# texto SI/NO oscuro
+_C_SI_T  = (4/255, 120/255, 87/255)
+_C_NO_T  = (185/255, 28/255, 28/255)
+# celda firmada: fondo #dcfce7
+_C_BKGOK = (220/255, 252/255, 231/255)
+_C_OK    = (22/255, 101/255, 52/255)
+_C_PEND  = (0.55, 0.55, 0.55)
+# fila director: fondo muy tenue azul
+_C_DIRFG = (0.95, 0.96, 1.0)
+# compatibilidad con código existente
+_C_GRAY  = (0.96, 0.96, 0.96)
+_C_MR    = _MR   # alias
 
-# ── Funciones auxiliares del PDF ─────────────────────────────────────────────
+
+# ── Ruta al logo institucional ────────────────────────────────────────────────
+_LOGO_PATH = os.path.join(
+    BASE_DIR, '..', 'frontend', 'src', 'assets', 'img', 'logo.png'
+)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  FUNCIONES AUXILIARES DE DIBUJO
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _split_text(text: str, max_chars: int) -> list:
+    """Divide texto en líneas respetando palabras."""
     words = str(text or "").split()
     lines, cur = [], ""
     for w in words:
@@ -2132,174 +2168,327 @@ def _split_text(text: str, max_chars: int) -> list:
             cur = w
     if cur:
         lines.append(cur)
-    return lines or ["—"]
+    return lines or [""]
 
 
 def _draw_page_header(c, formulario: dict, page_num: int) -> None:
-    W = 595.28
-    c.setFillColorRGB(*_C_HEAD)
-    c.rect(_ML, 814, W - 2 * _ML, 22, fill=1, stroke=0)
+    """
+    Encabezado institucional INAMHI — 3 columnas:
+      Logo (izq) | Textos institucionales (centro) | Tabla código (der)
+    Réplica exacta del .ep-header del HTML angular.
+    """
+    W     = 595.28
+    HY    = 786         # Y del borde inferior del header
+    HH    = 55          # altura del header
+    HTOP  = HY + HH     # Y del borde superior (841)
+
+    # Fondo blanco del header
     c.setFillColorRGB(*_C_WHITE)
-    c.setFont("Helvetica-Bold", 7.5)
-    c.drawString(_ML + 3, 821, "INAMHI")
-    c.setFont("Helvetica-Bold", 8)
-    c.drawCentredString(W / 2, 826, "Instituto Nacional de Meteorología e Hidrología")
-    c.setFont("Helvetica", 7)
-    c.drawCentredString(W / 2, 818, "FORMULARIO PAZ Y SALVO — LIQUIDACIÓN DE HABERES")
-    rx = W - _ML - 98
-    c.setFont("Helvetica", 6.5)
-    c.drawString(rx, 830, "CÓDIGO:  INAMHI-RH-001")
-    c.drawString(rx, 822, "VERSIÓN: 2.0")
-    c.drawString(rx, 815, f"PÁGINA:  {page_num + 1}")
+    c.rect(0, HY, W, HH, fill=1, stroke=0)
+
+    # Franja azul superior (12 pts)
+    c.setFillColorRGB(*_C_HEAD)
+    c.rect(0, HTOP - 12, W, 12, fill=1, stroke=0)
+
+    # ── Logo (izquierda) ────────────────────────────────────────────────────
+    LOGO_W = 60
+    LOGO_H = 36
+    LOGO_X = _ML
+    LOGO_Y = HY + (HH - LOGO_H) / 2 - 4
+    try:
+        from reportlab.lib.utils import ImageReader as _IR
+        _logo_img = _IR(_LOGO_PATH)
+        c.drawImage(_logo_img, LOGO_X, LOGO_Y,
+                    width=LOGO_W, height=LOGO_H,
+                    preserveAspectRatio=True, anchor='c', mask='auto')
+    except Exception:
+        # fallback: rectángulo azul con texto
+        c.setFillColorRGB(*_C_HEAD)
+        c.rect(LOGO_X, LOGO_Y, LOGO_W, LOGO_H, fill=1, stroke=0)
+        c.setFillColorRGB(*_C_WHITE)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawCentredString(LOGO_X + LOGO_W / 2, LOGO_Y + LOGO_H / 2 - 5, "INAMHI")
+
+    # ── Tabla código (derecha) ───────────────────────────────────────────────
+    # Replica: CÓDIGO | INAMHI-RH-001 / VERSIÓN | 2.0 / PÁGINA | N
+    CT_W  = 115         # ancho total tabla código
+    CT_X  = W - _ML - CT_W
+    CT_Y  = HY + 6
+    CT_RH = 11          # altura de cada fila
+    CT_LW = 48          # ancho columna etiqueta
+
     c.setStrokeColorRGB(*_C_HEAD)
     c.setLineWidth(0.5)
-    c.line(_ML, 812, W - _ML, 812)
+    c.rect(CT_X, CT_Y, CT_W, CT_RH * 3, fill=0, stroke=1)
+    c.line(CT_X + CT_LW, CT_Y, CT_X + CT_LW, CT_Y + CT_RH * 3)
+    for i in range(1, 3):
+        c.line(CT_X, CT_Y + i * CT_RH, CT_X + CT_W, CT_Y + i * CT_RH)
+
+    c.setFillColorRGB(*_C_HEAD)
+    c.setFont("Helvetica-Bold", 6.5)
+    for i, (lbl, val) in enumerate([
+        ("CÓDIGO",  "INAMHI-RH-001"),
+        ("VERSIÓN", "2.0"),
+        ("PÁGINA",  f"{page_num + 1}"),
+    ]):
+        ry = CT_Y + (2 - i) * CT_RH + 3
+        c.drawString(CT_X + 2, ry, lbl)
+        c.setFillColorRGB(*_C_BLACK)
+        c.setFont("Helvetica", 6.5)
+        c.drawString(CT_X + CT_LW + 3, ry, val)
+        c.setFillColorRGB(*_C_HEAD)
+        c.setFont("Helvetica-Bold", 6.5)
+
+    # ── Textos institucionales (centro) ─────────────────────────────────────
+    CX = _ML + LOGO_W + 4
+    CW = CT_X - CX - 4
+    CY_BOT = HY + 8
+
+    c.setFillColorRGB(*_C_HEAD)
+    c.setFont("Helvetica-Bold", 8.5)
+    c.drawCentredString(CX + CW / 2, CY_BOT + 26,
+                        "Instituto Nacional de Meteorología e Hidrología")
+    c.setFont("Helvetica", 7.5)
+    c.drawCentredString(CX + CW / 2, CY_BOT + 15,
+                        "Dirección de Administración de Recursos Humanos")
+    c.setFont("Helvetica-Bold", 7.5)
+    c.drawCentredString(CX + CW / 2, CY_BOT + 4,
+                        "FORMULARIO PAZ Y SALVO — LIQUIDACIÓN DE HABERES")
+
+    # Línea separadora entre header y contenido
+    c.setStrokeColorRGB(*_C_HEAD)
+    c.setLineWidth(1.2)
+    c.line(_ML, HY, W - _ML, HY)
     c.setFillColorRGB(*_C_BLACK)
     c.setStrokeColorRGB(*_C_BLACK)
     c.setLineWidth(0.4)
 
 
 def _sec_header(c, y: float, num: str, titulo: str) -> float:
+    """
+    Cabecera de bloque azul oscuro con badge de número.
+    Réplica de .ep-bloque__head del HTML.
+    """
     c.setFillColorRGB(*_C_HEAD)
-    c.rect(_ML, y - _HH, _CW, _HH, fill=1, stroke=0)
+    c.rect(_ML, y - _BH, _CW, _BH, fill=1, stroke=0)
+    # Badge del número (rectángulo blanco pequeño)
+    BADGE_W = 22
     c.setFillColorRGB(*_C_WHITE)
+    c.roundRect(_ML + 3, y - _BH + 3, BADGE_W, _BH - 6, 2, fill=1, stroke=0)
+    c.setFillColorRGB(*_C_HEAD)
     c.setFont("Helvetica-Bold", 7)
-    c.drawString(_ML + 3, y - _HH + 5, f"{num}.")
-    c.setFont("Helvetica-Bold", 7.5)
-    c.drawString(_ML + 18, y - _HH + 5, titulo.upper())
+    c.drawCentredString(_ML + 3 + BADGE_W / 2, y - _BH + 6, num)
+    # Título
+    c.setFillColorRGB(*_C_WHITE)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(_ML + 3 + BADGE_W + 5, y - _BH + 6, titulo.upper())
     c.setFillColorRGB(*_C_BLACK)
-    return y - _HH
+    return y - _BH
 
 
 def _col_header(c, y: float, xs: list, ws: list, labels: list) -> float:
+    """Fila de cabeceras de columnas — azul medio, texto blanco."""
     c.setFillColorRGB(*_C_COLS)
-    c.setLineWidth(0.3)
+    c.setStrokeColorRGB(*_C_HEAD)
+    c.setLineWidth(0.4)
     for x, w in zip(xs, ws):
         c.rect(x, y - _CH, w, _CH, fill=1, stroke=1)
     c.setFillColorRGB(*_C_WHITE)
-    c.setFont("Helvetica-Bold", 5.5)
-    for lbl, x in zip(labels, xs):
-        c.drawString(x + 2, y - _CH + 4, str(lbl))
+    c.setFont("Helvetica-Bold", 6)
+    for lbl, x, w in zip(labels, xs, ws):
+        c.drawCentredString(x + w / 2, y - _CH + 4, str(lbl))
     c.setFillColorRGB(*_C_BLACK)
+    c.setStrokeColorRGB(*_C_BLACK)
+    c.setLineWidth(0.4)
     return y - _CH
 
 
 def _info_row(c, y: float, l1: str, v1: str,
               l2: str = "", v2: str = "", span: bool = False) -> float:
-    c.setLineWidth(0.3)
+    """
+    Fila de tabla de información (datos personales, recepción).
+    4 columnas: th(16%) | td(34%) | th(16%) | td(34%)
+    Con span=True: th(16%) | td(84%)
+    """
+    TH1, TD1 = _I4W[0], _I4W[1]
+    TH2, TD2 = _I4W[2], _I4W[3]
+    X0, X1, X2, X3 = _I4X
+
+    c.setStrokeColorRGB(*_C_HEAD)
+    c.setLineWidth(0.4)
+
+    # th1
     c.setFillColorRGB(*_C_TH)
-    c.rect(30, y - _IH, 86, _IH, fill=1, stroke=1)
-    c.setFillColorRGB(*_C_BLACK)
-    c.setFont("Helvetica-Bold", 5.8)
-    c.drawString(32, y - _IH + 4, str(l1 or "")[:17])
+    c.rect(X0, y - _IH, TH1, _IH, fill=1, stroke=1)
+    c.setFillColorRGB(*_C_HEAD)
+    c.setFont("Helvetica-Bold", 6.5)
+    c.drawString(X0 + 3, y - _IH + 4, str(l1 or "")[:16])
+
     if span or not l2:
+        # td spanning th2+td2+td1 space
+        span_w = TD1 + TH2 + TD2
         c.setFillColorRGB(*_C_WHITE)
-        c.rect(116, y - _IH, 449, _IH, fill=1, stroke=1)
+        c.rect(X1, y - _IH, span_w, _IH, fill=1, stroke=1)
         c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", 5.8)
-        c.drawString(118, y - _IH + 4, str(v1 or "—")[:95])
+        c.setFont("Helvetica", 6.5)
+        c.drawString(X1 + 3, y - _IH + 4, str(v1 or "—")[:90])
     else:
+        # td1
         c.setFillColorRGB(*_C_WHITE)
-        c.rect(116, y - _IH, 182, _IH, fill=1, stroke=1)
+        c.rect(X1, y - _IH, TD1, _IH, fill=1, stroke=1)
         c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", 5.8)
-        c.drawString(118, y - _IH + 4, str(v1 or "—")[:30])
+        c.setFont("Helvetica", 6.5)
+        c.drawString(X1 + 3, y - _IH + 4, str(v1 or "—")[:28])
+        # th2
         c.setFillColorRGB(*_C_TH)
-        c.rect(298, y - _IH, 86, _IH, fill=1, stroke=1)
-        c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica-Bold", 5.8)
-        c.drawString(300, y - _IH + 4, str(l2 or "")[:17])
+        c.rect(X2, y - _IH, TH2, _IH, fill=1, stroke=1)
+        c.setFillColorRGB(*_C_HEAD)
+        c.setFont("Helvetica-Bold", 6.5)
+        c.drawString(X2 + 3, y - _IH + 4, str(l2 or "")[:16])
+        # td2
         c.setFillColorRGB(*_C_WHITE)
-        c.rect(384, y - _IH, 181, _IH, fill=1, stroke=1)
+        c.rect(X3, y - _IH, TD2, _IH, fill=1, stroke=1)
         c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", 5.8)
-        c.drawString(386, y - _IH + 4, str(v2 or "—")[:30])
+        c.setFont("Helvetica", 6.5)
+        c.drawString(X3 + 3, y - _IH + 4, str(v2 or "—")[:28])
+
+    c.setStrokeColorRGB(*_C_BLACK)
     return y - _IH
 
 
 def _draw_firma_cell(c, y: float, firma_val: str,
                      campo: str, sig_coords: dict, page_num: int) -> None:
+    """
+    Dibuja la celda de firma en la columna fija (_FX1 → _FX2).
+    • Si está firmada: fondo verde tenue + imagen QR del sello.
+    • Si no está firmada: fondo blanco con placeholder.
+    Registra coordenadas en sig_coords para pyHanko.
+    """
     y_bot = y - _FRH
+    # Coordenadas para pyHanko — siempre registrar aunque esté vacía
     sig_coords[campo] = (int(_FX1), int(y_bot), int(_FX2), int(y), page_num)
+
+    c.setStrokeColorRGB(*_C_HEAD)
+    c.setLineWidth(0.4)
+
     if firma_val and firma_val.startswith("FIRMADO_EC:"):
+        # Fondo verde tenue
         c.setFillColorRGB(*_C_BKGOK)
         c.rect(_FX1, y_bot, _FW, _FRH, fill=1, stroke=1)
+
+        # Intentar renderizar la imagen PNG del sello QR
         if "|" in firma_val:
             b64_raw = firma_val.split("|", 1)[1]
             if b64_raw.startswith("data:image"):
                 b64_raw = b64_raw.split(",", 1)[-1]
             try:
-                import io as _io2, base64 as _b64_2
-                from reportlab.lib.utils import ImageReader
-                img_r = ImageReader(_io2.BytesIO(_b64_2.b64decode(b64_raw)))
-                pad = 3
-                c.drawImage(img_r, _FX1 + pad, y_bot + pad,
-                            width=_FW - 2 * pad, height=_FRH - 2 * pad,
-                            preserveAspectRatio=True, anchor='c', mask='auto')
+                import io as _io2, base64 as _b642
+                from reportlab.lib.utils import ImageReader as _IR2
+                img_r = _IR2(_io2.BytesIO(_b642.b64decode(b64_raw)))
+                pad = 2
+                c.drawImage(img_r,
+                            _FX1 + pad, y_bot + pad,
+                            width=_FW - 2 * pad,
+                            height=_FRH - 2 * pad,
+                            preserveAspectRatio=True, anchor='c',
+                            mask='auto')
+                c.setStrokeColorRGB(*_C_BLACK)
                 return
             except Exception:
                 pass
-        parts = firma_val.split("|")[0].split(":")
-        firmante = parts[1] if len(parts) > 1 else "Firmado"
-        fecha_f  = parts[2][:10] if len(parts) > 2 else ""
+
+        # Fallback texto (sin imagen disponible)
+        parts   = firma_val.split("|")[0].split(":")
+        firmante = parts[1] if len(parts) > 1 else "FIRMADO"
+        fecha_f  = parts[2][:10]  if len(parts) > 2 else ""
         c.setFillColorRGB(*_C_OK)
-        c.setFont("Helvetica-Bold", 6)
-        c.drawString(_FX1 + 3, y - 13, "FIRMADO ELECTRONICAMENTE")
-        c.setFont("Helvetica", 5.5)
+        c.setFont("Helvetica-Bold", 6.5)
+        c.drawString(_FX1 + 4, y - 14, "✓ FIRMADO ELECTRÓNICAMENTE")
         c.setFillColorRGB(*_C_BLACK)
-        ty = y - 24
-        for ln in _split_text(firmante, 22)[:3]:
-            c.drawString(_FX1 + 3, ty, ln)
+        c.setFont("Helvetica", 6)
+        ty = y - 26
+        for ln in _split_text(firmante, 20)[:3]:
+            c.drawString(_FX1 + 4, ty, ln)
             ty -= 8
         c.setFillColorRGB(*_C_PEND)
-        c.setFont("Helvetica", 5)
-        c.drawString(_FX1 + 3, y_bot + 5, fecha_f)
+        c.setFont("Helvetica", 5.5)
+        c.drawString(_FX1 + 4, y_bot + 5, fecha_f)
     else:
+        # Celda vacía — reservada para pyHanko
         c.setFillColorRGB(*_C_WHITE)
         c.rect(_FX1, y_bot, _FW, _FRH, fill=1, stroke=1)
-        c.setFillColorRGB(*_C_PEND)
-        c.setFont("Helvetica", 5.5)
-        c.drawString(_FX1 + 4, y_bot + 5, "[FirmaEC]")
+        c.setFillColorRGB(0.8, 0.8, 0.8)
+        c.setFont("Helvetica", 6)
+        c.drawCentredString(_FX1 + _FW / 2, y_bot + _FRH / 2 - 3, "[ FirmaEC ]")
+
     c.setFillColorRGB(*_C_BLACK)
+    c.setStrokeColorRGB(*_C_BLACK)
+    c.setLineWidth(0.4)
 
 
 def _firma_row(c, y: float, xs: list, ws: list, cells: list,
                campo: str, firma_val: str,
                sig_coords: dict, page_num: int) -> float:
+    """
+    Dibuja una fila completa de la tabla de firmas.
+    cells: [(texto, color_fondo), ...] para cada columna EXCEPTO la de firma.
+    """
     y_bot = y - _FRH
-    c.setLineWidth(0.35)
+    c.setStrokeColorRGB(*_C_HEAD)
+    c.setLineWidth(0.4)
+
     for i, (txt, bg) in enumerate(cells):
         c.setFillColorRGB(*bg)
         c.rect(xs[i], y_bot, ws[i], _FRH, fill=1, stroke=1)
         c.setFillColorRGB(*_C_BLACK)
         s = str(txt or "")
         if s and not s.startswith("data:") and not s.startswith("FIRMADO_EC:"):
-            c.setFont("Helvetica", 6)
-            lns = _split_text(s, max(ws[i] // 5, 8))
-            ty = y - 10
-            for ln in lns[:5]:
-                c.drawString(xs[i] + 3, ty, ln)
-                ty -= 8
+            # Para celdas SI/NO (columnas 1 y 3 de tablas 6-col)
+            if s in ("SI", "NO"):
+                col = _C_SI_T if s == "SI" else _C_NO_T
+                c.setFillColorRGB(*col)
+                c.setFont("Helvetica-Bold", 7)
+                c.drawCentredString(xs[i] + ws[i] / 2, y_bot + _FRH / 2 - 3, s)
+            else:
+                c.setFont("Helvetica", 7)
+                lns = _split_text(s, max(ws[i] // 4, 10))
+                ty  = y - 10
+                for ln in lns[:6]:
+                    c.drawString(xs[i] + 3, ty, ln)
+                    ty -= 9
+        c.setFillColorRGB(*_C_BLACK)
+
     _draw_firma_cell(c, y, firma_val, campo, sig_coords, page_num)
+    c.setStrokeColorRGB(*_C_BLACK)
     return y - _FRH
 
 
 def _dir_row(c, y: float, texto: str,
              sig_coords: dict, campo: str, firma_val: str, page_num: int) -> float:
+    """
+    Fila de Director/Responsable: celda fusionada (de col 0 hasta la columna firma)
+    más celda de firma al lado derecho.
+    """
     y_bot = y - _FRH
-    ancho = _FX1 - _ML
-    c.setLineWidth(0.35)
-    c.setFillColorRGB(0.95, 0.96, 1.0)
+    ancho = _FX1 - _ML   # 453 - 20 = 433 pts
+
+    c.setStrokeColorRGB(*_C_HEAD)
+    c.setLineWidth(0.4)
+    c.setFillColorRGB(*_C_DIRFG)
     c.rect(_ML, y_bot, ancho, _FRH, fill=1, stroke=1)
+
+    c.setFillColorRGB(*_C_HEAD)
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(_ML + 4, y - 13, "Director/a — Responsable:")
     c.setFillColorRGB(*_C_BLACK)
-    c.setFont("Helvetica-Bold", 6.5)
-    c.drawString(_ML + 4, y - 13, "Director/a / Responsable:")
-    c.setFont("Helvetica", 6)
-    ty = y - 23
-    for ln in _split_text(texto, 62)[:3]:
+    c.setFont("Helvetica", 7)
+    ty = y - 24
+    for ln in _split_text(texto, 68)[:3]:
         c.drawString(_ML + 4, ty, ln)
         ty -= 9
+
     _draw_firma_cell(c, y, firma_val, campo, sig_coords, page_num)
+    c.setStrokeColorRGB(*_C_BLACK)
     return y - _FRH
 
 
