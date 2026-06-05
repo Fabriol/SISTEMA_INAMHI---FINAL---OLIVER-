@@ -175,6 +175,7 @@ export class Formularios implements OnInit, OnDestroy {
 
   // ── Estado UI ───────────────────────────────────────────────
   cargando = false;
+  pdfDescargando = false;
   currentStep = 0;
   asignacionSubmitted = false;
   erroresPaso: string[] = [];
@@ -2240,8 +2241,16 @@ export class Formularios implements OnInit, OnDestroy {
         const campo: string = p.codigo ?? p.campo ?? p.pregunta ?? '';
         if (!campo || !this.formularioPazSalvo.get(campo)) return;
 
-        this.camposAsignadosUsuario.push(campo);
+        // Para admin → todos los campos son editables.
+        // Para no-admin → solo los marcados como es_mio=1 por el backend.
+        // Esto permite que la hoja espejo muestre TODOS los datos guardados
+        // de cualquier usuario, mientras cada usuario solo edita los suyos.
+        const esAsignado = this.esAdmin() || (p.es_mio === 1);
+        if (esAsignado) {
+          this.camposAsignadosUsuario.push(campo);
+        }
 
+        // Cargar valor en el formulario si ya fue respondido (para el espejo)
         if (p.respuesta !== null && p.respuesta !== undefined && p.respuesta !== '') {
           valores[campo] = p.respuesta;
           this.camposBloqueados.push(campo);
@@ -2262,13 +2271,16 @@ export class Formularios implements OnInit, OnDestroy {
         const campo: string = p.codigo ?? p.campo ?? p.pregunta ?? '';
         if (!campo || !(campo in this.firmasEC)) return;
 
-        this.camposAsignadosUsuario.push(campo);
+        // Igual que arriba: admin o es_mio=1 → asignado para firmar
+        const esAsignado = this.esAdmin() || (p.es_mio === 1);
+        if (esAsignado) {
+          this.camposAsignadosUsuario.push(campo);
+        }
 
         if (p.respuesta !== null && p.respuesta !== undefined && p.respuesta !== '') {
           const resp = p.respuesta as string;
           if (resp.startsWith('FIRMADO_EC:')) {
             // Formato: FIRMADO_EC:nombre:fecha|base64png
-            // Si hay imagen base64 guardada, usarla; si no, guardar nombre
             const pipePart = resp.split('|');
             if (pipePart.length > 1 && pipePart[1].startsWith('data:image')) {
               this.firmasEC[campo] = pipePart[1]; // imagen QR guardada
@@ -2551,22 +2563,29 @@ export class Formularios implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────
 
   /**
-   * Abre el PDF firmado generado por el backend en una nueva pestaña para imprimir.
-   * El PDF es el _signed.pdf (pyHanko) que conserva la firma digital intacta.
-   * NO usa window.print() sobre el HTML porque eso destruye la firma criptográfica.
+   * Abre el PDF del backend en una nueva pestaña para impresión.
+   * Si existe _signed.pdf (firmado con FirmaEC / pyHanko), lo sirve.
+   * Si no existe, sirve el PDF base generado por ReportLab.
+   * Usar window.print() sobre HTML no es apto para documentos con firma digital.
    */
   printMirror(): void {
     if (!this.formularioSeleccionado?.id) {
       this.alertaRapida('Sin formulario', 'Seleccione un formulario antes de imprimir.');
       return;
     }
+    if (this.pdfDescargando) return;
+    this.pdfDescargando = true;
+    this.cdr.markForCheck();
+
     this.formulariosService
       .obtenerPdfBytes(this.formularioSeleccionado.id)
       .pipe(
         catchError(() => {
-          Swal.fire('Error', 'No se pudo cargar el PDF del servidor.', 'error');
+          // Fallback: imprimir la página HTML si el backend no responde
+          window.print();
           return of(null);
-        })
+        }),
+        finalize(() => { this.pdfDescargando = false; this.cdr.markForCheck(); })
       )
       .subscribe((bytes: ArrayBuffer | null) => {
         if (!bytes) return;
@@ -2574,27 +2593,53 @@ export class Formularios implements OnInit, OnDestroy {
         const url  = URL.createObjectURL(blob);
         const win  = window.open(url, '_blank');
         if (win) win.focus();
+        // Liberar URL después de 30 s para dar tiempo a que el navegador cargue el PDF
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
       });
   }
 
   /**
-   * Descarga el PDF firmado generado por el backend (diseño hoja espejo + firma PAdES).
-   * Sirve el _signed.pdf si existe (con todas las firmas digitales), si no el original.
-   * NO usa html2canvas ni jsPDF porque esos métodos destruyen la firma criptográfica.
+   * Descarga el PDF oficial generado por el backend.
+   *
+   * FLUJO COMPLETO:
+   *   1. El backend genera el PDF con ReportLab (datos de la DB, diseño idéntico al espejo).
+   *   2. FirmaEC / pyHanko incrusta la firma PAdES en ese PDF → formulario_{id}_signed.pdf.
+   *   3. Este método solicita /api/formularios/{id}/pdf:
+   *        → si existe _signed.pdf: lo sirve (PDF con firma digital válida).
+   *        → si no: sirve el PDF base (aún no firmado).
+   *   4. El usuario descarga el archivo con la firma FirmaEC intacta.
+   *
+   * POR QUÉ NO SE USA html2canvas AQUÍ:
+   *   html2canvas genera un PDF NUEVO a partir del DOM (bitmap/imagen).
+   *   Ese PDF es un archivo completamente distinto al que FirmaEC firmó.
+   *   La firma PAdES usa ByteRange (referencias a bytes exactos del PDF original).
+   *   Si el archivo cambia aunque sea un byte, la firma es INVÁLIDA en FirmaEC.
+   *   Por tanto, el botón de descarga SIEMPRE debe servir el PDF del backend.
    */
   exportarHojaEspejoPDF(): void {
     if (!this.formularioSeleccionado?.id) {
       this.alertaRapida('Sin formulario', 'Seleccione un formulario antes de descargar.');
       return;
     }
+    if (this.pdfDescargando) return;
+
     const fid = this.formularioSeleccionado.id;
+    this.pdfDescargando = true;
+    this.cdr.markForCheck();
+
     this.formulariosService
       .obtenerPdfBytes(fid)
       .pipe(
-        catchError(() => {
-          Swal.fire('Error', 'No se pudo descargar el PDF del servidor.', 'error');
+        catchError((err: any) => {
+          const msg = err?.error?.mensaje ?? 'No se pudo descargar el PDF del servidor.';
+          Swal.fire({
+            icon:  'error',
+            title: 'Error al descargar PDF',
+            text:  msg,
+          });
           return of(null);
-        })
+        }),
+        finalize(() => { this.pdfDescargando = false; this.cdr.markForCheck(); })
       )
       .subscribe((bytes: ArrayBuffer | null) => {
         if (!bytes) return;

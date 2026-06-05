@@ -1529,20 +1529,24 @@ def ver_formulario(id):
                 ORDER BY p.orden ASC, p.id ASC
             """, (id,))
         else:
+            # Devuelve TODAS las preguntas del formulario con sus respuestas guardadas
+            # (para que la hoja espejo muestre el formulario completo), pero marca
+            # solo las del usuario actual como editables (es_mio = 1).
             cursor.execute("""
                 SELECT
                     p.*,
-                    a.id AS asignacion_id,
+                    a.id          AS asignacion_id,
                     a.asignado_usuario_id,
-                    a.estado AS estado_asignacion,
-                    r.respuesta
+                    a.estado      AS estado_asignacion,
+                    r.respuesta,
+                    CASE WHEN a.asignado_usuario_id = %s THEN 1 ELSE 0 END AS es_mio
                 FROM formulario_preguntas p
-                INNER JOIN formulario_asignaciones a ON p.id = a.pregunta_id
+                LEFT JOIN formulario_asignaciones a
+                       ON p.id = a.pregunta_id AND a.asignado_usuario_id = %s
                 LEFT JOIN formulario_respuestas r ON p.id = r.pregunta_id
                 WHERE p.formulario_id = %s
-                AND a.asignado_usuario_id = %s
                 ORDER BY p.orden ASC, p.id ASC
-            """, (id, user["id"]))
+            """, (user["id"], user["id"], id))
 
         return jsonify({
             "formulario": formulario,
@@ -2743,8 +2747,8 @@ def generar_pdf(formulario_id):
         if not formulario:
             return jsonify({"mensaje": "Formulario no encontrado"}), 404
 
-        if user["rol"] != "Administrador" and formulario["estado"] == "BORRADOR":
-            return jsonify({"mensaje": "El formulario aún está en borrador"}), 400
+        # Nota: se permite que no-admin descargue el PDF (necesario para flujo FirmaEC Desktop)
+        # El admin puede descargarlo siempre; los demás también, incluso en BORRADOR.
 
         cursor.execute("""
             SELECT p.codigo, r.respuesta
@@ -2872,7 +2876,10 @@ def generar_pdf(formulario_id):
             ], cam, _f(cam), sig_coords, pg)
 
         _need(_FRH)
-        jt = f"Jefe Inmediato: {_v('tramites_jefe_inmediato')}  |  Recibe: {_v('tramites_servidor_recibe')}"
+        _obs_t = _v('tramites_obs')
+        jt = (f"Jefe Inmediato: {_v('tramites_jefe_inmediato')}"
+              f"  |  Recibe: {_v('tramites_servidor_recibe')}"
+              + (f"  |  Obs: {_obs_t}" if _obs_t not in ("", "—") else ""))
         y = _firma_row(c, y, _T6X, _T6W, [
             (jt, _C_WHITE), ("", _C_WHITE), ("", _C_WHITE),
             ("", _C_WHITE), (_v("tramites_nombre_responsable"), _C_WHITE),
@@ -2921,10 +2928,11 @@ def generar_pdf(formulario_id):
             ("Entrega backup de información",       "tic_backup",
              f"Ruta: {_v('tic_ruta_backup')}",      "tic_nombre_resp2", "tic_r2"),
             ("Retiro control acceso / contraseñas", "tic_retiro_acceso",
-             f"Correo: {_v('tic_cierre_correo')}  eSIGEF: {_v('tic_esigef')}",
+             f"Correo: {_v('tic_cierre_correo')}  eSIGEF: {_v('tic_esigef')}"
+             f"  QUIPUX: {_v('tic_quipux')}  SPRYN: {_v('tic_spryn')}  eSByE: {_v('tic_esbye')}",
              "tic_nombre_resp3", "tic_r3"),
             ("Entrega tarjeta acceso / cuentas",   "tic_tarjeta_cuentas",
-             f"SPRYN: {_v('tic_spryn')}  eSByE: {_v('tic_esbye')}",
+             f"Obs: {_v('tic_obs')}",
              "tic_nombre_resp4", "tic_r4"),
         ]:
             _need(_FRH)
@@ -2950,11 +2958,17 @@ def generar_pdf(formulario_id):
              f"$ {_v('fin_saldos_valor')}  {_v('fin_saldos_obs')}",
              "fin_nombre_resp1", "fin_r1"),
             ("Anticipo de sueldos pendiente",         "fin_anticipo",
-             f"$ {_v('fin_anticipo_valor')}",          "fin_nombre_resp2", "fin_r2"),
+             f"$ {_v('fin_anticipo_valor')}"
+             + (f"  {_v('fin_anticipo_obs')}" if _v('fin_anticipo_obs') not in ("", "—") else ""),
+             "fin_nombre_resp2", "fin_r2"),
             ("Recuperación de valores pendiente",     "fin_recuperacion",
-             f"$ {_v('fin_recuperacion_valor')}",      "fin_nombre_resp3", "fin_r3"),
+             f"$ {_v('fin_recuperacion_valor')}"
+             + (f"  {_v('fin_recuperacion_obs')}" if _v('fin_recuperacion_obs') not in ("", "—") else ""),
+             "fin_nombre_resp3", "fin_r3"),
             ("Devolución de muebles y equipos",       "fin_devolucion",
-             f"$ {_v('fin_devolucion_valor')}",        "fin_nombre_resp4", "fin_r4"),
+             f"$ {_v('fin_devolucion_valor')}"
+             + (f"  {_v('fin_devolucion_obs')}" if _v('fin_devolucion_obs') not in ("", "—") else ""),
+             "fin_nombre_resp4", "fin_r4"),
         ]:
             _need(_FRH)
             yn = _v(yk)

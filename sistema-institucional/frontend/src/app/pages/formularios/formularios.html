@@ -971,8 +971,14 @@
       <div class="espejo-header-actions no-print">
         <span class="espejo-live-badge"><span class="pulse-dot"></span>Vista Previa en Tiempo Real</span>
         <div class="espejo-actions">
-          <button type="button" class="btn-ghost-sm" (click)="printMirror()">🖨 Imprimir</button>
-          <button type="button" class="btn-ghost-sm" (click)="exportarHojaEspejoPDF()">⬇ PDF</button>
+          <button type="button" class="btn-ghost-sm" (click)="printMirror()" [disabled]="pdfDescargando">
+            <span *ngIf="pdfDescargando" class="btn-spinner" style="width:10px;height:10px;margin-right:4px;"></span>
+            🖨 {{ pdfDescargando ? 'Cargando…' : 'Imprimir' }}
+          </button>
+          <button type="button" class="btn-ghost-sm" (click)="exportarHojaEspejoPDF()" [disabled]="pdfDescargando">
+            <span *ngIf="pdfDescargando" class="btn-spinner" style="width:10px;height:10px;margin-right:4px;"></span>
+            ⬇ {{ pdfDescargando ? 'Generando PDF…' : 'PDF' }}
+          </button>
         </div>
       </div>
 
