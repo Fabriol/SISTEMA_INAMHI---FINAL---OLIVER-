@@ -2147,10 +2147,41 @@ _C_GRAY  = (0.96, 0.96, 0.96)
 _C_MR    = _MR   # alias
 
 
+# ── Colores por sección — extraídos exactamente del CSS del espejo HTML ──────
+# Cada sección tiene su propio color de cabecera, como en ep-bloque--* del CSS
+_CS_P    = (30/255,  58/255, 138/255)   # 01 Datos Personales   #1e3a8a
+_CS_U    = (29/255,  78/255, 216/255)   # 02 Dirección/Unidad   #1d4ed8
+_CS_T    = ( 3/255, 105/255, 161/255)   # 03 Trámites           #0369a1
+_CS_A    = (55/255,  65/255,  81/255)   # 04 Administrativo     #374151
+_CS_TIC  = (67/255,  56/255, 202/255)   # 05 TIC                #4338ca
+_CS_FIN  = ( 6/255,  95/255,  70/255)   # 06 Financiero         #065f46
+_CS_SEG  = (146/255, 64/255,  14/255)   # 07 Seguridad          #92400e
+_CS_RRHH = (30/255,  58/255, 138/255)   # 08 RRHH               #1e3a8a
+_CS_REC  = (20/255,  83/255,  45/255)   # 09 Recepción          #14532d
+_CS_AUTH = (76/255,  29/255, 149/255)   # 10 Autorización       #4c1d95
+
+# ── Colores de cabeceras de columna (ligeramente más claros que el header) ───
+_CC_T    = ( 7/255, 128/255, 179/255)   # 03 Trámites col header
+_CC_A    = (71/255,  85/255,  99/255)   # 04 Admin col header
+_CC_TIC  = (79/255,  70/255, 212/255)   # 05 TIC col header
+_CC_FIN  = (10/255, 117/255,  87/255)   # 06 Fin col header
+_CC_SEG  = (160/255, 80/255,  30/255)   # 07 Seg col header
+_CC_RRHH = (45/255,  87/255, 156/255)   # 08 RRHH col header (azul medio)
+_CC_REC  = (26/255, 107/255,  57/255)   # 09 Rec col header
+_CC_AUTH = (94/255,  43/255, 165/255)   # 10 Auth col header
+
 # ── Ruta al logo institucional ────────────────────────────────────────────────
-_LOGO_PATH = os.path.join(
-    BASE_DIR, '..', 'frontend', 'src', 'assets', 'img', 'logo.png'
-)
+# Intentar varias rutas posibles (assets, public, dist)
+_LOGO_PATH = None
+for _logo_candidate in [
+    os.path.join(BASE_DIR, '..', 'frontend', 'public',   'img', 'logo.png'),
+    os.path.join(BASE_DIR, '..', 'frontend', 'src', 'assets', 'img', 'logo.png'),
+    os.path.join(BASE_DIR, '..', 'frontend', 'dist', 'frontend', 'browser', 'img', 'logo.png'),
+    os.path.join(BASE_DIR, '..', 'frontend', 'dist', 'frontend', 'browser', 'assets', 'img', 'logo.png'),
+]:
+    if os.path.exists(_logo_candidate):
+        _LOGO_PATH = _logo_candidate
+        break
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2217,14 +2248,19 @@ def _draw_page_header(c, formulario: dict, page_num: int) -> None:
     LOGO_H = 36
     LOGO_X = _ML
     LOGO_Y = HY + (HH - LOGO_H) / 2 - 4
-    try:
-        from reportlab.lib.utils import ImageReader as _IR
-        _logo_img = _IR(_LOGO_PATH)
-        c.drawImage(_logo_img, LOGO_X, LOGO_Y,
-                    width=LOGO_W, height=LOGO_H,
-                    preserveAspectRatio=True, anchor='c', mask='auto')
-    except Exception:
-        # fallback: rectángulo azul con texto
+    logo_ok = False
+    if _LOGO_PATH:
+        try:
+            from reportlab.lib.utils import ImageReader as _IR
+            _logo_img = _IR(_LOGO_PATH)
+            c.drawImage(_logo_img, LOGO_X, LOGO_Y,
+                        width=LOGO_W, height=LOGO_H,
+                        preserveAspectRatio=True, anchor='c', mask='auto')
+            logo_ok = True
+        except Exception:
+            pass
+    if not logo_ok:
+        # fallback: rectángulo azul oscuro con texto INAMHI
         c.setFillColorRGB(*_C_HEAD)
         c.rect(LOGO_X, LOGO_Y, LOGO_W, LOGO_H, fill=1, stroke=0)
         c.setFillColorRGB(*_C_WHITE)
@@ -2251,7 +2287,7 @@ def _draw_page_header(c, formulario: dict, page_num: int) -> None:
     for i, (lbl, val) in enumerate([
         ("CÓDIGO",  "INAMHI-RH-001"),
         ("VERSIÓN", "2.0"),
-        ("PÁGINA",  f"{page_num + 1}"),
+        ("PÁGINA",  f"{page_num + 1} / 2"),
     ]):
         ry = CT_Y + (2 - i) * CT_RH + 3
         c.drawString(CT_X + 2, ry, lbl)
@@ -2286,21 +2322,25 @@ def _draw_page_header(c, formulario: dict, page_num: int) -> None:
     c.setLineWidth(0.4)
 
 
-def _sec_header(c, y: float, num: str, titulo: str) -> float:
+def _sec_header(c, y: float, num: str, titulo: str,
+                color: tuple = None) -> float:
     """
-    Cabecera de bloque azul oscuro con badge de número.
-    Réplica de .ep-bloque__head del HTML.
+    Cabecera de bloque con badge de número y color configurable por sección.
+    color: tuple RGB; si None usa _C_HEAD (azul oscuro).
+    Réplica de .ep-bloque__head del HTML angular.
     """
-    c.setFillColorRGB(*_C_HEAD)
+    col = color or _C_HEAD
+    c.setFillColorRGB(*col)
     c.rect(_ML, y - _BH, _CW, _BH, fill=1, stroke=0)
-    # Badge del número (rectángulo blanco pequeño)
+    # Badge del número — fondo blanco semitransparente sobre el color de sección
     BADGE_W = 22
     c.setFillColorRGB(*_C_WHITE)
     c.roundRect(_ML + 3, y - _BH + 3, BADGE_W, _BH - 6, 2, fill=1, stroke=0)
-    c.setFillColorRGB(*_C_HEAD)
+    # Texto del badge en el color de la sección
+    c.setFillColorRGB(*col)
     c.setFont("Helvetica-Bold", 7)
     c.drawCentredString(_ML + 3 + BADGE_W / 2, y - _BH + 6, num)
-    # Título
+    # Título en blanco
     c.setFillColorRGB(*_C_WHITE)
     c.setFont("Helvetica-Bold", 8)
     c.drawString(_ML + 3 + BADGE_W + 5, y - _BH + 6, titulo.upper())
@@ -2308,10 +2348,15 @@ def _sec_header(c, y: float, num: str, titulo: str) -> float:
     return y - _BH
 
 
-def _col_header(c, y: float, xs: list, ws: list, labels: list) -> float:
-    """Fila de cabeceras de columnas — azul medio, texto blanco."""
-    c.setFillColorRGB(*_C_COLS)
-    c.setStrokeColorRGB(*_C_HEAD)
+def _col_header(c, y: float, xs: list, ws: list, labels: list,
+                color: tuple = None) -> float:
+    """
+    Fila de cabeceras de columnas con color configurable por sección.
+    color: tuple RGB; si None usa _C_COLS (azul medio estándar).
+    """
+    col = color or _C_COLS
+    c.setFillColorRGB(*col)
+    c.setStrokeColorRGB(*col)
     c.setLineWidth(0.4)
     for x, w in zip(xs, ws):
         c.rect(x, y - _CH, w, _CH, fill=1, stroke=1)
@@ -2688,42 +2733,8 @@ _FIRMAEC_SECTIONS = [
 ]
 
 
-def _split_text(text: str, max_chars: int) -> list:
-    """Divide texto en líneas que no superen max_chars, respetando palabras."""
-    words = text.split()
-    lines, cur = [], ""
-    for w in words:
-        candidate = (cur + " " + w).strip()
-        if len(candidate) <= max_chars:
-            cur = candidate
-        else:
-            if cur:
-                lines.append(cur)
-            cur = w
-    if cur:
-        lines.append(cur)
-    return lines or [""]
-
-
-def _draw_page_header(c, formulario: dict, page_num: int) -> None:
-    """Encabezado institucional en cada página."""
-    W = 595.28
-    c.setFillColorRGB(*_C_HEAD)
-    c.rect(_ML, 808, W - 2 * _ML, 22, fill=1, stroke=0)
-    c.setFillColorRGB(*_C_WHITE)
-    c.setFont("Helvetica-Bold", 11)
-    c.drawCentredString(W / 2, 814, "INAMHI — FORMULARIO PAZ Y SALVO")
-    c.setFillColorRGB(*_C_BLACK)
-    c.setFont("Helvetica", 7)
-    titulo_corto = (formulario.get("titulo") or "")[:70]
-    c.drawString(_ML, 804, titulo_corto)
-    c.drawRightString(W - _ML, 804, f"Pág. {page_num + 1}")
-    # línea separadora
-    c.setStrokeColorRGB(*_C_HEAD)
-    c.setLineWidth(0.5)
-    c.line(_ML, 802, W - _ML, 802)
-    c.setStrokeColorRGB(*_C_BLACK)
-    c.setLineWidth(0.5)
+# Las versiones mejoradas de _split_text y _draw_page_header están definidas
+# arriba (lines ~2160 y ~2196) — no se redefinan aquí.
 
 
 @app.route("/api/formularios/<int:formulario_id>/pdf", methods=["GET"])
@@ -2822,7 +2833,7 @@ def generar_pdf(formulario_id):
         # 01 — DATOS PERSONALES Y LABORALES
         # ═══════════════════════════════════════════════════════════════════════
         _need(_BH + 6 * _IH + 6)
-        y = _sec_header(c, y, "01", "DATOS PERSONALES Y LABORALES")
+        y = _sec_header(c, y, "01", "DATOS PERSONALES Y LABORALES", _CS_P)
         y = _info_row(c, y, "NOMBRES Y APELLIDOS", _v("nombres_apellidos"), span=True)
         y = _info_row(c, y, "CÉDULA / PASAPORTE",  _v("cedula"),
                              "MODALIDAD LABORAL",   _v("modalidad"))
@@ -2842,7 +2853,7 @@ def generar_pdf(formulario_id):
         # 02 — DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS
         # ═══════════════════════════════════════════════════════════════════════
         _need(_BH + 3 * _IH + 6)
-        y = _sec_header(c, y, "02", "DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS")
+        y = _sec_header(c, y, "02", "DIRECCIÓN / UNIDAD QUE PRESTÓ SUS SERVICIOS", _CS_U)
         y = _info_row(c, y, "LUGAR DE TRABAJO", _v("lugar_trabajo"),
                              "GRUPO OCUPACIONAL", _v("grupo_ocupacional"))
         y = _info_row(c, y, "DIRECCIÓN / UNIDAD", _v("unidad"), span=True)
@@ -2853,8 +2864,8 @@ def generar_pdf(formulario_id):
         # 03 — ENTREGA / GESTIÓN DOCUMENTAL Y DE TRÁMITES  (6 columnas)
         # ═══════════════════════════════════════════════════════════════════════
         _need(_SECMIN)
-        y = _sec_header(c, y, "03", "ENTREGA / GESTIÓN DOCUMENTAL Y DE TRÁMITES")
-        y = _col_header(c, y, _T6X, _T6W, _T6L)
+        y = _sec_header(c, y, "03", "ENTREGA / GESTIÓN DOCUMENTAL Y DE TRÁMITES", _CS_T)
+        y = _col_header(c, y, _T6X, _T6W, _T6L, _CC_T)
 
         for (d1, k1, d2, k2, nk, cam) in [
             ("Informe fin de gestión",          "tramites_informe",
@@ -2890,8 +2901,8 @@ def generar_pdf(formulario_id):
         # 04 — GESTIÓN ADMINISTRATIVA  (5 columnas)
         # ═══════════════════════════════════════════════════════════════════════
         _need(_SECMIN)
-        y = _sec_header(c, y, "04", "GESTIÓN ADMINISTRATIVA — DIRECCIÓN ADMINISTRATIVA FINANCIERA")
-        y = _col_header(c, y, _T5X, _T5W, _T5L)
+        y = _sec_header(c, y, "04", "GESTIÓN ADMINISTRATIVA — DIRECCIÓN ADMINISTRATIVA FINANCIERA", _CS_A)
+        y = _col_header(c, y, _T5X, _T5W, _T5L, _CC_A)
 
         for (desc, yk, dato, nk, cam) in [
             ("Entrega informe fin de gestión",    "admin_informe",
@@ -2918,8 +2929,8 @@ def generar_pdf(formulario_id):
         # 05 — GESTIÓN TIC  (5 columnas)
         # ═══════════════════════════════════════════════════════════════════════
         _need(_SECMIN)
-        y = _sec_header(c, y, "05", "GESTIÓN DE TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIÓN")
-        y = _col_header(c, y, _T5X, _T5W, _T5L)
+        y = _sec_header(c, y, "05", "GESTIÓN DE TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIÓN", _CS_TIC)
+        y = _col_header(c, y, _T5X, _T5W, _T5L, _CC_TIC)
 
         for (desc, yk, dato, nk, cam) in [
             ("Verificación equipo / IP / accesos",  "tic_verificacion",
@@ -2950,8 +2961,8 @@ def generar_pdf(formulario_id):
         # 06 — GESTIÓN FINANCIERA  (5 columnas)
         # ═══════════════════════════════════════════════════════════════════════
         _need(_SECMIN)
-        y = _sec_header(c, y, "06", "GESTIÓN FINANCIERA")
-        y = _col_header(c, y, _T5X, _T5W, _T5L)
+        y = _sec_header(c, y, "06", "GESTIÓN FINANCIERA", _CS_FIN)
+        y = _col_header(c, y, _T5X, _T5W, _T5L, _CC_FIN)
 
         for (desc, yk, dato, nk, cam) in [
             ("Saldos contables pendientes",           "fin_saldos",
@@ -2985,8 +2996,8 @@ def generar_pdf(formulario_id):
         # 07 — SEGURIDAD DE LA INFORMACIÓN  (6 columnas)
         # ═══════════════════════════════════════════════════════════════════════
         _need(_SECMIN)
-        y = _sec_header(c, y, "07", "SEGURIDAD DE LA INFORMACIÓN — ACUERDO MINISTERIAL 166 (EGSI)")
-        y = _col_header(c, y, _T6X, _T6W, _T6L)
+        y = _sec_header(c, y, "07", "SEGURIDAD DE LA INFORMACIÓN — ACUERDO MINISTERIAL 166 (EGSI)", _CS_SEG)
+        y = _col_header(c, y, _T6X, _T6W, _T6L, _CC_SEG)
 
         for (d1, k1, d2, k2, nk, cam) in [
             ("Archivos digitales (EGSI)",          "seg_archivos",
@@ -3014,32 +3025,43 @@ def generar_pdf(formulario_id):
         # 08 — DIRECCIÓN DE ADMINISTRACIÓN DE RRHH  (5 columnas, 8+1 filas)
         # ═══════════════════════════════════════════════════════════════════════
         _need(_SECMIN)
-        y = _sec_header(c, y, "08", "DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS")
-        y = _col_header(c, y, _T5X, _T5W, _T5L)
+        y = _sec_header(c, y, "08", "DIRECCIÓN DE ADMINISTRACIÓN DE RECURSOS HUMANOS", _CS_RRHH)
+        y = _col_header(c, y, _T5X, _T5W, _T5L, _CC_RRHH)
 
         for (desc, yk, dato, nk, cam) in [
-            ("Capacitación: devengó cursos recibidos", "rrhh_capacitacion",
-             "—",                                       "rrhh_resp_capacitacion",  "rrhh_r1"),
-            ("Evaluación del Desempeño aplicada",      "rrhh_evaluacion",
-             "—",                                       "rrhh_resp_evaluacion",    "rrhh_r2"),
-            ("Viajes al exterior: devengación",        "rrhh_viajes",
-             "—",                                       "rrhh_resp_viajes",        "rrhh_r3"),
-            ("SIITH: desvinculación del sistema",      "rrhh_siith",
-             "—",                                       "rrhh_resp_siith",         "rrhh_r4"),
-            (f"Vacaciones no gozadas: {_v('rrhh_vacaciones')} días", "—",
-             f"N° Cert: {_v('rrhh_num_certificado')}",  "rrhh_resp_vacaciones",   "rrhh_r5"),
-            ("Declaración juramentada de bienes",      "rrhh_juramentada",
-             f"N° Decl: {_v('rrhh_num_declaracion')}", "rrhh_resp_juramentada",   "rrhh_r6"),
-            ("Credencial institucional / Porta cred.", "rrhh_credencial",
-             "—",                                       "rrhh_resp_credencial2",   "rrhh_r7"),
-            ("Acta bienes / Copia activ. / Ropa",     "rrhh_entrega_informe_cd",
-             "—",                                       "rrhh_resp_acta",          "rrhh_r8"),
+            ("Capacitación: devengó cursos recibidos",      "rrhh_capacitacion",
+             "—",                                            "rrhh_resp_capacitacion",  "rrhh_r1"),
+            ("Evaluación del Desempeño aplicada",           "rrhh_evaluacion",
+             "—",                                            "rrhh_resp_evaluacion",    "rrhh_r2"),
+            ("Viajes al exterior: devengación",             "rrhh_viajes",
+             "—",                                            "rrhh_resp_viajes",        "rrhh_r3"),
+            ("SIITH: desvinculación del sistema",           "rrhh_siith",
+             "—",                                            "rrhh_resp_siith",         "rrhh_r4"),
+            ("Declaración juramentada de bienes",           "rrhh_juramentada",
+             f"N° Decl: {_v('rrhh_num_declaracion')}",      "rrhh_resp_juramentada",   "rrhh_r6"),
+            ("Credencial institucional / Porta cred.",      "rrhh_credencial",
+             "—",                                            "rrhh_resp_credencial2",   "rrhh_r7"),
+            ("Entrega copia actividades CD / Ropa trabajo", "rrhh_entrega_informe_cd",
+             "—",                                            "rrhh_resp_acta",          "rrhh_r8"),
+            ("Acta de bienes del custodio",                 "rrhh_acta_bienes",
+             "—",                                            "rrhh_resp_acta",          "rrhh_r8"),
         ]:
             _need(_FRH)
             yn = _v(yk) if yk != "—" else "—"
             y = _firma_row(c, y, _T5X, _T5W, [
                 (desc, _C_WHITE), (yn, _yb(yn)), (dato, _C_WHITE), (_v(nk), _C_WHITE),
             ], cam, _f(cam), sig_coords, pg)
+
+        # Vacaciones: fila separada con valor en días (badge neutral, igual que en el espejo)
+        _need(_FRH)
+        _vac_dias = _v("rrhh_vacaciones")
+        _vac_val  = f"{_vac_dias} días" if _vac_dias not in ("—", "") else "—"
+        y = _firma_row(c, y, _T5X, _T5W, [
+            ("Vacaciones acumuladas no gozadas", _C_WHITE),
+            (_vac_val,                           _C_WHITE),
+            (f"N° Cert: {_v('rrhh_num_certificado')}", _C_WHITE),
+            (_v("rrhh_resp_vacaciones"),         _C_WHITE),
+        ], "rrhh_r5", _f("rrhh_r5"), sig_coords, pg)
 
         _need_dir()
         y = _dir_row(c, y, _v("rrhh_director"),
@@ -3050,7 +3072,7 @@ def generar_pdf(formulario_id):
         # 09 — RECEPCIÓN DE DOCUMENTOS
         # ═══════════════════════════════════════════════════════════════════════
         _need(_BH + 2 * _IH + _FRH + 6)
-        y = _sec_header(c, y, "09", "RECEPCIÓN DE DOCUMENTOS — DIRECCIÓN DE RRHH")
+        y = _sec_header(c, y, "09", "RECEPCIÓN DE DOCUMENTOS — DIRECCIÓN DE RRHH", _CS_REC)
         y = _info_row(c, y, "FECHA ENTREGA",         _v("recepcion_fecha"),
                              "N° HOJAS RECIBIDAS",    _v("recepcion_hojas"))
         y = _info_row(c, y, "SERVIDOR/A QUE RECIBE", _v("recepcion_servidor"),
@@ -3071,7 +3093,7 @@ def generar_pdf(formulario_id):
         LEGAL_MAX = _chars_for_width(_CW - 16, LEGAL_FS)
 
         _need(_BH + LEGAL_H + _FRH + 10)
-        y = _sec_header(c, y, "10", "AUTORIZACIÓN — SERVIDOR SALIENTE (ART. 110 REGLAMENTO LOSEP)")
+        y = _sec_header(c, y, "10", "AUTORIZACIÓN — SERVIDOR SALIENTE (ART. 110 REGLAMENTO LOSEP)", _CS_AUTH)
         legal = (
             "Conforme lo establecido en el artículo 110 del Reglamento a la Ley Orgánica de "
             "Servicio Público (LOSEP), quien suscribe el presente formulario 'PAZ Y SALVO' "
