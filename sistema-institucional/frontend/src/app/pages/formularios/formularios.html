@@ -1134,6 +1134,11 @@
                     <td class="ep-tfr">{{formularioPazSalvo.get('tramites_nombre_resp3')?.value||'—'}}</td>
                     <td class="ep-tff"><div class="ep-firma-box"><img *ngIf="getFirmaImagen('tramites_r3')" [src]="getFirmaImagen('tramites_r3')!" class="ep-firma-img"><span *ngIf="getFirmaNombre('tramites_r3')" class="ep-firma-ec-nombre">{{ getFirmaNombre('tramites_r3') }}</span></div></td>
                   </tr>
+                  <tr class="ep-tr" *ngIf="formularioPazSalvo.get('tramites_admin_contrato')?.value">
+                    <td class="ep-tfd" colspan="4"><strong>¿Admin. contrato?:</strong>&nbsp;<span class="ep-yn" [ngClass]="{'ep-yn--s':formularioPazSalvo.get('tramites_admin_contrato')?.value==='SI','ep-yn--n':formularioPazSalvo.get('tramites_admin_contrato')?.value==='NO'}">{{formularioPazSalvo.get('tramites_admin_contrato')?.value||'—'}}</span><ng-container *ngIf="formularioPazSalvo.get('tramites_admin_contrato')?.value==='SI'">&nbsp;|&nbsp;<strong>Descripción contrato:</strong> {{formularioPazSalvo.get('tramites_desc_contrato')?.value||'—'}}&nbsp;|&nbsp;<strong>N° Memorando nuevo admin:</strong> {{formularioPazSalvo.get('tramites_memo')?.value||'—'}}</ng-container></td>
+                    <td class="ep-tfr">—</td>
+                    <td class="ep-tff">—</td>
+                  </tr>
                   <tr class="ep-tr">
                     <td class="ep-tfd" colspan="4"><strong>Jefe Inmediato:</strong> {{formularioPazSalvo.get('tramites_jefe_inmediato')?.value||'—'}} &nbsp;|&nbsp; <strong>Recibe trámites:</strong> {{formularioPazSalvo.get('tramites_servidor_recibe')?.value||'—'}} &nbsp;|&nbsp; <strong>Obs:</strong> {{formularioPazSalvo.get('tramites_obs')?.value||'—'}}</td>
                     <td class="ep-tfr">{{formularioPazSalvo.get('tramites_nombre_responsable')?.value||'—'}}</td>

@@ -2886,6 +2886,36 @@ def generar_pdf(formulario_id):
                 (_v(nk), _C_WHITE),
             ], cam, _f(cam), sig_coords, pg)
 
+        # Fila condicional: ¿administrador de contrato? (sin firma asociada)
+        _admc = resp.get("tramites_admin_contrato", "")
+        if _admc and _admc not in ("", "—") and not _admc.startswith("data:") and not _admc.startswith("FIRMADO_EC:"):
+            _need(_FRH)
+            _admc_txt = f"¿Administrador de contrato?: {_admc}"
+            if _admc == "SI":
+                _dc_v = _v("tramites_desc_contrato")
+                _mm_v = _v("tramites_memo")
+                if _dc_v != "—":
+                    _admc_txt += f"  |  Descripción del contrato: {_dc_v}"
+                if _mm_v != "—":
+                    _admc_txt += f"  |  N° Memorando nuevo admin: {_mm_v}"
+            _yb_ac = y - _FRH
+            c.setStrokeColorRGB(*_C_HEAD)
+            c.setLineWidth(0.4)
+            c.setFillColorRGB(*_C_WHITE)
+            c.rect(_ML, _yb_ac, _CW, _FRH, fill=1, stroke=1)
+            c.setFillColorRGB(*_C_BLACK)
+            c.setFont("Helvetica", 7.5)
+            _max_ac = _chars_for_width(_CW - 8, 7.5)
+            _lns_ac = _split_text(_admc_txt, _max_ac)[:max(1, int((_FRH - 8) / 10))]
+            _bh_ac  = len(_lns_ac) * 10
+            _ty_ac  = _yb_ac + (_FRH + _bh_ac) / 2 - 10 + 1
+            for _l_ac in _lns_ac:
+                c.drawString(_ML + 4, _ty_ac, _l_ac)
+                _ty_ac -= 10
+            c.setStrokeColorRGB(*_C_BLACK)
+            c.setLineWidth(0.4)
+            y -= _FRH
+
         _need(_FRH)
         _obs_t = _v('tramites_obs')
         jt = (f"Jefe Inmediato: {_v('tramites_jefe_inmediato')}"
@@ -3724,17 +3754,19 @@ def firmar_ec_pdf(formulario_id):
         conn    = get_connection()
         cursor  = conn.cursor(dictionary=True)
 
-        cursor.execute("SELECT id, estado FROM formularios WHERE id = %s", (formulario_id,))
+        cursor.execute("SELECT id, estado, creado_por FROM formularios WHERE id = %s", (formulario_id,))
         formulario = cursor.fetchone()
         if not formulario:
             return jsonify({"mensaje": "Formulario no encontrado"}), 404
 
+        # LEFT JOIN: encontrar la pregunta aunque no tenga asignación explícita
+        # (ej. servidor_saliente, recepcion_r1 son auto-firma sin asignación del admin)
         cursor.execute("""
             SELECT p.id AS pregunta_id,
                    a.id AS asignacion_id,
                    a.asignado_usuario_id
             FROM   formulario_preguntas p
-            INNER JOIN formulario_asignaciones a ON p.id = a.pregunta_id
+            LEFT JOIN formulario_asignaciones a ON p.id = a.pregunta_id
             WHERE  p.formulario_id = %s
               AND  p.codigo        = %s
             LIMIT  1
@@ -3742,16 +3774,40 @@ def firmar_ec_pdf(formulario_id):
         fila = cursor.fetchone()
 
         if not fila:
-            return jsonify({"mensaje": f"La celda '{campo_firma}' no está configurada en este formulario"}), 404
+            # La pregunta no existe aún — auto-crearla para que pyHanko pueda firmarla
+            cursor.execute("""
+                INSERT INTO formulario_preguntas
+                (formulario_id, codigo, pregunta, tipo, seccion, opciones, obligatorio, orden)
+                VALUES (%s, %s, %s, 'FIRMA', 'AUTORIZACION', NULL, 0, 0)
+            """, (formulario_id, campo_firma, campo_firma))
+            conn.commit()
+            fila = {"pregunta_id": cursor.lastrowid, "asignacion_id": None, "asignado_usuario_id": None}
 
-        # Solo el usuario designado (o el Administrador) puede firmar
-        if user["rol"] != "Administrador" and fila["asignado_usuario_id"] != user["id"]:
-            return jsonify({
-                "mensaje": (
-                    "No tiene autorización para firmar esta celda. "
-                    "Solo el usuario designado por el Administrador puede hacerlo."
-                )
-            }), 403
+        # Autorización:
+        # · Admin: siempre permitido
+        # · Celda con asignación explícita: solo el usuario asignado
+        # · Celda sin asignación (servidor_saliente, recepcion_r1, etc.):
+        #     permitir si el usuario participa en el formulario o es su creador
+        if user["rol"] != "Administrador":
+            if fila["asignacion_id"] is not None:
+                if fila["asignado_usuario_id"] != user["id"]:
+                    return jsonify({
+                        "mensaje": (
+                            "No tiene autorización para firmar esta celda. "
+                            "Solo el usuario designado por el Administrador puede hacerlo."
+                        )
+                    }), 403
+            else:
+                cursor.execute("""
+                    SELECT 1 FROM formulario_asignaciones
+                    WHERE formulario_id = %s AND asignado_usuario_id = %s
+                    LIMIT 1
+                """, (formulario_id, user["id"]))
+                tiene_acceso = cursor.fetchone()
+                if not tiene_acceso and formulario.get("creado_por") != user["id"]:
+                    return jsonify({
+                        "mensaje": "No tiene autorización para firmar esta celda."
+                    }), 403
 
         # Verificar que no esté ya firmada
         cursor.execute("""
@@ -3814,22 +3870,45 @@ def firmar_ec_pdf(formulario_id):
                         "mensaje": "El mapa de coordenadas no existe. Use 'Descargar PDF' primero."
                     }), 400
 
+        # ── Detectar estado huérfano: PDF ya tiene la firma pero BD no ──────
+        # Ocurre cuando la firma se escribió al disco pero el COMMIT de BD falló.
+        # La firma en el PDF es válida; solo recuperamos el registro en BD.
+        _field_name = f"Sig_{campo_firma}"
+        _skip_firma = False
+        if os.path.exists(pdf_signed):
+            try:
+                from pyhanko.sign import fields as _sf_chk
+                from pyhanko.pdf_utils.reader import PdfFileReader as _PdfRdr
+                with open(pdf_signed, "rb") as _fc:
+                    _rc = _PdfRdr(_fc)
+                    _existing_sig_names = [_fn for _fn, _, _ in _sf_chk.enumerate_sig_fields(_rc)]
+                if _field_name in _existing_sig_names:
+                    cursor.execute(
+                        "SELECT id FROM formulario_respuestas WHERE pregunta_id = %s AND formulario_id = %s LIMIT 1",
+                        (fila["pregunta_id"], formulario_id)
+                    )
+                    if not cursor.fetchone():
+                        _skip_firma = True  # recuperar sin re-firmar
+            except Exception:
+                pass  # si la inspección falla, intentar firma normal
+
         # ── Firmar con pyHanko ───────────────────────────────────
         # Destino siempre es _signed.pdf (se sobreescribe incrementalmente)
         pdf_firmado = pdf_signed
-        try:
-            _pyhanko_firmar(
-                src_path    = pdf_src,
-                dst_path    = pdf_firmado,
-                p12_bytes   = p12_bytes,
-                password    = password_raw,
-                signer_name = signer_name,
-                campo_firma = campo_firma,
-                json_path   = json_path,
-                signer_obj  = _signer_obj,   # ya cargado — evita re-leer el .p12
-            )
-        except RuntimeError as exc:
-            return jsonify({"mensaje": str(exc)}), 400
+        if not _skip_firma:
+            try:
+                _pyhanko_firmar(
+                    src_path    = pdf_src,
+                    dst_path    = pdf_firmado,
+                    p12_bytes   = p12_bytes,
+                    password    = password_raw,
+                    signer_name = signer_name,
+                    campo_firma = campo_firma,
+                    json_path   = json_path,
+                    signer_obj  = _signer_obj,
+                )
+            except RuntimeError as exc:
+                return jsonify({"mensaje": str(exc)}), 400
 
         # ── Guardar resultado en BD ──────────────────────────────
         # Formato: FIRMADO_EC:{nombre}:{fecha}|{base64_png}
@@ -3887,6 +3966,7 @@ def firmar_ec_pdf(formulario_id):
     except Exception as exc:
         if conn:
             conn.rollback()
+        print("[ERROR /firmar-ec]", traceback.format_exc())
         return jsonify({"mensaje": "Error inesperado al firmar", "error": str(exc)}), 500
     finally:
         close_db(cursor, conn)
