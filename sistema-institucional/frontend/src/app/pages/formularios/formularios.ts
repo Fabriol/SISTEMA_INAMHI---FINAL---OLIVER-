@@ -266,7 +266,7 @@ export class Formularios implements OnInit, OnDestroy {
         'tramites_admin_contrato', 'tramites_desc_contrato', 'tramites_memo',
         'tramites_jefe_inmediato', 'tramites_quipux_cero',
         'tramites_claves_asignadas', 'tramites_acta_claves',
-        'tramites_servidor_recibe', 'tramites_nombre_responsable',
+        'tramites_servidor_recibe', 'tramites_obs', 'tramites_nombre_responsable',
         'tramites_nombre_resp1', 'tramites_nombre_resp2', 'tramites_nombre_resp3',
         // Gestión Administrativa
         'admin_informe', 'admin_bienes', 'admin_acta_bienes',
@@ -277,7 +277,7 @@ export class Formularios implements OnInit, OnDestroy {
         'tic_verificacion', 'tic_ip_fija', 'tic_liberacion',
         'tic_retiro_acceso', 'tic_backup', 'tic_ruta_backup',
         'tic_cierre_correo', 'tic_esigef', 'tic_spryn', 'tic_esbye', 'tic_quipux',
-        'tic_tarjeta_cuentas', 'tic_responsable',
+        'tic_tarjeta_cuentas', 'tic_obs', 'tic_responsable',
         'tic_nombre_resp1', 'tic_nombre_resp2', 'tic_nombre_resp3', 'tic_nombre_resp4',
         // Gestión Financiera
         'fin_saldos', 'fin_saldos_valor', 'fin_saldos_obs',
@@ -367,6 +367,7 @@ export class Formularios implements OnInit, OnDestroy {
     { id: 'tramites_nombre_resp1', nombre: 'tramites_nombre_resp1', etiqueta: 'Nombre Responsable Trámites Fila 1', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     { id: 'tramites_nombre_resp2', nombre: 'tramites_nombre_resp2', etiqueta: 'Nombre Responsable Trámites Fila 2', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     { id: 'tramites_nombre_resp3', nombre: 'tramites_nombre_resp3', etiqueta: 'Nombre Responsable Trámites Fila 3', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tramites_obs', nombre: 'tramites_obs', etiqueta: 'Observación Trámites', seccion: 'Trámites y Unidad', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     // ── Gestión Administrativa ──
     { id: 'admin_informe', nombre: 'admin_informe', etiqueta: '¿Realizó entrega de informe?', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
     { id: 'admin_bienes', nombre: 'admin_bienes', etiqueta: '¿Entregó bienes y muebles?', seccion: 'Gestión Administrativa', tipo: 'SELECT', seleccionado: false, bloqueado: false },
@@ -399,6 +400,7 @@ export class Formularios implements OnInit, OnDestroy {
     { id: 'tic_nombre_resp2', nombre: 'tic_nombre_resp2', etiqueta: 'Nombre Responsable TIC Fila 2', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     { id: 'tic_nombre_resp3', nombre: 'tic_nombre_resp3', etiqueta: 'Nombre Responsable TIC Fila 3', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     { id: 'tic_nombre_resp4', nombre: 'tic_nombre_resp4', etiqueta: 'Nombre Responsable TIC Fila 4', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
+    { id: 'tic_obs', nombre: 'tic_obs', etiqueta: 'Observación TIC', seccion: 'Gestión TIC', tipo: 'TEXTO', seleccionado: false, bloqueado: false },
     // ── Gestión Financiera ──
     { id: 'fin_saldos', nombre: 'fin_saldos', etiqueta: 'Saldos Contables Pendientes', seccion: 'Gestión Financiera', tipo: 'SELECT', seleccionado: false, bloqueado: false },
     { id: 'fin_saldos_valor', nombre: 'fin_saldos_valor', etiqueta: 'Valor Saldos Contables', seccion: 'Gestión Financiera', tipo: 'NUMERO', seleccionado: false, bloqueado: false },
@@ -528,7 +530,7 @@ export class Formularios implements OnInit, OnDestroy {
     this.form = this.formularioPazSalvo;
     this.syncEspejo();
     this.listenForConditionalValidators();
-    this.loadDraft();
+    this.iniciarAutoGuardadoDraft();
     this.cargarFormularios();
     this.cargarNotificaciones();
 
@@ -756,11 +758,37 @@ export class Formularios implements OnInit, OnDestroy {
         memo.updateValueAndValidity({ emitEvent: false });
       });
 
+    // admin_bienes → valor condicional obligatorio
+    this.formularioPazSalvo.get('admin_bienes')!
+      .valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((val: string) => {
+        const ctrl = this.formularioPazSalvo.get('admin_valor_bienes')!;
+        if (val === 'SI') {
+          ctrl.setValidators([Validators.required, Validators.min(0.01)]);
+        } else {
+          ctrl.clearValidators();
+        }
+        ctrl.updateValueAndValidity({ emitEvent: false });
+      });
+
     // admin_deducibles → valor condicional obligatorio
     this.formularioPazSalvo.get('admin_deducibles')!
       .valueChanges.pipe(takeUntil(this.destroy$))
       .subscribe((val: string) => {
         const ctrl = this.formularioPazSalvo.get('admin_deducibles_valor')!;
+        if (val === 'SI') {
+          ctrl.setValidators([Validators.required, Validators.min(0.01)]);
+        } else {
+          ctrl.clearValidators();
+        }
+        ctrl.updateValueAndValidity({ emitEvent: false });
+      });
+
+    // admin_pasajes → valor condicional obligatorio
+    this.formularioPazSalvo.get('admin_pasajes')!
+      .valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((val: string) => {
+        const ctrl = this.formularioPazSalvo.get('admin_pasajes_valor')!;
         if (val === 'SI') {
           ctrl.setValidators([Validators.required, Validators.min(0.01)]);
         } else {
@@ -881,7 +909,11 @@ export class Formularios implements OnInit, OnDestroy {
     aplicar('tramites_admin_contrato', 'tramites_memo', esSI,
       [Validators.required, Validators.minLength(3)]);
 
+    aplicar('admin_bienes', 'admin_valor_bienes', esSI,
+      [Validators.required, Validators.min(0.01)]);
     aplicar('admin_deducibles', 'admin_deducibles_valor', esSI,
+      [Validators.required, Validators.min(0.01)]);
+    aplicar('admin_pasajes', 'admin_pasajes_valor', esSI,
       [Validators.required, Validators.min(0.01)]);
 
     aplicar('tic_backup', 'tic_ruta_backup', esSI,
@@ -1008,8 +1040,25 @@ export class Formularios implements OnInit, OnDestroy {
   puedeEditarCampo(campo: string): boolean {
     if (this.camposBloqueados.includes(campo)) return false;
     if (this.esAdmin()) return true;
-    // Recepción y Firma ya no requieren que las otras secciones estén completas
     return this.camposAsignadosUsuario.includes(campo);
+  }
+
+  /**
+   * Devuelve true si el campo debe ser visible en el formulario izquierdo.
+   * Admin: siempre visible. Usuario normal: solo si fue asignado a él.
+   */
+  mostrarCampo(campo: string): boolean {
+    if (this.esAdmin()) return true;
+    return this.camposAsignadosUsuario.includes(campo);
+  }
+
+  /**
+   * Devuelve true si al menos uno de los campos de la sección fue asignado al usuario.
+   * Usado para ocultar secciones completas cuando ningún campo aplica.
+   */
+  seccionVisible(campos: string[]): boolean {
+    if (this.esAdmin()) return true;
+    return campos.some(c => this.camposAsignadosUsuario.includes(c));
   }
 
   esCampoGuardado(campo: string): boolean {
@@ -1212,10 +1261,14 @@ export class Formularios implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────
 
   saveDraft(): void {
+    if (!this.formularioSeleccionado?.id) {
+      this.showSwalToast('Seleccione un formulario antes de guardar el borrador.', 'warning');
+      return;
+    }
     try {
       localStorage.setItem(
-        'pazYSalvoDraft',
-        JSON.stringify(this.formularioPazSalvo.value)
+        this.draftKey(),
+        JSON.stringify(this.formularioPazSalvo.getRawValue())
       );
       this.showSwalToast('Borrador guardado correctamente.', 'success');
     } catch {
@@ -1223,16 +1276,23 @@ export class Formularios implements OnInit, OnDestroy {
     }
   }
 
-  private loadDraft(): void {
-    try {
-      const draft = localStorage.getItem('pazYSalvoDraft');
-      if (draft) {
-        this.formularioPazSalvo.patchValue(JSON.parse(draft), { emitEvent: false });
-        this.showSwalToast('Se cargó un borrador guardado anteriormente.', 'info');
-      }
-    } catch {
-      // silencioso
-    }
+  private draftKey(): string {
+    return `pazYSalvoDraft_${this.formularioSeleccionado?.id ?? 'sin_formulario'}`;
+  }
+
+  private iniciarAutoGuardadoDraft(): void {
+    this.formularioPazSalvo.valueChanges.pipe(
+      debounceTime(1500),
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      if (!this.formularioSeleccionado?.id) return;
+      try {
+        localStorage.setItem(
+          this.draftKey(),
+          JSON.stringify(this.formularioPazSalvo.getRawValue())
+        );
+      } catch { /* silencioso */ }
+    });
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -2003,7 +2063,7 @@ export class Formularios implements OnInit, OnDestroy {
       text: 'El formulario Paz y Salvo ha sido validado correctamente.',
       confirmButtonText: 'Aceptar',
     }).then(() => {
-      localStorage.removeItem('pazYSalvoDraft');
+      localStorage.removeItem(this.draftKey());
     });
   }
 
@@ -2075,7 +2135,7 @@ export class Formularios implements OnInit, OnDestroy {
       this.cargando = false;
       this.cdr.markForCheck();
       if (errores === 0) {
-        localStorage.removeItem('pazYSalvoDraft');
+        localStorage.removeItem(this.draftKey());
         this.cargarDetalleFormulario(this.formularioSeleccionado, true);
         // Verificar si el usuario ya completó todos sus campos
         const pendientes = this.camposAsignadosUsuario.filter(
@@ -2323,6 +2383,24 @@ export class Formularios implements OnInit, OnDestroy {
         if (Object.keys(restaurar).length > 0) {
           this.formularioPazSalvo.patchValue(restaurar, { emitEvent: false });
         }
+      } else {
+        // Carga normal (primera apertura del formulario): restaurar borrador local si existe
+        try {
+          const draft = localStorage.getItem(this.draftKey());
+          if (draft) {
+            const parsed = JSON.parse(draft) as Record<string, unknown>;
+            const restaurarDraft: Record<string, unknown> = {};
+            Object.entries(parsed).forEach(([k, v]) => {
+              if (k in valores) return;          // ya vino del servidor — no pisar
+              if (v === null || v === undefined || v === '') return;
+              restaurarDraft[k] = v;
+            });
+            if (Object.keys(restaurarDraft).length > 0) {
+              this.formularioPazSalvo.patchValue(restaurarDraft, { emitEvent: false });
+              this.showSwalToast('Se restauró un borrador guardado.', 'info');
+            }
+          }
+        } catch { /* silencioso */ }
       }
 
       this.sincronizarValidadoresCondicionales();

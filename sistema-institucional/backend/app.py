@@ -1524,7 +1524,7 @@ def ver_formulario(id):
                 FROM formulario_preguntas p
                 LEFT JOIN formulario_asignaciones a ON p.id = a.pregunta_id
                 LEFT JOIN usuarios u ON a.asignado_usuario_id = u.id
-                LEFT JOIN formulario_respuestas r ON p.id = r.pregunta_id
+                LEFT JOIN formulario_respuestas r ON p.id = r.pregunta_id AND r.formulario_id = p.formulario_id
                 WHERE p.formulario_id = %s
                 ORDER BY p.orden ASC, p.id ASC
             """, (id,))
@@ -1543,7 +1543,7 @@ def ver_formulario(id):
                 FROM formulario_preguntas p
                 LEFT JOIN formulario_asignaciones a
                        ON p.id = a.pregunta_id AND a.asignado_usuario_id = %s
-                LEFT JOIN formulario_respuestas r ON p.id = r.pregunta_id
+                LEFT JOIN formulario_respuestas r ON p.id = r.pregunta_id AND r.formulario_id = p.formulario_id
                 WHERE p.formulario_id = %s
                 ORDER BY p.orden ASC, p.id ASC
             """, (user["id"], user["id"], id))
@@ -1917,7 +1917,7 @@ def responder_formulario():
 
         # ── 1. Buscar la pregunta por código (exacto, luego insensible a mayúsculas) ──
         cursor.execute("""
-            SELECT id FROM formulario_preguntas
+            SELECT id, tipo FROM formulario_preguntas
             WHERE formulario_id = %s AND codigo = %s
             LIMIT 1
         """, (formulario_id, campo))
@@ -1926,7 +1926,7 @@ def responder_formulario():
         if not pregunta:
             # Fallback: búsqueda insensible a mayúsculas/minúsculas
             cursor.execute("""
-                SELECT id FROM formulario_preguntas
+                SELECT id, tipo FROM formulario_preguntas
                 WHERE formulario_id = %s AND LOWER(TRIM(codigo)) = LOWER(TRIM(%s))
                 LIMIT 1
             """, (formulario_id, campo))
@@ -1955,7 +1955,26 @@ def responder_formulario():
                 print(f"[WARN /responder] Campo '{campo}' no encontrado en formulario {formulario_id}")
                 return jsonify({"mensaje": f"Campo '{campo}' no encontrado en el formulario"}), 404
 
-        pregunta_id = pregunta["id"]
+        pregunta_id  = pregunta["id"]
+        pregunta_tipo = (pregunta.get("tipo") or "TEXTO").upper().strip()
+
+        # ── 1b. Validación de tipo (solo para respuestas que no son firmas) ──
+        if not (respuesta.startswith("data:") or respuesta.upper().startswith("FIRMADO_EC:")):
+            if len(respuesta) > 10000:
+                return jsonify({"mensaje": "La respuesta excede la longitud máxima permitida (10000 caracteres)"}), 400
+            if pregunta_tipo in ("NUMERO", "NUMBER"):
+                try:
+                    _num = float(respuesta.replace(",", "."))
+                    if _num < 0:
+                        return jsonify({"mensaje": f"El campo '{campo}' no acepta valores negativos"}), 400
+                except (ValueError, TypeError):
+                    return jsonify({"mensaje": f"El campo '{campo}' requiere un valor numérico válido"}), 400
+            elif pregunta_tipo in ("FECHA", "DATE"):
+                from datetime import datetime as _dt
+                try:
+                    _dt.strptime(respuesta, "%Y-%m-%d")
+                except ValueError:
+                    return jsonify({"mensaje": f"El campo '{campo}' requiere una fecha con formato YYYY-MM-DD"}), 400
 
         # ── 2. Buscar la asignación del usuario ─────────────────
         cursor.execute("""

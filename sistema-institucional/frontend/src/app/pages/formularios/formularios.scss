@@ -1,5 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
+/* Garantizar que [hidden] funciona aunque el elemento tenga display:flex/grid */
+[hidden] { display: none !important; }
+
 // ══════════════════════════════════════════════════════════════════════════════
 // HOST + CSS CUSTOM PROPERTIES
 // ══════════════════════════════════════════════════════════════════════════════
@@ -549,6 +552,7 @@ label { font-size:13.5px; font-weight:700; color:var(--slate-700); line-height:1
 // ── INPUT GROUP ───────────────────────────────────────────────────────────────
 .input-group {
   display: flex; flex-direction: column; gap: 5px;
+  animation: revealDown .22s ease both;
   label { font-size: 10.5px; font-weight: 800; color: var(--slate-500); text-transform: uppercase; letter-spacing: .06em; transition: color .2s; }
   &.has-error { label{color:var(--red-600);} .doc-input,.dark-input{border-color:var(--red-500);background:#fff5f5;box-shadow:0 0 0 3px rgba(220,38,38,.08);} }
   &.has-success { label{color:var(--green-600);} .doc-input,.dark-input{border-color:#86efac;} }
