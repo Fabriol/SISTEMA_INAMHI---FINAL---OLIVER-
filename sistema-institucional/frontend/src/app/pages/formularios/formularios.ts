@@ -296,7 +296,7 @@ export class Formularios implements OnInit, OnDestroy {
         'seg_verificacion_info', 'seg_oficial', 'seg_responsable',
         'seg_nombre_resp1', 'seg_nombre_resp2',
         // RRHH
-        'rrhh_capacitacion', 'rrhh_resp_capacitacion',
+        'rrhh_capacitacion', 'rrhh_cursos_eval', 'rrhh_resp_capacitacion',
         'rrhh_evaluacion', 'rrhh_resp_evaluacion',
         'rrhh_viajes', 'rrhh_resp_viajes',
         'rrhh_siith', 'rrhh_resp_siith',

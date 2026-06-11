@@ -1422,7 +1422,7 @@
 
         <!-- ═══ 8. RECURSOS HUMANOS ═══ -->
         <div class="doc-section"
-          [hidden]="!seccionVisible(['rrhh_capacitacion','rrhh_resp_capacitacion','rrhh_evaluacion','rrhh_resp_evaluacion','rrhh_viajes','rrhh_resp_viajes','rrhh_siith','rrhh_resp_siith','rrhh_vacaciones','rrhh_juramentada','rrhh_num_certificado','rrhh_num_declaracion','rrhh_credencial','rrhh_entrega_informe_cd','rrhh_ropa_trabajo','rrhh_acta_bienes','rrhh_director','rrhh_resp_vacaciones','rrhh_resp_juramentada','rrhh_resp_credencial2','rrhh_resp_acta','rrhh_r1','rrhh_r2','rrhh_r3','rrhh_r4','rrhh_r5','rrhh_r6','rrhh_r7','rrhh_r8','rrhh_dir'])">
+          [hidden]="!seccionVisible(['rrhh_capacitacion','rrhh_cursos_eval','rrhh_resp_capacitacion','rrhh_evaluacion','rrhh_resp_evaluacion','rrhh_viajes','rrhh_resp_viajes','rrhh_siith','rrhh_resp_siith','rrhh_vacaciones','rrhh_juramentada','rrhh_num_certificado','rrhh_num_declaracion','rrhh_credencial','rrhh_entrega_informe_cd','rrhh_ropa_trabajo','rrhh_acta_bienes','rrhh_director','rrhh_resp_vacaciones','rrhh_resp_juramentada','rrhh_resp_credencial2','rrhh_resp_acta','rrhh_r1','rrhh_r2','rrhh_r3','rrhh_r4','rrhh_r5','rrhh_r6','rrhh_r7','rrhh_r8','rrhh_dir'])">
           <div class="doc-section-head"><span class="doc-section-icon">👥</span> 8. Dirección de Administración de
             Recursos Humanos</div>
           <div class="doc-fields-grid">
@@ -1444,6 +1444,7 @@
                 </div>
               </div>
             </div>
+            <div class="input-group" [hidden]="!mostrarCampo('rrhh_cursos_eval')"><label>N° Cursos / Calificación Evaluación</label><input class="doc-input" formControlName="rrhh_cursos_eval" placeholder="Ej: 3 cursos / Muy Bueno" [readonly]="!puedeEditarCampo('rrhh_cursos_eval')"></div>
             <div class="input-group" [hidden]="!mostrarCampo('rrhh_vacaciones')"
               [class.has-error]="formularioPazSalvo.get('rrhh_vacaciones')?.invalid && formularioPazSalvo.get('rrhh_vacaciones')?.touched">
               <label>Días Vacaciones Acumuladas <span class="req">*</span></label><input class="doc-input" type="number"
@@ -1961,10 +1962,10 @@
                 </thead>
                 <tbody>
                   <tr class="ep-tr" *ngFor="let r of [
-                    {k:'admin_informe',rk:'admin_r1',nk:'admin_nombre_resp1',label:'Entrega de informe de actividades',vk:null,vl:null},
-                    {k:'admin_bienes',rk:'admin_r2',nk:'admin_nombre_resp2',label:'Entrega bienes muebles y equipos',vk:'admin_valor_bienes',vl:'Valor $'},
-                    {k:'admin_deducibles',rk:'admin_r3',nk:'admin_nombre_resp3',label:'Valores pendientes por deducibles',vk:'admin_deducibles_valor',vl:'Deducible $'},
-                    {k:'admin_pasajes',rk:'admin_r4',nk:'admin_nombre_resp4',label:'Pasajes aéreos por justificar',vk:'admin_pasajes_valor',vl:'Pasajes $'}
+                    {k:'admin_informe',rk:'admin_r1',nk:'admin_nombre_resp1',label:'Entrega de informe de actividades',vk:null,vl:null,ak:null},
+                    {k:'admin_bienes',rk:'admin_r2',nk:'admin_nombre_resp2',label:'Entrega bienes muebles y equipos',vk:'admin_valor_bienes',vl:'Valor $',ak:'admin_acta_bienes'},
+                    {k:'admin_deducibles',rk:'admin_r3',nk:'admin_nombre_resp3',label:'Valores pendientes por deducibles',vk:'admin_deducibles_valor',vl:'Deducible $',ak:null},
+                    {k:'admin_pasajes',rk:'admin_r4',nk:'admin_nombre_resp4',label:'Pasajes aéreos por justificar',vk:'admin_pasajes_valor',vl:'Pasajes $',ak:null}
                   ]">
                     <td class="ep-tfd">{{r.label}}</td>
                     <td class="ep-tfy"><span class="ep-yn"
@@ -1973,7 +1974,8 @@
                     <td class="ep-tfd ep-td--dato">
                       <span *ngIf="r.vk">{{r.vl}}: <strong
                           class="ep-money">{{formularioPazSalvo.get(r.vk)?.value!=null?('$'+formularioPazSalvo.get(r.vk)?.value):'—'}}</strong></span>
-                      <span *ngIf="!r.vk">—</span>
+                      <span *ngIf="r.ak && formularioPazSalvo.get(r.ak)?.value"><br>Acta: <strong>{{formularioPazSalvo.get(r.ak)?.value}}</strong></span>
+                      <span *ngIf="!r.vk && !(r.ak && formularioPazSalvo.get(r.ak)?.value)">—</span>
                     </td>
                     <td class="ep-tfr">{{formularioPazSalvo.get(r.nk)?.value||'—'}}</td>
                     <td class="ep-tff">
@@ -2305,13 +2307,14 @@
                 </thead>
                 <tbody>
                   <tr class="ep-tr" *ngFor="let r of [
-                    {k:'rrhh_capacitacion',rk:'rrhh_r1',nk:'rrhh_resp_capacitacion',label:'Capacitación: devengó cursos recibidos',dk:null,dl:null},
+                    {k:'rrhh_capacitacion',rk:'rrhh_r1',nk:'rrhh_resp_capacitacion',label:'Capacitación: devengó cursos recibidos',dk:'rrhh_cursos_eval',dl:'Cursos/Eval'},
                     {k:'rrhh_evaluacion',rk:'rrhh_r2',nk:'rrhh_resp_evaluacion',label:'Evaluación del desempeño aplicada',dk:null,dl:null},
                     {k:'rrhh_viajes',rk:'rrhh_r3',nk:'rrhh_resp_viajes',label:'Viajes al exterior: devengación',dk:null,dl:null},
                     {k:'rrhh_siith',rk:'rrhh_r4',nk:'rrhh_resp_siith',label:'SIITH: desvinculación del sistema',dk:null,dl:null},
                     {k:'rrhh_juramentada',rk:'rrhh_r6',nk:'rrhh_resp_juramentada',label:'Declaración juramentada',dk:'rrhh_num_declaracion',dl:'N° Decl'},
                     {k:'rrhh_credencial',rk:'rrhh_r7',nk:'rrhh_resp_credencial2',label:'Credencial institucional y porta credencial',dk:null,dl:null},
-                    {k:'rrhh_entrega_informe_cd',rk:'rrhh_r8',nk:'rrhh_resp_acta',label:'Entrega copia actividades CD / Ropa trabajo',dk:null,dl:null},
+                    {k:'rrhh_entrega_informe_cd',rk:'rrhh_r8',nk:'rrhh_resp_acta',label:'Entrega copia de actividades en CD',dk:null,dl:null},
+                    {k:'rrhh_ropa_trabajo',rk:'rrhh_r8',nk:'rrhh_resp_acta',label:'Entrega de ropa de trabajo',dk:null,dl:null},
                     {k:'rrhh_acta_bienes',rk:'rrhh_r8',nk:'rrhh_resp_acta',label:'Acta de bienes del custodio',dk:null,dl:null}
                   ]">
                     <td class="ep-tfd">{{r.label}}</td>

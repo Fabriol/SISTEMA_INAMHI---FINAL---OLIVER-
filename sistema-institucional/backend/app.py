@@ -2158,6 +2158,7 @@ ALL_PDF_CAMPOS = [
     ("admin_r1",               "FirmaEC — Administrativa: Fila 1",          "FIRMA",  "Gestión Administrativa",  52),
     ("admin_bienes",           "¿Entregó bienes y muebles?",                "SELECT", "Gestión Administrativa",  53),
     ("admin_valor_bienes",     "Valor a Descontar (Bienes)",                 "NUMERO", "Gestión Administrativa",  54),
+    ("admin_acta_bienes",      "Acta de Entrega de Bienes",                  "TEXTO",  "Gestión Administrativa",  541),
     ("admin_nombre_resp2",     "Nombre Responsable Admin Fila 2",           "TEXTO",  "Gestión Administrativa",  55),
     ("admin_r2",               "FirmaEC — Administrativa: Fila 2",          "FIRMA",  "Gestión Administrativa",  56),
     ("admin_deducibles",       "¿Tiene Deducibles Pendientes?",             "SELECT", "Gestión Administrativa",  57),
@@ -2230,6 +2231,7 @@ ALL_PDF_CAMPOS = [
     ("seg_responsable",        "Nombre Responsable Seguridad",                    "TEXTO",  "Seguridad",  139),
     # 08 — Dirección de Administración de RRHH
     ("rrhh_capacitacion",       "Capacitación: devengó cursos recibidos",         "SELECT", "Recursos Humanos",  150),
+    ("rrhh_cursos_eval",        "N° Cursos / Calificación Evaluación",            "SELECT", "Recursos Humanos",  1502),
     ("rrhh_resp_capacitacion",  "Nombre Responsable Capacitación",                "TEXTO",  "Recursos Humanos",  151),
     ("rrhh_r1",                 "FirmaEC — RRHH: Fila 1",                         "FIRMA",  "Recursos Humanos",  152),
     ("rrhh_evaluacion",         "Evaluación del Desempeño aplicada",              "SELECT", "Recursos Humanos",  153),
@@ -2248,7 +2250,8 @@ ALL_PDF_CAMPOS = [
     ("rrhh_credencial",         "Credencial institucional / Porta cred.",         "SELECT", "Recursos Humanos",  166),
     ("rrhh_resp_credencial2",   "Nombre Responsable Credencial / Copia Act.",     "TEXTO",  "Recursos Humanos",  167),
     ("rrhh_r7",                 "FirmaEC — RRHH: Fila 7",                         "FIRMA",  "Recursos Humanos",  168),
-    ("rrhh_entrega_informe_cd", "Entrega copia actividades CD / Ropa trabajo",    "SELECT", "Recursos Humanos",  169),
+    ("rrhh_entrega_informe_cd", "Entrega copia de actividades en CD",             "SELECT", "Recursos Humanos",  169),
+    ("rrhh_ropa_trabajo",       "Entrega de ropa de trabajo",                     "SELECT", "Recursos Humanos",  1692),
     ("rrhh_acta_bienes",        "Acta de bienes del custodio",                    "SELECT", "Recursos Humanos",  170),
     ("rrhh_resp_acta",          "Nombre Responsable Acta Bienes / Ropa",          "TEXTO",  "Recursos Humanos",  171),
     ("rrhh_r8",                 "FirmaEC — RRHH: Fila 8",                         "FIRMA",  "Recursos Humanos",  172),
@@ -2985,15 +2988,30 @@ def generar_pdf(formulario_id):
         # Nota: se permite que no-admin descargue el PDF (necesario para flujo FirmaEC Desktop)
         # El admin puede descargarlo siempre; los demás también, incluso en BORRADOR.
 
+        # Subquery garantiza UNA sola fila por código aunque existan preguntas duplicadas
+        # (el duplicado ocurre cuando _precrear_todas_preguntas crea una pregunta nueva
+        # para un código que el usuario ya había respondido contra otra pregunta_id anterior).
+        # MAX(respuesta) con LEFT JOIN devuelve el valor no-nulo cuando hay un NULL y un valor.
         cursor.execute("""
-            SELECT p.codigo, r.respuesta
+            SELECT p.codigo,
+                   (SELECT rr.respuesta
+                      FROM formulario_respuestas rr
+                     WHERE rr.pregunta_id = p.id
+                       AND rr.formulario_id = %s
+                     ORDER BY rr.id DESC
+                     LIMIT 1) AS respuesta
               FROM formulario_preguntas p
-              LEFT JOIN formulario_respuestas r
-                     ON p.id = r.pregunta_id
-                    AND r.formulario_id = p.formulario_id
              WHERE p.formulario_id = %s
-        """, (formulario_id,))
-        resp = {r["codigo"]: (r["respuesta"] or "") for r in cursor.fetchall() if r["codigo"]}
+        """, (formulario_id, formulario_id))
+        # Construimos resp prefiriendo siempre el valor no-vacío ante posibles duplicados de código
+        resp = {}
+        for _rw in cursor.fetchall():
+            if not _rw["codigo"]:
+                continue
+            _cod = _rw["codigo"]
+            _val = _rw["respuesta"] or ""
+            if _cod not in resp or (not resp[_cod] and _val):
+                resp[_cod] = _val
 
         filename  = f"formulario_{formulario_id}.pdf"
         filepath  = os.path.join(UPLOAD_FOLDER, filename)
@@ -3164,7 +3182,10 @@ def generar_pdf(formulario_id):
             ("Entrega informe fin de gestión",    "admin_informe",
              "—",                                  "admin_nombre_resp1", "admin_r1"),
             ("Entrega bienes muebles y equipos",  "admin_bienes",
-             f"$ {_v('admin_valor_bienes')}",      "admin_nombre_resp2", "admin_r2"),
+             (f"$ {_v('admin_valor_bienes')}"
+              + (f"  Acta: {_v('admin_acta_bienes')}"
+                 if _v('admin_acta_bienes') not in ("", "—") else "")),
+             "admin_nombre_resp2", "admin_r2"),
             ("Valores por deducibles pendientes", "admin_deducibles",
              f"$ {_v('admin_deducibles_valor')}",  "admin_nombre_resp3", "admin_r3"),
             ("Pasajes aéreos por justificar",     "admin_pasajes",
@@ -3286,7 +3307,7 @@ def generar_pdf(formulario_id):
 
         for (desc, yk, dato, nk, cam) in [
             ("Capacitación: devengó cursos recibidos",      "rrhh_capacitacion",
-             "—",                                            "rrhh_resp_capacitacion",  "rrhh_r1"),
+             f"Cursos/Eval: {_v('rrhh_cursos_eval')}",      "rrhh_resp_capacitacion",  "rrhh_r1"),
             ("Evaluación del Desempeño aplicada",           "rrhh_evaluacion",
              "—",                                            "rrhh_resp_evaluacion",    "rrhh_r2"),
             ("Viajes al exterior: devengación",             "rrhh_viajes",
@@ -3297,7 +3318,9 @@ def generar_pdf(formulario_id):
              f"N° Decl: {_v('rrhh_num_declaracion')}",      "rrhh_resp_juramentada",   "rrhh_r6"),
             ("Credencial institucional / Porta cred.",      "rrhh_credencial",
              "—",                                            "rrhh_resp_credencial2",   "rrhh_r7"),
-            ("Entrega copia actividades CD / Ropa trabajo", "rrhh_entrega_informe_cd",
+            ("Entrega copia de actividades en CD",          "rrhh_entrega_informe_cd",
+             "—",                                            "rrhh_resp_acta",          "rrhh_r8"),
+            ("Entrega de ropa de trabajo",                  "rrhh_ropa_trabajo",
              "—",                                            "rrhh_resp_acta",          "rrhh_r8"),
             ("Acta de bienes del custodio",                 "rrhh_acta_bienes",
              "—",                                            "rrhh_resp_acta",          "rrhh_r8"),
