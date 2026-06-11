@@ -23,7 +23,8 @@
       "Bash(python -c \"from pyhanko.sign import signers; print\\('pyhanko.sign ok'\\)\")",
       "Bash(python -c \"from pyhanko.pdf_utils import incremental_writer; print\\('incremental_writer ok'\\)\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}, indent=2\\)\\)\")",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(dir \"c:\\\\Users\\\\hp\\\\OneDrive\\\\Escritorio\\\\SISTEMA_INAMHI---FINAL---OLIVER-\\\\sistema-institucional\" /s /b)"
     ]
   }
 }

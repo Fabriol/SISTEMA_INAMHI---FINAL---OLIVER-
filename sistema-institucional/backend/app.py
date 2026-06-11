@@ -1294,6 +1294,7 @@ def crear_formulario():
         """, (titulo, descripcion, user["id"], user["usuario"]))
 
         formulario_id = cursor.lastrowid
+        _precrear_todas_preguntas(formulario_id, cursor)
         conn.commit()
 
         registrar_auditoria(
@@ -1653,6 +1654,9 @@ def asignar_pregunta():
         if not formulario:
             return jsonify({"mensaje": "Formulario no encontrado"}), 404
 
+        # Garantiza que existan todas las preguntas estándar antes de asignar
+        _precrear_todas_preguntas(formulario_id, cursor)
+
         cursor.execute("""
             SELECT id, nombres, apellidos, usuario, rol, estado
             FROM usuarios
@@ -1987,7 +1991,17 @@ def responder_formulario():
         asignacion = cursor.fetchone()
 
         if user["rol"] != "Administrador" and not asignacion:
-            return jsonify({"mensaje": "Este campo no fue asignado a usted"}), 403
+            # Permitir si el usuario tiene AL MENOS UNA asignación en este formulario
+            # (los campos estándar pre-creados no tienen asignación individual pero
+            #  pertenecen a la sección del usuario que completó el formulario)
+            cursor.execute("""
+                SELECT id FROM formulario_asignaciones
+                WHERE formulario_id = %s AND asignado_usuario_id = %s
+                LIMIT 1
+            """, (formulario_id, user["id"]))
+            alguna_asignacion = cursor.fetchone()
+            if not alguna_asignacion:
+                return jsonify({"mensaje": "Este campo no fue asignado a usted"}), 403
 
         asignacion_id = asignacion["id"] if asignacion else None
 
@@ -2090,6 +2104,192 @@ def responder_formulario():
 
     finally:
         close_db(cursor, conn)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  CATÁLOGO COMPLETO DE CAMPOS — PAZ Y SALVO
+#  Todos los campos que aparecen en la HOJA ESPEJO A4 y en el PDF.
+#  Usados para pre-crear preguntas al asignar/crear un formulario.
+# ═══════════════════════════════════════════════════════════════
+ALL_PDF_CAMPOS = [
+    # 01 — Datos Personales
+    ("nombres_apellidos",    "Nombres y Apellidos",                    "TEXTO",  "Datos Personales",      0),
+    ("cedula",               "Cédula / Pasaporte",                     "TEXTO",  "Datos Personales",      1),
+    ("modalidad",            "Modalidad Laboral",                      "SELECT", "Datos Personales",      2),
+    ("fecha_ingreso",        "Fecha de Ingreso",                       "FECHA",  "Datos Personales",      3),
+    ("fecha_salida",         "Fecha de Salida",                        "FECHA",  "Datos Personales",      4),
+    ("direccion",            "Dirección Domiciliaria",                 "TEXTO",  "Datos Personales",      5),
+    ("numero_domicilio",     "Número Domicilio",                       "TEXTO",  "Datos Personales",      6),
+    ("celular",              "Número Celular",                         "TEXTO",  "Datos Personales",      7),
+    ("emergencia",           "Contacto Emergencia",                    "TEXTO",  "Datos Personales",      8),
+    ("email1",               "Email Principal",                        "TEXTO",  "Datos Personales",      9),
+    ("email2",               "Email Secundario",                       "TEXTO",  "Datos Personales",     10),
+    ("provincia",            "Provincia",                              "TEXTO",  "Datos Personales",     11),
+    ("canton",               "Cantón",                                 "TEXTO",  "Datos Personales",     12),
+    # 02 — Dirección / Unidad
+    ("lugar_trabajo",        "Lugar de Trabajo",                       "SELECT", "Dirección / Unidad",   20),
+    ("unidad",               "Dirección / Unidad",                     "TEXTO",  "Dirección / Unidad",   21),
+    ("cargo",                "Cargo Desempeñado",                      "TEXTO",  "Dirección / Unidad",   22),
+    ("grupo_ocupacional",    "Grupo Ocupacional",                      "SELECT", "Dirección / Unidad",   23),
+    # 03 — Trámites y Unidad
+    ("tramites_informe",           "Entrega informe fin de gestión",             "SELECT", "Trámites y Unidad",    30),
+    ("tramites_quipux_cero",       "QUIPUX Bandeja en Cero",                     "SELECT", "Trámites y Unidad",    31),
+    ("tramites_nombre_resp1",      "Nombre Responsable Trámites Fila 1",         "TEXTO",  "Trámites y Unidad",    32),
+    ("tramites_r1",                "FirmaEC — Trámites: Fila 1",                 "FIRMA",  "Trámites y Unidad",    33),
+    ("tramites_fe_presentacion",   "Fe de presentación",                         "SELECT", "Trámites y Unidad",    34),
+    ("tramites_claves_asignadas",  "Claves de acceso asignadas",                 "SELECT", "Trámites y Unidad",    35),
+    ("tramites_nombre_resp2",      "Nombre Responsable Trámites Fila 2",         "TEXTO",  "Trámites y Unidad",    36),
+    ("tramites_r2",                "FirmaEC — Trámites: Fila 2",                 "FIRMA",  "Trámites y Unidad",    37),
+    ("tramites_losep",             "Entrega archivo físico y digital (LOSEP)",   "SELECT", "Trámites y Unidad",    38),
+    ("tramites_acta_claves",       "Acta entrega de claves",                     "SELECT", "Trámites y Unidad",    39),
+    ("tramites_nombre_resp3",      "Nombre Responsable Trámites Fila 3",         "TEXTO",  "Trámites y Unidad",    40),
+    ("tramites_r3",                "FirmaEC — Trámites: Fila 3",                 "FIRMA",  "Trámites y Unidad",    41),
+    ("tramites_admin_contrato",    "¿Es Administrador de Contrato?",             "SELECT", "Trámites y Unidad",    42),
+    ("tramites_desc_contrato",     "Descripción del contrato",                   "TEXTO",  "Trámites y Unidad",    43),
+    ("tramites_memo",              "Número Memorando nuevo admin",               "TEXTO",  "Trámites y Unidad",    44),
+    ("tramites_jefe_inmediato",    "Nombre del Jefe Inmediato",                  "TEXTO",  "Trámites y Unidad",    45),
+    ("tramites_servidor_recibe",   "Servidor que recibe trámites",               "TEXTO",  "Trámites y Unidad",    46),
+    ("tramites_obs",               "Observación Trámites",                       "TEXTO",  "Trámites y Unidad",    47),
+    ("tramites_nombre_responsable","Nombre Responsable Trámites (Jefe)",         "TEXTO",  "Trámites y Unidad",    48),
+    ("tramites_jefe",              "FirmaEC — Trámites: Jefe Inmediato",         "FIRMA",  "Trámites y Unidad",    49),
+    # 04 — Gestión Administrativa
+    ("admin_informe",          "¿Realizó entrega de informe?",              "SELECT", "Gestión Administrativa",  50),
+    ("admin_nombre_resp1",     "Nombre Responsable Admin Fila 1",           "TEXTO",  "Gestión Administrativa",  51),
+    ("admin_r1",               "FirmaEC — Administrativa: Fila 1",          "FIRMA",  "Gestión Administrativa",  52),
+    ("admin_bienes",           "¿Entregó bienes y muebles?",                "SELECT", "Gestión Administrativa",  53),
+    ("admin_valor_bienes",     "Valor a Descontar (Bienes)",                 "NUMERO", "Gestión Administrativa",  54),
+    ("admin_nombre_resp2",     "Nombre Responsable Admin Fila 2",           "TEXTO",  "Gestión Administrativa",  55),
+    ("admin_r2",               "FirmaEC — Administrativa: Fila 2",          "FIRMA",  "Gestión Administrativa",  56),
+    ("admin_deducibles",       "¿Tiene Deducibles Pendientes?",             "SELECT", "Gestión Administrativa",  57),
+    ("admin_deducibles_valor", "Valor Deducibles",                          "NUMERO", "Gestión Administrativa",  58),
+    ("admin_nombre_resp3",     "Nombre Responsable Admin Fila 3",           "TEXTO",  "Gestión Administrativa",  59),
+    ("admin_r3",               "FirmaEC — Administrativa: Fila 3",          "FIRMA",  "Gestión Administrativa",  60),
+    ("admin_pasajes",          "¿Pasajes aéreos por justificar?",           "SELECT", "Gestión Administrativa",  61),
+    ("admin_pasajes_valor",    "Valor a Descontar (Pasajes)",               "NUMERO", "Gestión Administrativa",  62),
+    ("admin_nombre_resp4",     "Nombre Responsable Admin Fila 4",           "TEXTO",  "Gestión Administrativa",  63),
+    ("admin_r4",               "FirmaEC — Administrativa: Fila 4",          "FIRMA",  "Gestión Administrativa",  64),
+    ("admin_responsable",      "Director/a Administrativo/a Financiero/a", "TEXTO",  "Gestión Administrativa",  65),
+    ("admin_dir",              "FirmaEC — Administrativa: Director/a",      "FIRMA",  "Gestión Administrativa",  66),
+    # 05 — Gestión TIC
+    ("tic_verificacion",      "Verificación Equipo / IP / accesos",         "SELECT", "Gestión TIC",  70),
+    ("tic_ip_fija",           "Acceso IP Fija",                             "SELECT", "Gestión TIC",  71),
+    ("tic_liberacion",        "Liberación de IP",                          "SELECT", "Gestión TIC",  72),
+    ("tic_nombre_resp1",      "Nombre Responsable TIC Fila 1",              "TEXTO",  "Gestión TIC",  73),
+    ("tic_r1",                "FirmaEC — TIC: Fila 1",                      "FIRMA",  "Gestión TIC",  74),
+    ("tic_backup",            "Entrega Backup de Información",              "SELECT", "Gestión TIC",  75),
+    ("tic_ruta_backup",       "Ruta del Backup",                            "TEXTO",  "Gestión TIC",  76),
+    ("tic_nombre_resp2",      "Nombre Responsable TIC Fila 2",              "TEXTO",  "Gestión TIC",  77),
+    ("tic_r2",                "FirmaEC — TIC: Fila 2",                      "FIRMA",  "Gestión TIC",  78),
+    ("tic_retiro_acceso",     "Retiro control acceso / contraseñas",        "SELECT", "Gestión TIC",  79),
+    ("tic_cierre_correo",     "Cierre Correo Institucional",                "SELECT", "Gestión TIC",  80),
+    ("tic_esigef",            "Cierre eSIGEF",                              "SELECT", "Gestión TIC",  81),
+    ("tic_quipux",            "Cierre QUIPUX",                             "SELECT", "Gestión TIC",  82),
+    ("tic_spryn",             "Cierre SPRYN",                               "SELECT", "Gestión TIC",  83),
+    ("tic_esbye",             "Cierre eSByE",                               "SELECT", "Gestión TIC",  84),
+    ("tic_nombre_resp3",      "Nombre Responsable TIC Fila 3",              "TEXTO",  "Gestión TIC",  85),
+    ("tic_r3",                "FirmaEC — TIC: Fila 3",                      "FIRMA",  "Gestión TIC",  86),
+    ("tic_tarjeta_cuentas",   "Entrega y Desactivación Tarjeta Acceso",     "SELECT", "Gestión TIC",  87),
+    ("tic_obs",               "Observación TIC",                           "TEXTO",  "Gestión TIC",  88),
+    ("tic_nombre_resp4",      "Nombre Responsable TIC Fila 4",              "TEXTO",  "Gestión TIC",  89),
+    ("tic_r4",                "FirmaEC — TIC: Fila 4",                      "FIRMA",  "Gestión TIC",  90),
+    ("tic_responsable",       "Responsable TIC",                           "TEXTO",  "Gestión TIC",  91),
+    ("tic_r5",                "FirmaEC — TIC: Fila 5 (Director/a)",         "FIRMA",  "Gestión TIC",  92),
+    # 06 — Gestión Financiera
+    ("fin_saldos",            "Saldos Contables Pendientes",               "SELECT", "Gestión Financiera",  100),
+    ("fin_saldos_valor",      "Valor Saldos Contables",                    "NUMERO", "Gestión Financiera",  101),
+    ("fin_saldos_obs",        "Observación Saldos",                        "TEXTO",  "Gestión Financiera",  102),
+    ("fin_nombre_resp1",      "Nombre Responsable Financiero Fila 1",      "TEXTO",  "Gestión Financiera",  103),
+    ("fin_r1",                "FirmaEC — Financiera: Fila 1",              "FIRMA",  "Gestión Financiera",  104),
+    ("fin_anticipo",          "Anticipo de Sueldos Pendiente",             "SELECT", "Gestión Financiera",  105),
+    ("fin_anticipo_valor",    "Valor Anticipo Sueldos",                    "NUMERO", "Gestión Financiera",  106),
+    ("fin_anticipo_obs",      "Observación Anticipo",                      "TEXTO",  "Gestión Financiera",  107),
+    ("fin_nombre_resp2",      "Nombre Responsable Financiero Fila 2",      "TEXTO",  "Gestión Financiera",  108),
+    ("fin_r2",                "FirmaEC — Financiera: Fila 2",              "FIRMA",  "Gestión Financiera",  109),
+    ("fin_recuperacion",      "Recuperación de Valores Pendiente",         "SELECT", "Gestión Financiera",  110),
+    ("fin_recuperacion_valor","Valor Recuperación",                        "NUMERO", "Gestión Financiera",  111),
+    ("fin_recuperacion_obs",  "Observación Recuperación",                  "TEXTO",  "Gestión Financiera",  112),
+    ("fin_nombre_resp3",      "Nombre Responsable Financiero Fila 3",      "TEXTO",  "Gestión Financiera",  113),
+    ("fin_r3",                "FirmaEC — Financiera: Fila 3",              "FIRMA",  "Gestión Financiera",  114),
+    ("fin_devolucion",        "Devolución Muebles / Equipos",              "SELECT", "Gestión Financiera",  115),
+    ("fin_devolucion_valor",  "Valor Devolución Muebles",                  "NUMERO", "Gestión Financiera",  116),
+    ("fin_devolucion_obs",    "Observación Devolución",                    "TEXTO",  "Gestión Financiera",  117),
+    ("fin_nombre_resp4",      "Nombre Responsable Financiero Fila 4",      "TEXTO",  "Gestión Financiera",  118),
+    ("fin_r4",                "FirmaEC — Financiera: Fila 4",              "FIRMA",  "Gestión Financiera",  119),
+    ("fin_director",          "Director/a Administrativo/a Financiero/a",  "TEXTO",  "Gestión Financiera",  120),
+    ("fin_dir",               "FirmaEC — Financiera: Director/a",          "FIRMA",  "Gestión Financiera",  121),
+    # 07 — Seguridad de la Información
+    ("seg_archivos",           "Archivos Digitales (EGSI)",                       "SELECT", "Seguridad",  130),
+    ("seg_entrega_copia",      "Entrega Copia de Informe de Actividades",         "SELECT", "Seguridad",  131),
+    ("seg_nombre_resp1",       "Nombre Responsable Seguridad Fila 1",             "TEXTO",  "Seguridad",  132),
+    ("seg_r1",                 "FirmaEC — Seguridad: Fila 1",                     "FIRMA",  "Seguridad",  133),
+    ("seg_archivos_fisicos",   "Archivos Físicos (Archivo Central)",              "SELECT", "Seguridad",  134),
+    ("seg_verificacion_info",  "Verificación Información Institucional",          "SELECT", "Seguridad",  135),
+    ("seg_nombre_resp2",       "Nombre Responsable Seguridad Fila 2",             "TEXTO",  "Seguridad",  136),
+    ("seg_r2",                 "FirmaEC — Seguridad: Fila 2",                     "FIRMA",  "Seguridad",  137),
+    ("seg_oficial",            "Oficial de Seguridad Institucional",              "TEXTO",  "Seguridad",  138),
+    ("seg_responsable",        "Nombre Responsable Seguridad",                    "TEXTO",  "Seguridad",  139),
+    # 08 — Dirección de Administración de RRHH
+    ("rrhh_capacitacion",       "Capacitación: devengó cursos recibidos",         "SELECT", "Recursos Humanos",  150),
+    ("rrhh_resp_capacitacion",  "Nombre Responsable Capacitación",                "TEXTO",  "Recursos Humanos",  151),
+    ("rrhh_r1",                 "FirmaEC — RRHH: Fila 1",                         "FIRMA",  "Recursos Humanos",  152),
+    ("rrhh_evaluacion",         "Evaluación del Desempeño aplicada",              "SELECT", "Recursos Humanos",  153),
+    ("rrhh_resp_evaluacion",    "Nombre Responsable Evaluación",                  "TEXTO",  "Recursos Humanos",  154),
+    ("rrhh_r2",                 "FirmaEC — RRHH: Fila 2",                         "FIRMA",  "Recursos Humanos",  155),
+    ("rrhh_viajes",             "Viajes al exterior: devengación",                "SELECT", "Recursos Humanos",  156),
+    ("rrhh_resp_viajes",        "Nombre Responsable Viajes al Exterior",          "TEXTO",  "Recursos Humanos",  157),
+    ("rrhh_r3",                 "FirmaEC — RRHH: Fila 3",                         "FIRMA",  "Recursos Humanos",  158),
+    ("rrhh_siith",              "SIITH: desvinculación del sistema",              "SELECT", "Recursos Humanos",  159),
+    ("rrhh_resp_siith",         "Nombre Responsable SIITH",                       "TEXTO",  "Recursos Humanos",  160),
+    ("rrhh_r4",                 "FirmaEC — RRHH: Fila 4",                         "FIRMA",  "Recursos Humanos",  161),
+    ("rrhh_juramentada",        "Declaración juramentada de bienes",              "SELECT", "Recursos Humanos",  162),
+    ("rrhh_num_declaracion",    "N° Declaración Juramentada",                     "TEXTO",  "Recursos Humanos",  163),
+    ("rrhh_resp_juramentada",   "Nombre Responsable Declaración Juramentada",     "TEXTO",  "Recursos Humanos",  164),
+    ("rrhh_r6",                 "FirmaEC — RRHH: Fila 6",                         "FIRMA",  "Recursos Humanos",  165),
+    ("rrhh_credencial",         "Credencial institucional / Porta cred.",         "SELECT", "Recursos Humanos",  166),
+    ("rrhh_resp_credencial2",   "Nombre Responsable Credencial / Copia Act.",     "TEXTO",  "Recursos Humanos",  167),
+    ("rrhh_r7",                 "FirmaEC — RRHH: Fila 7",                         "FIRMA",  "Recursos Humanos",  168),
+    ("rrhh_entrega_informe_cd", "Entrega copia actividades CD / Ropa trabajo",    "SELECT", "Recursos Humanos",  169),
+    ("rrhh_acta_bienes",        "Acta de bienes del custodio",                    "SELECT", "Recursos Humanos",  170),
+    ("rrhh_resp_acta",          "Nombre Responsable Acta Bienes / Ropa",          "TEXTO",  "Recursos Humanos",  171),
+    ("rrhh_r8",                 "FirmaEC — RRHH: Fila 8",                         "FIRMA",  "Recursos Humanos",  172),
+    ("rrhh_vacaciones",         "Días Vacaciones Acumuladas No Gozadas",          "NUMERO", "Recursos Humanos",  173),
+    ("rrhh_num_certificado",    "N° Certificado Emitido",                         "TEXTO",  "Recursos Humanos",  174),
+    ("rrhh_resp_vacaciones",    "Nombre Responsable Vacaciones RRHH",             "TEXTO",  "Recursos Humanos",  175),
+    ("rrhh_r5",                 "FirmaEC — RRHH: Fila 5 (Vacaciones)",            "FIRMA",  "Recursos Humanos",  176),
+    ("rrhh_director",           "Director/a de Administración de RRHH",          "TEXTO",  "Recursos Humanos",  177),
+    ("rrhh_dir",                "FirmaEC — RRHH: Director/a",                    "FIRMA",  "Recursos Humanos",  178),
+    # 09 — Recepción de Documentos
+    ("recepcion_fecha",    "Fecha de Entrega Paz y Salvo",                "FECHA",  "Recepción",  190),
+    ("recepcion_hojas",    "N° Hojas Recibidas",                          "NUMERO", "Recepción",  191),
+    ("recepcion_servidor", "Servidor/a que recibe",                       "TEXTO",  "Recepción",  192),
+    ("recepcion_cargo",    "Cargo del Servidor/a",                        "TEXTO",  "Recepción",  193),
+    ("recepcion_r1",       "FirmaEC — Recepción: Servidor/a que recibe",  "FIRMA",  "Recepción",  194),
+    # 10 — Autorización — Servidor Saliente
+    ("cedula_firmante",    "C.C. del Firmante",                            "TEXTO",  "Firma",  200),
+    ("fecha_firma",        "Fecha de Firma",                               "FECHA",  "Firma",  201),
+    ("servidor_saliente",  "FirmaEC — Autorización: Servidor Saliente",   "FIRMA",  "Firma",  202),
+]
+
+
+def _precrear_todas_preguntas(formulario_id, cursor):
+    """
+    Inserta en formulario_preguntas TODOS los campos estándar del Paz y Salvo
+    para el formulario indicado, si no existen todavía.
+
+    No crea asignaciones — solo garantiza que el código del campo exista
+    en la tabla para que el PDF y el endpoint /responder siempre lo encuentren.
+    """
+    for (codigo, pregunta, tipo, seccion, orden) in ALL_PDF_CAMPOS:
+        cursor.execute("""
+            SELECT id FROM formulario_preguntas
+            WHERE formulario_id = %s AND codigo = %s LIMIT 1
+        """, (formulario_id, codigo))
+        if not cursor.fetchone():
+            cursor.execute("""
+                INSERT INTO formulario_preguntas
+                (formulario_id, codigo, pregunta, tipo, seccion, opciones, obligatorio, orden)
+                VALUES (%s, %s, %s, %s, %s, NULL, 0, %s)
+            """, (formulario_id, codigo, pregunta, tipo, seccion, orden))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2777,13 +2977,20 @@ def generar_pdf(formulario_id):
         if not formulario:
             return jsonify({"mensaje": "Formulario no encontrado"}), 404
 
+        # Migración de formularios antiguos: garantiza que todos los campos estándar
+        # existan en formulario_preguntas antes de generar el PDF.
+        _precrear_todas_preguntas(formulario_id, cursor)
+        conn.commit()
+
         # Nota: se permite que no-admin descargue el PDF (necesario para flujo FirmaEC Desktop)
         # El admin puede descargarlo siempre; los demás también, incluso en BORRADOR.
 
         cursor.execute("""
             SELECT p.codigo, r.respuesta
               FROM formulario_preguntas p
-              LEFT JOIN formulario_respuestas r ON p.id = r.pregunta_id
+              LEFT JOIN formulario_respuestas r
+                     ON p.id = r.pregunta_id
+                    AND r.formulario_id = p.formulario_id
              WHERE p.formulario_id = %s
         """, (formulario_id,))
         resp = {r["codigo"]: (r["respuesta"] or "") for r in cursor.fetchall() if r["codigo"]}

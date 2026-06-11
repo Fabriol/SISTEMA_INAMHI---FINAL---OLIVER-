@@ -2068,10 +2068,12 @@ export class Formularios implements OnInit, OnDestroy {
   }
 
   private guardarCamposAsignados(): void {
-    const camposAGuardar = this.camposAsignadosUsuario.filter(campo => {
+    // Guardar TODOS los controles habilitados con valor, no solo los asignados
+    // (permite guardar campos companion visibles al admin o asignados a este usuario)
+    const camposAGuardar = Object.keys(this.formularioPazSalvo.controls).filter(campo => {
       if (this.camposBloqueados.includes(campo)) return false;
       const ctrl = this.formularioPazSalvo.get(campo);
-      if (!ctrl) return false;
+      if (!ctrl || ctrl.disabled) return false;
       const val = ctrl.value;
       if (val === null || val === undefined) return false;
       if (typeof val === 'string' && val.trim() === '') return false;
@@ -2079,9 +2081,9 @@ export class Formularios implements OnInit, OnDestroy {
       return true;
     });
 
-    const firmasAGuardar = this.camposAsignadosUsuario.filter(campo => {
+    const firmasAGuardar = Object.keys(this.firmasEC).filter(campo => {
       if (this.camposBloqueados.includes(campo)) return false;
-      return (campo in this.firmasEC) && !!this.firmasEC[campo];
+      return !!this.firmasEC[campo];
     });
 
     const total = camposAGuardar.length + firmasAGuardar.length;
@@ -2176,6 +2178,9 @@ export class Formularios implements OnInit, OnDestroy {
         if (!this.camposBloqueados.includes(campo)) {
           this.camposBloqueados.push(campo);
         }
+        guardados++;
+      } else if (err?.status === 403 || err?.status === 404) {
+        // Campo no asignado a este usuario o no encontrado — ignorar silenciosamente
         guardados++;
       } else {
         console.error(`Error guardando campo '${campo}':`, err?.error);
