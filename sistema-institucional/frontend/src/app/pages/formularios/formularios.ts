@@ -19,11 +19,12 @@ import {
   ValidatorFn,
 } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { Subject, of } from 'rxjs';
+import { Subject, of, interval } from 'rxjs';
 import {
   catchError,
   debounceTime,
   finalize,
+  switchMap,
   takeUntil,
   timeout,
 } from 'rxjs/operators';
@@ -533,6 +534,16 @@ export class Formularios implements OnInit, OnDestroy {
     this.iniciarAutoGuardadoDraft();
     this.cargarFormularios();
     this.cargarNotificaciones();
+
+    // Polling cada 30 s: actualiza el contador de notificaciones sin recargar toda la página.
+    // Usa switchMap para cancelar peticiones anteriores si llega un nuevo tick antes de respuesta.
+    interval(30_000).pipe(
+      takeUntil(this.destroy$),
+      switchMap(() => this.formulariosService.notificaciones().pipe(catchError(() => of([]))))
+    ).subscribe((data: any[]) => {
+      this.notificaciones = data ?? [];
+      this.cdr.markForCheck();
+    });
 
     if (this.esAdmin()) {
       this.contenidoVisible = true;

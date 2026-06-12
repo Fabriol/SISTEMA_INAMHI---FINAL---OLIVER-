@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
@@ -184,44 +184,74 @@ export class Reportes implements OnInit {
     const key = `${formulario.id}_${usuario.usuario_id}`;
     if (this.enviandoRecordatorio[key]) return;
 
-    const nombreUser = `${usuario.nombres} ${usuario.apellidos}`.trim();
+    const nombreUser = (usuario.nombre_completo ||
+      `${usuario.nombres || ''} ${usuario.apellidos || ''}`.trim()) || usuario.usuario;
 
     Swal.fire({
-      title: `¿Enviar recordatorio?`,
+      title: '¿Enviar recordatorio?',
       html: `
-        Se enviará una notificación a <strong>${nombreUser}</strong><br>
-        con <strong>${usuario.pendientes}</strong> campo(s) pendiente(s) en<br>
-        el formulario <strong>"${formulario.titulo}"</strong>.
-        <br><br>
-        <textarea id="msg-extra" class="swal2-textarea" placeholder="Mensaje adicional (opcional)..." rows="2" style="resize:none;font-size:13px;">${this.mensajeAdicional[key] || ''}</textarea>
+        <div style="text-align:left;font-size:14px;line-height:1.6">
+          <p>Se enviará una notificación a <strong>${nombreUser}</strong>.</p>
+          <p>Formulario: <strong>"${formulario.titulo}"</strong></p>
+          <p>Campos pendientes: <strong style="color:#dc2626">${usuario.pendientes}</strong></p>
+        </div>
+        <textarea
+          id="swal-msg-extra"
+          class="swal2-textarea"
+          placeholder="Mensaje adicional para el usuario (opcional)..."
+          rows="3"
+          style="resize:vertical;font-size:13px;margin-top:12px;width:100%;box-sizing:border-box;"
+        >${this.mensajeAdicional[key] || ''}</textarea>
       `,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: 'Enviar recordatorio',
+      confirmButtonText: '📧 Enviar recordatorio',
       cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#1e3a8a',
+      focusConfirm: false,
+      preConfirm: () => {
+        const el = document.getElementById('swal-msg-extra') as HTMLTextAreaElement | null;
+        return el ? el.value.trim() : '';
+      },
     }).then(result => {
       if (!result.isConfirmed) return;
 
-      const extra = (document.getElementById('msg-extra') as HTMLTextAreaElement)?.value || '';
+      const extra: string = (result.value as string) || '';
       this.mensajeAdicional[key] = extra;
       this.enviandoRecordatorio[key] = true;
       this.cdr.detectChanges();
 
-      this.http.post(`${this.api}/reportes/enviar-recordatorio`, {
+      this.http.post<any>(`${this.api}/reportes/enviar-recordatorio`, {
         usuario_id:    usuario.usuario_id,
         formulario_id: formulario.id,
-        mensaje:       extra.trim()
+        mensaje:       extra,
       }, this.headers()).pipe(
-        timeout(8000),
+        timeout(10000),
         catchError((err: any) => {
-          Swal.fire('Error', err?.error?.mensaje ?? 'No se pudo enviar el recordatorio.', 'error');
+          const msg = err?.error?.mensaje ?? 'No se pudo enviar el recordatorio.';
+          // 409 = recordatorio sin leer ya existe (deduplicación)
+          const icon = err?.status === 409 ? 'warning' : 'error';
+          Swal.fire({ icon, title: icon === 'warning' ? 'Aviso' : 'Error', text: msg });
           return of(null);
         }),
         finalize(() => { this.enviandoRecordatorio[key] = false; this.cdr.detectChanges(); })
       ).subscribe((res: any) => {
         if (!res) return;
-        Swal.fire('Enviado', res.mensaje ?? 'Recordatorio enviado correctamente.', 'success');
         this.mensajeAdicional[key] = '';
+
+        const camposTexto = res.campos?.length
+          ? `<br><small style="color:#475569">Campos: ${(res.campos as string[]).slice(0, 8).join(', ')}${res.campos.length > 8 ? '…' : ''}</small>`
+          : '';
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Recordatorio enviado',
+          html: `${res.mensaje ?? 'Recordatorio enviado correctamente.'}${camposTexto}`,
+          confirmButtonColor: '#1e3a8a',
+        });
+
+        // Recargar la lista para reflejar el estado actualizado
+        this.cargarPendientes();
       });
     });
   }

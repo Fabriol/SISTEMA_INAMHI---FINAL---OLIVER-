@@ -1017,6 +1017,7 @@ def reportes_formularios_pendientes():
                 u.nombres,
                 u.apellidos,
                 u.usuario,
+                u.rol,
                 COUNT(a.id)                                                     AS total_asignados,
                 SUM(CASE WHEN a.estado = 'CULMINADO'  THEN 1 ELSE 0 END)        AS completados,
                 SUM(CASE WHEN a.estado != 'CULMINADO' THEN 1 ELSE 0 END)        AS pendientes
@@ -1025,7 +1026,7 @@ def reportes_formularios_pendientes():
             INNER JOIN usuarios     u ON u.id = a.asignado_usuario_id
             GROUP BY
                 f.id, f.titulo, f.estado, f.porcentaje,
-                u.id, u.nombres, u.apellidos, u.usuario
+                u.id, u.nombres, u.apellidos, u.usuario, u.rol
             HAVING SUM(CASE WHEN a.estado != 'CULMINADO' THEN 1 ELSE 0 END) > 0
             ORDER BY f.id DESC, pendientes DESC
         """)
@@ -1051,14 +1052,15 @@ def reportes_formularios_pendientes():
             formularios_map[fid]["completados"]  += int(fila["completados"]      or 0)
             formularios_map[fid]["pendientes"]   += int(fila["pendientes"]       or 0)
             formularios_map[fid]["usuarios_pendientes"].append({
-                "usuario_id":     fila["usuario_id"],
+                "usuario_id":      fila["usuario_id"],
                 "nombre_completo": fila["nombre_completo"],
-                "nombres":        fila["nombres"],
-                "apellidos":      fila["apellidos"],
-                "usuario":        fila["usuario"],
+                "nombres":         fila["nombres"],
+                "apellidos":       fila["apellidos"],
+                "usuario":         fila["usuario"],
+                "rol":             fila["rol"],
                 "total_asignados": int(fila["total_asignados"] or 0),
-                "completados":    int(fila["completados"]       or 0),
-                "pendientes":     int(fila["pendientes"]        or 0),
+                "completados":     int(fila["completados"]      or 0),
+                "pendientes":      int(fila["pendientes"]       or 0),
             })
 
         resultado = list(formularios_map.values())
@@ -1075,6 +1077,9 @@ def reportes_formularios_pendientes():
 def enviar_recordatorio():
     """
     Envía una notificación de recordatorio a un usuario con campos pendientes.
+    Incluye listado de campos específicos pendientes, nombre completo del remitente,
+    deduplicación (no reenvía si hay un recordatorio sin leer del mismo formulario)
+    y registro completo en auditoría.
     Accesible para Administrador y Talento Humano - Recepcion Documentos.
     """
     conn = None
@@ -1102,38 +1107,93 @@ def enviar_recordatorio():
         conn   = get_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # Verificar que el usuario y formulario existen
-        cursor.execute("SELECT id, nombres, apellidos FROM usuarios WHERE id = %s AND estado = 'ACTIVO'", (usuario_id,))
+        # ── Verificar usuario destino ────────────────────────────────────────
+        cursor.execute(
+            "SELECT id, nombres, apellidos, rol FROM usuarios WHERE id = %s AND estado = 'ACTIVO'",
+            (usuario_id,)
+        )
         dest = cursor.fetchone()
         if not dest:
             return jsonify({"mensaje": "Usuario destino no encontrado o inactivo"}), 404
 
+        # ── Verificar formulario ─────────────────────────────────────────────
         cursor.execute("SELECT id, titulo FROM formularios WHERE id = %s", (formulario_id,))
         form = cursor.fetchone()
         if not form:
             return jsonify({"mensaje": "Formulario no encontrado"}), 404
 
-        # Contar campos pendientes de ese usuario en ese formulario
+        # ── Obtener nombre completo del remitente ────────────────────────────
+        cursor.execute(
+            "SELECT nombres, apellidos FROM usuarios WHERE id = %s LIMIT 1",
+            (user["id"],)
+        )
+        remitente_row = cursor.fetchone()
+        if remitente_row:
+            remitente_nombre = f"{remitente_row['nombres']} {remitente_row['apellidos']}".strip()
+        else:
+            remitente_nombre = user["usuario"]
+
+        # ── Obtener campos pendientes específicos ────────────────────────────
         cursor.execute("""
-            SELECT COUNT(*) AS pendientes
-            FROM formulario_asignaciones
-            WHERE formulario_id = %s AND asignado_usuario_id = %s AND estado != 'CULMINADO'
+            SELECT p.codigo, p.pregunta, p.seccion
+            FROM formulario_asignaciones a
+            INNER JOIN formulario_preguntas p ON p.id = a.pregunta_id
+            WHERE a.formulario_id = %s
+              AND a.asignado_usuario_id = %s
+              AND a.estado != 'CULMINADO'
+            ORDER BY p.seccion, p.orden
         """, (formulario_id, usuario_id))
-        pend = cursor.fetchone()
-        n_pendientes = pend["pendientes"] if pend else 0
+        campos_pend = cursor.fetchall()
+        n_pendientes = len(campos_pend)
 
+        if n_pendientes == 0:
+            return jsonify({
+                "mensaje": "Este usuario no tiene campos pendientes en este formulario."
+            }), 400
+
+        # ── Anti-duplicados: bloquear si ya hay un recordatorio sin leer ────
+        cursor.execute("""
+            SELECT id FROM notificaciones
+            WHERE usuario_id = %s
+              AND leido = 0
+              AND titulo LIKE %s
+            LIMIT 1
+        """, (usuario_id, f"%{form['titulo']}%"))
+        ya_existe = cursor.fetchone()
+        if ya_existe:
+            nombre_dest = f"{dest['nombres']} {dest['apellidos']}".strip()
+            return jsonify({
+                "mensaje": (
+                    f"{nombre_dest} ya tiene un recordatorio sin leer para este formulario. "
+                    "Espera a que lo lea antes de enviar otro."
+                )
+            }), 409
+
+        # ── Construir lista de campos para el mensaje ────────────────────────
         nombre_dest = f"{dest['nombres']} {dest['apellidos']}".strip()
-        remitente   = user["usuario"]
+        codigos = [cp.get("codigo") or cp.get("pregunta") or "campo" for cp in campos_pend]
+        MAX_CAMPOS_MSG = 10
+        if len(codigos) <= MAX_CAMPOS_MSG:
+            lista_campos_str = ", ".join(codigos)
+        else:
+            lista_campos_str = ", ".join(codigos[:MAX_CAMPOS_MSG]) + f" y {len(codigos) - MAX_CAMPOS_MSG} más"
 
-        titulo_notif = f"Recordatorio: tienes {n_pendientes} campo(s) pendiente(s)"
-        msg_notif    = (
-            f"El formulario «{form['titulo']}» tiene {n_pendientes} campo(s) sin completar "
-            f"asignados a ti. Por favor ingresa al sistema y completa la información. "
-            f"Recordatorio enviado por: {remitente}."
+        # ── Construir título y cuerpo de la notificación ─────────────────────
+        titulo_notif = (
+            f"Recordatorio: tienes {n_pendientes} campo(s) pendiente(s) "
+            f"en «{form['titulo']}»"
+        )
+        msg_notif = (
+            f"Tienes {n_pendientes} campo(s) sin completar en el formulario "
+            f"«{form['titulo']}».\n"
+            f"Campos pendientes: {lista_campos_str}.\n"
+            f"Por favor ingresa al sistema, abre el formulario y completa la información."
+            f"\nRecordatorio enviado por: {remitente_nombre} ({user['rol']})."
         )
         if mensaje_extra:
-            msg_notif += f" Mensaje adicional: {mensaje_extra}"
+            msg_notif += f"\nMensaje adicional: {mensaje_extra}"
 
+        # ── Insertar notificación ────────────────────────────────────────────
         cursor.execute("""
             INSERT INTO notificaciones (usuario_id, rol_destino, titulo, mensaje, leido)
             VALUES (%s, NULL, %s, %s, 0)
@@ -1141,15 +1201,22 @@ def enviar_recordatorio():
 
         conn.commit()
 
+        # ── Auditoría ────────────────────────────────────────────────────────
         registrar_auditoria(
             user["usuario"], user["rol"], "Reportes",
             "Recordatorio enviado",
-            f"Recordatorio a {nombre_dest} (ID {usuario_id}) por formulario {formulario_id} — {n_pendientes} pendientes"
+            (
+                f"Recordatorio enviado a {nombre_dest} (ID {usuario_id}) "
+                f"por formulario ID {formulario_id} «{form['titulo']}» — "
+                f"{n_pendientes} campo(s) pendiente(s): {lista_campos_str}"
+            )
         )
 
         return jsonify({
-            "mensaje": f"Recordatorio enviado correctamente a {nombre_dest}.",
-            "pendientes": n_pendientes
+            "mensaje":    f"Recordatorio enviado correctamente a {nombre_dest}.",
+            "destinatario": nombre_dest,
+            "pendientes": n_pendientes,
+            "campos":     codigos,
         }), 200
 
     except Exception as e:
