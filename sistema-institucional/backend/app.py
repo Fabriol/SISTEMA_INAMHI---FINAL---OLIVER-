@@ -2736,37 +2736,12 @@ def _draw_firma_cell(c, y: float, firma_val: str,
     if firma_val and firma_val.startswith("FIRMADO_EC:"):
         c.setFillColorRGB(*_C_BKGOK)
         c.rect(_FX1, y_bot, _FW, _FRH, fill=1, stroke=1)
+        c.setStrokeColorRGB(*_C_OK)
+        c.setLineWidth(0.8)
+        c.rect(_FX1, y_bot, _FW, _FRH, fill=0, stroke=1)
+        c.setStrokeColorRGB(*_C_BLACK)
+        c.setLineWidth(0.4)
 
-        # ── Intentar mostrar imagen PNG del sello QR ───────────────────────
-        if "|" in firma_val:
-            b64_raw = firma_val.split("|", 1)[1]
-            if b64_raw.startswith("data:image"):
-                b64_raw = b64_raw.split(",", 1)[-1]
-            try:
-                import io as _io2, base64 as _b642
-                from reportlab.lib.utils import ImageReader as _IR2
-                img_bytes = _b642.b64decode(b64_raw)
-                img_r = _IR2(_io2.BytesIO(img_bytes))
-                # Imagen centrada con padding uniforme
-                img_x = _FX1 + PAD
-                img_y = y_bot + PAD
-                img_w = _FW - 2 * PAD
-                img_h = _FRH - 2 * PAD
-                c.drawImage(img_r, img_x, img_y,
-                            width=img_w, height=img_h,
-                            preserveAspectRatio=True, anchor='c',
-                            mask='auto')
-                # Borde de confirmación
-                c.setStrokeColorRGB(*_C_OK)
-                c.setLineWidth(0.8)
-                c.rect(_FX1, y_bot, _FW, _FRH, fill=0, stroke=1)
-                c.setStrokeColorRGB(*_C_BLACK)
-                c.setLineWidth(0.4)
-                return
-            except Exception:
-                pass  # imagen corrupta → fallback texto
-
-        # ── Fallback: texto cuando no hay imagen ────────────────────────────
         parts    = firma_val.split("|")[0].split(":")
         firmante = parts[1].strip() if len(parts) > 1 else "FIRMADO"
         fecha_f  = parts[2][:10]   if len(parts) > 2 else ""
@@ -3477,9 +3452,10 @@ def generar_pdf(formulario_id):
         with open(json_path, "w", encoding="utf-8") as jf:
             json.dump(sig_coords, jf)
 
-        # Servir _signed.pdf (pyHanko) si existe, si no el original
-        pdf_signed = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
-        if os.path.exists(pdf_signed):
+        # Devolver _signed.pdf si existe: contiene datos completos + firma válida.
+        # Si no existe, devolver el pdf_orig recién generado (datos sin firma aún).
+        pdf_signed_dl = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
+        if os.path.exists(pdf_signed_dl):
             return send_from_directory(
                 UPLOAD_FOLDER,
                 f"formulario_{formulario_id}_signed.pdf",
@@ -4134,26 +4110,29 @@ def firmar_ec_pdf(formulario_id):
         if cursor.fetchone():
             return jsonify({"mensaje": "Esta celda ya fue firmada y no puede modificarse"}), 400
 
-        # ── PDF debe existir (original o con firmas previas) ────────
-        # Cadena: original → signed (acumulación incremental de firmas)
+        # ── Regenerar pdf_orig con datos actuales ANTES de firmar ──────────
+        # Garantiza que la primera firma siempre se aplique sobre un PDF con
+        # todos los datos de la BD (idéntico al espejo). Las firmas posteriores
+        # siguen siendo incrementales sobre _signed.pdf (datos del primer firmado).
         pdf_orig   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}.pdf")
         pdf_signed = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
         json_path  = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_sigfields.json")
 
+        try:
+            close_db(cursor, conn)
+            cursor = conn = None
+            generar_pdf(formulario_id)
+            conn   = get_connection()
+            cursor = conn.cursor(dictionary=True)
+        except Exception as _eg:
+            print(f"[firmar-ec] advertencia regenerando pdf_orig: {_eg}")
+            if conn is None:
+                conn   = get_connection()
+                cursor = conn.cursor(dictionary=True)
+
+        # Primera firma → usar pdf_orig recién generado con todos los datos.
+        # Firmas posteriores → incremental sobre pdf_signed (preserva firmas previas).
         pdf_src = pdf_signed if os.path.exists(pdf_signed) else pdf_orig
-        if not os.path.exists(pdf_src):
-            # Generar el PDF automáticamente si no existe
-            try:
-                close_db(cursor, conn)
-                cursor = conn = None
-                _gen = generar_pdf(formulario_id)
-                if hasattr(_gen, 'status_code') and _gen.status_code not in (200,):
-                    return jsonify({"mensaje": "No se pudo generar el PDF automáticamente."}), 500
-                conn    = get_connection()
-                cursor  = conn.cursor(dictionary=True)
-            except Exception as _eg:
-                return jsonify({"mensaje": f"No se pudo generar el PDF: {_eg}"}), 500
-            pdf_src = pdf_signed if os.path.exists(pdf_signed) else pdf_orig
 
         if not os.path.exists(pdf_src):
             return jsonify({
