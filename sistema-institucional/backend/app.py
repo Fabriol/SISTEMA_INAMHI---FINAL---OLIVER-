@@ -2716,6 +2716,13 @@ def _info_row(c, y: float, l1: str, v1: str,
     return y - _IH
 
 
+def _compute_resp_hash(resp: dict) -> str:
+    """MD5 del estado actual del formulario; detecta si un PDF firmado tiene datos obsoletos."""
+    import hashlib as _hl
+    _text = "|".join(f"{k}={resp.get(k, '')}" for k in sorted(resp))
+    return _hl.md5(_text.encode("utf-8")).hexdigest()
+
+
 def _draw_firma_cell(c, y: float, firma_val: str,
                      campo: str, sig_coords: dict, page_num: int) -> None:
     """
@@ -3452,16 +3459,50 @@ def generar_pdf(formulario_id):
         with open(json_path, "w", encoding="utf-8") as jf:
             json.dump(sig_coords, jf)
 
-        # Devolver _signed.pdf si existe: contiene datos completos + firma válida.
-        # Si no existe, devolver el pdf_orig recién generado (datos sin firma aún).
-        pdf_signed_dl = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
-        if os.path.exists(pdf_signed_dl):
-            return send_from_directory(
-                UPLOAD_FOLDER,
-                f"formulario_{formulario_id}_signed.pdf",
-                as_attachment=True,
-                download_name=f"PazSalvo_{formulario_id}_firmado.pdf",
-            )
+        # ── Hash del estado actual: permite detectar PDFs firmados con datos obsoletos ──
+        _cur_hash  = _compute_resp_hash(resp)
+        _hash_path = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_data.hash")
+        try:
+            with open(_hash_path, "w", encoding="utf-8") as _hf:
+                _hf.write(_cur_hash)
+        except Exception:
+            pass
+
+        # ── Prioridad de descarga: _firmaec.pdf → _signed.pdf → PDF fresco ──
+        # Solo se sirve un PDF firmado si su hash coincide con el estado actual de BD.
+        # Si el hash no coincide (datos cambiaron después de la firma), se sirve el PDF
+        # fresco para que el usuario vea la información completa y pueda re-firmar.
+        _pdf_firmaec  = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_firmaec.pdf")
+        _firmaec_hash = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_firmaec.hash")
+        if os.path.exists(_pdf_firmaec) and os.path.exists(_firmaec_hash):
+            try:
+                with open(_firmaec_hash, encoding="utf-8") as _fhf:
+                    if _fhf.read().strip() == _cur_hash:
+                        return send_from_directory(
+                            UPLOAD_FOLDER,
+                            f"formulario_{formulario_id}_firmaec.pdf",
+                            as_attachment=True,
+                            download_name=f"PazSalvo_{formulario_id}_firmadoEC.pdf",
+                        )
+            except Exception:
+                pass
+
+        _pdf_signed_dl = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
+        _signed_hash   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.hash")
+        if os.path.exists(_pdf_signed_dl) and os.path.exists(_signed_hash):
+            try:
+                with open(_signed_hash, encoding="utf-8") as _shf:
+                    if _shf.read().strip() == _cur_hash:
+                        return send_from_directory(
+                            UPLOAD_FOLDER,
+                            f"formulario_{formulario_id}_signed.pdf",
+                            as_attachment=True,
+                            download_name=f"PazSalvo_{formulario_id}_firmado.pdf",
+                        )
+            except Exception:
+                pass
+
+        # PDF fresco con datos actualizados (sin firma o firma con datos desactualizados)
         return send_from_directory(
             UPLOAD_FOLDER, filename, as_attachment=True,
             download_name=f"PazSalvo_{formulario_id}.pdf"
@@ -3631,6 +3672,17 @@ def firmar_ec_desktop(formulario_id):
         with open(pdf_firmaec, "wb") as fout:
             fout.write(pdf_bytes)
 
+        # Etiquetar _firmaec.pdf con el hash de datos actuales.
+        # generar_pdf() solo sirve _firmaec.pdf si este hash coincide con el estado de BD.
+        _fec_data_hash_p = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_data.hash")
+        _fec_hash_p      = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_firmaec.hash")
+        try:
+            if os.path.exists(_fec_data_hash_p):
+                import shutil as _shu2
+                _shu2.copy2(_fec_data_hash_p, _fec_hash_p)
+        except Exception as _he:
+            print(f"[firmar-ec-desktop] advertencia guardando hash: {_he}")
+
         # ── Registrar en BD ──────────────────────────────────────
         marca = f"FIRMADO_EC:{signer_name}:{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
@@ -3770,43 +3822,9 @@ def obtener_pdf_bytes(formulario_id):
 
 @app.route("/api/formularios/<int:formulario_id>/pdf-final", methods=["GET"])
 def descargar_pdf_final(formulario_id):
-    user, error = validar_login()
-    if error:
-        return error
-
-    pdf_signed = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
-    pdf_orig   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}.pdf")
-
-    if os.path.exists(pdf_signed):
-        return send_from_directory(
-            UPLOAD_FOLDER,
-            f"formulario_{formulario_id}_signed.pdf",
-            as_attachment=False,
-            download_name=f"PazSalvo_{formulario_id}_firmado.pdf",
-            mimetype="application/pdf"
-        )
-
-    if os.path.exists(pdf_orig):
-        return send_from_directory(
-            UPLOAD_FOLDER,
-            f"formulario_{formulario_id}.pdf",
-            as_attachment=False,
-            download_name=f"PazSalvo_{formulario_id}.pdf",
-            mimetype="application/pdf"
-        )
-
-    generar_pdf(formulario_id)
-
-    if os.path.exists(pdf_orig):
-        return send_from_directory(
-            UPLOAD_FOLDER,
-            f"formulario_{formulario_id}.pdf",
-            as_attachment=False,
-            download_name=f"PazSalvo_{formulario_id}.pdf",
-            mimetype="application/pdf"
-        )
-
-    return jsonify({"mensaje": "No se pudo generar el PDF final"}), 500
+    # Delega completamente a generar_pdf() que ya implementa la lógica completa:
+    # hash-check de _firmaec.pdf → _signed.pdf → PDF fresco con datos actualizados.
+    return generar_pdf(formulario_id)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -4110,10 +4128,10 @@ def firmar_ec_pdf(formulario_id):
         if cursor.fetchone():
             return jsonify({"mensaje": "Esta celda ya fue firmada y no puede modificarse"}), 400
 
-        # ── Regenerar pdf_orig con datos actuales ANTES de firmar ──────────
-        # Garantiza que la primera firma siempre se aplique sobre un PDF con
-        # todos los datos de la BD (idéntico al espejo). Las firmas posteriores
-        # siguen siendo incrementales sobre _signed.pdf (datos del primer firmado).
+        # ── Regenerar pdf_orig con TODOS los datos actuales antes de firmar ───
+        # Genera siempre un PDF fresco desde BD: mismo contenido que el espejo.
+        # _signed.pdf obsoleto (de una firma anterior) se elimina para que pyHanko
+        # firme SIEMPRE sobre el PDF recién generado, nunca sobre datos antiguos.
         pdf_orig   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}.pdf")
         pdf_signed = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
         json_path  = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_sigfields.json")
@@ -4121,7 +4139,7 @@ def firmar_ec_pdf(formulario_id):
         try:
             close_db(cursor, conn)
             cursor = conn = None
-            generar_pdf(formulario_id)
+            generar_pdf(formulario_id)  # escribe pdf_orig, _sigfields.json y _data.hash
             conn   = get_connection()
             cursor = conn.cursor(dictionary=True)
         except Exception as _eg:
@@ -4130,80 +4148,47 @@ def firmar_ec_pdf(formulario_id):
                 conn   = get_connection()
                 cursor = conn.cursor(dictionary=True)
 
-        # Primera firma → usar pdf_orig recién generado con todos los datos.
-        # Firmas posteriores → incremental sobre pdf_signed (preserva firmas previas).
-        pdf_src = pdf_signed if os.path.exists(pdf_signed) else pdf_orig
-
-        if not os.path.exists(pdf_src):
+        if not os.path.exists(pdf_orig):
             return jsonify({
                 "mensaje": "El PDF no se pudo generar. Use 'Descargar PDF' primero."
             }), 400
 
-        # Si no existe el JSON o al campo le faltan coordenadas → regenerar PDF
-        _json_ok = os.path.exists(json_path)
-        _campo_falta = False
-        if _json_ok:
-            try:
-                with open(json_path, "r", encoding="utf-8") as _jf_chk:
-                    _map_chk = json.load(_jf_chk)
-                if campo_firma not in _map_chk:
-                    _campo_falta = True
-            except Exception:
-                _json_ok = False
-
-        if not _json_ok or _campo_falta:
-            # Auto-regenerar PDF para actualizar coordenadas
-            try:
-                close_db(cursor, conn)
-                cursor = conn = None
-                generar_pdf(formulario_id)
-                conn   = get_connection()
-                cursor = conn.cursor(dictionary=True)
-            except Exception:
-                if not _json_ok:
-                    return jsonify({
-                        "mensaje": "El mapa de coordenadas no existe. Use 'Descargar PDF' primero."
-                    }), 400
-
-        # ── Detectar estado huérfano: PDF ya tiene la firma pero BD no ──────
-        # Ocurre cuando la firma se escribió al disco pero el COMMIT de BD falló.
-        # La firma en el PDF es válida; solo recuperamos el registro en BD.
-        _field_name = f"Sig_{campo_firma}"
-        _skip_firma = False
+        # Eliminar _signed.pdf obsoleto: pyHanko firmará sobre pdf_orig fresco,
+        # garantizando que _signed.pdf contenga SIEMPRE los datos más recientes.
         if os.path.exists(pdf_signed):
             try:
-                from pyhanko.sign import fields as _sf_chk
-                from pyhanko.pdf_utils.reader import PdfFileReader as _PdfRdr
-                with open(pdf_signed, "rb") as _fc:
-                    _rc = _PdfRdr(_fc)
-                    _existing_sig_names = [_fn for _fn, _, _ in _sf_chk.enumerate_sig_fields(_rc)]
-                if _field_name in _existing_sig_names:
-                    cursor.execute(
-                        "SELECT id FROM formulario_respuestas WHERE pregunta_id = %s AND formulario_id = %s LIMIT 1",
-                        (fila["pregunta_id"], formulario_id)
-                    )
-                    if not cursor.fetchone():
-                        _skip_firma = True  # recuperar sin re-firmar
-            except Exception:
-                pass  # si la inspección falla, intentar firma normal
+                os.remove(pdf_signed)
+            except OSError as _rm_err:
+                print(f"[firmar-ec] no se pudo eliminar _signed.pdf anterior: {_rm_err}")
+
+        pdf_src     = pdf_orig   # siempre el PDF fresco con datos actualizados
+        pdf_firmado = pdf_signed
 
         # ── Firmar con pyHanko ───────────────────────────────────
-        # Destino siempre es _signed.pdf (se sobreescribe incrementalmente)
-        pdf_firmado = pdf_signed
-        if not _skip_firma:
-            try:
-                _pyhanko_firmar(
-                    src_path    = pdf_src,
-                    dst_path    = pdf_firmado,
-                    p12_bytes   = p12_bytes,
-                    password    = password_raw,
-                    signer_name = signer_name,
-                    campo_firma = campo_firma,
-                    json_path   = json_path,
-                    signer_obj  = _signer_obj,
-                )
-            except RuntimeError as exc:
-                return jsonify({"mensaje": str(exc)}), 400
+        try:
+            _pyhanko_firmar(
+                src_path    = pdf_src,
+                dst_path    = pdf_firmado,
+                p12_bytes   = p12_bytes,
+                password    = password_raw,
+                signer_name = signer_name,
+                campo_firma = campo_firma,
+                json_path   = json_path,
+                signer_obj  = _signer_obj,
+            )
+        except RuntimeError as exc:
+            return jsonify({"mensaje": str(exc)}), 400
+
+        # Etiquetar _signed.pdf con el hash del PDF recién firmado.
+        # generar_pdf() solo lo servirá si este hash sigue coincidiendo con BD.
+        _data_hash_p   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_data.hash")
+        _signed_hash_p = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.hash")
+        try:
+            if os.path.exists(_data_hash_p):
+                import shutil as _shu
+                _shu.copy2(_data_hash_p, _signed_hash_p)
+        except Exception:
+            pass
 
         # ── Guardar resultado en BD ──────────────────────────────
         # Formato: FIRMADO_EC:{nombre}:{fecha}|{base64_png}
