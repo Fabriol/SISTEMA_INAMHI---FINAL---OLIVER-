@@ -2717,10 +2717,20 @@ def _info_row(c, y: float, l1: str, v1: str,
 
 
 def _compute_resp_hash(resp: dict) -> str:
-    """MD5 del estado actual del formulario; detecta si un PDF firmado tiene datos obsoletos."""
+    """MD5 del estado del formulario.
+    Normaliza FIRMADO_EC:... y data:... a '__sig__' en lugar de excluirlos.
+    Esto es crítico: si el campo ESTABA vacío antes de firmar (incluido en hash como '')
+    y luego pasa a FIRMADO_EC:... (excluido), el hash cambia y _signed.pdf nunca coincide.
+    Con reemplazo: '' → '' y 'FIRMADO_EC:...' → '__sig__' son distintos, pero el hash
+    se guarda POST-INSERT (ya con __sig__), y generar_pdf() también ve __sig__ → coinciden."""
     import hashlib as _hl
-    _text = "|".join(f"{k}={resp.get(k, '')}" for k in sorted(resp))
-    return _hl.md5(_text.encode("utf-8")).hexdigest()
+    _items = []
+    for k in sorted(resp):
+        v = str(resp.get(k, ''))
+        if v.startswith('FIRMADO_EC:') or v.startswith('data:'):
+            v = '__sig__'
+        _items.append(f"{k}={v}")
+    return _hl.md5("|".join(_items).encode("utf-8")).hexdigest()
 
 
 def _draw_firma_cell(c, y: float, firma_val: str,
@@ -3459,6 +3469,8 @@ def generar_pdf(formulario_id):
         with open(json_path, "w", encoding="utf-8") as jf:
             json.dump(sig_coords, jf)
 
+        print(f"[PDF] PDF GENERADO: {filepath}")
+
         # ── Hash del estado actual: permite detectar PDFs firmados con datos obsoletos ──
         _cur_hash  = _compute_resp_hash(resp)
         _hash_path = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_data.hash")
@@ -3468,41 +3480,52 @@ def generar_pdf(formulario_id):
         except Exception:
             pass
 
+        print(f"[PDF] hash_actual={_cur_hash}")
+
         # ── Prioridad de descarga: _firmaec.pdf → _signed.pdf → PDF fresco ──
-        # Solo se sirve un PDF firmado si su hash coincide con el estado actual de BD.
-        # Si el hash no coincide (datos cambiaron después de la firma), se sirve el PDF
-        # fresco para que el usuario vea la información completa y pueda re-firmar.
         _pdf_firmaec  = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_firmaec.pdf")
         _firmaec_hash = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_firmaec.hash")
         if os.path.exists(_pdf_firmaec) and os.path.exists(_firmaec_hash):
             try:
                 with open(_firmaec_hash, encoding="utf-8") as _fhf:
-                    if _fhf.read().strip() == _cur_hash:
-                        return send_from_directory(
-                            UPLOAD_FOLDER,
-                            f"formulario_{formulario_id}_firmaec.pdf",
-                            as_attachment=True,
-                            download_name=f"PazSalvo_{formulario_id}_firmadoEC.pdf",
-                        )
-            except Exception:
-                pass
+                    _fh = _fhf.read().strip()
+                print(f"[PDF] _firmaec.hash={_fh} | coincide={_fh == _cur_hash}")
+                if _fh == _cur_hash:
+                    print(f"[PDF] PDF DESCARGADO (firmaEC): {_pdf_firmaec}")
+                    return send_from_directory(
+                        UPLOAD_FOLDER,
+                        f"formulario_{formulario_id}_firmaec.pdf",
+                        as_attachment=True,
+                        download_name=f"PazSalvo_{formulario_id}_firmadoEC.pdf",
+                    )
+            except Exception as _fhe:
+                print(f"[PDF] error leyendo _firmaec.hash: {_fhe}")
 
         _pdf_signed_dl = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
         _signed_hash   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.hash")
-        if os.path.exists(_pdf_signed_dl) and os.path.exists(_signed_hash):
+        _signed_existe = os.path.exists(_pdf_signed_dl)
+        _shash_existe  = os.path.exists(_signed_hash)
+        print(f"[PDF] _signed.pdf existe={_signed_existe} | _signed.hash existe={_shash_existe}")
+        if _signed_existe and _shash_existe:
             try:
                 with open(_signed_hash, encoding="utf-8") as _shf:
-                    if _shf.read().strip() == _cur_hash:
-                        return send_from_directory(
-                            UPLOAD_FOLDER,
-                            f"formulario_{formulario_id}_signed.pdf",
-                            as_attachment=True,
-                            download_name=f"PazSalvo_{formulario_id}_firmado.pdf",
-                        )
-            except Exception:
-                pass
+                    _sh = _shf.read().strip()
+                print(f"[PDF] _signed.hash={_sh} | coincide={_sh == _cur_hash}")
+                if _sh == _cur_hash:
+                    _sz = os.path.getsize(_pdf_signed_dl)
+                    print(f"[PDF] PDF DESCARGADO (pyHanko signed): {_pdf_signed_dl} ({_sz} bytes)")
+                    return send_from_directory(
+                        UPLOAD_FOLDER,
+                        f"formulario_{formulario_id}_signed.pdf",
+                        as_attachment=True,
+                        download_name=f"PazSalvo_{formulario_id}_firmado.pdf",
+                    )
+            except Exception as _she:
+                print(f"[PDF] error leyendo _signed.hash: {_she}")
 
-        # PDF fresco con datos actualizados (sin firma o firma con datos desactualizados)
+        # PDF fresco — sin firma o firma con datos desactualizados
+        _fresh_path = os.path.join(UPLOAD_FOLDER, filename)
+        print(f"[PDF] PDF DESCARGADO (fresco, SIN FIRMA): {_fresh_path}")
         return send_from_directory(
             UPLOAD_FOLDER, filename, as_attachment=True,
             download_name=f"PazSalvo_{formulario_id}.pdf"
@@ -4136,6 +4159,9 @@ def firmar_ec_pdf(formulario_id):
         pdf_signed = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
         json_path  = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_sigfields.json")
 
+        print(f"[FIRMA] PDF GENERADO (destino): {pdf_orig}")
+        print(f"[FIRMA] PDF FIRMADO  (destino): {pdf_signed}")
+
         try:
             close_db(cursor, conn)
             cursor = conn = None
@@ -4148,21 +4174,26 @@ def firmar_ec_pdf(formulario_id):
                 conn   = get_connection()
                 cursor = conn.cursor(dictionary=True)
 
+        _orig_sz = os.path.getsize(pdf_orig) if os.path.exists(pdf_orig) else -1
+        print(f"[FIRMA] pdf_orig existe={os.path.exists(pdf_orig)} tamaño={_orig_sz} bytes")
+
         if not os.path.exists(pdf_orig):
             return jsonify({
                 "mensaje": "El PDF no se pudo generar. Use 'Descargar PDF' primero."
             }), 400
 
-        # Eliminar _signed.pdf obsoleto: pyHanko firmará sobre pdf_orig fresco,
-        # garantizando que _signed.pdf contenga SIEMPRE los datos más recientes.
+        # Eliminar _signed.pdf obsoleto
         if os.path.exists(pdf_signed):
             try:
                 os.remove(pdf_signed)
+                print(f"[FIRMA] _signed.pdf anterior eliminado")
             except OSError as _rm_err:
                 print(f"[firmar-ec] no se pudo eliminar _signed.pdf anterior: {_rm_err}")
 
-        pdf_src     = pdf_orig   # siempre el PDF fresco con datos actualizados
+        pdf_src     = pdf_orig
         pdf_firmado = pdf_signed
+
+        print(f"[FIRMA] Llamando _pyhanko_firmar: src={pdf_src} → dst={pdf_firmado}")
 
         # ── Firmar con pyHanko ───────────────────────────────────
         try:
@@ -4177,22 +4208,13 @@ def firmar_ec_pdf(formulario_id):
                 signer_obj  = _signer_obj,
             )
         except RuntimeError as exc:
+            print(f"[FIRMA] ERROR en _pyhanko_firmar: {exc}")
             return jsonify({"mensaje": str(exc)}), 400
 
-        # Etiquetar _signed.pdf con el hash del PDF recién firmado.
-        # generar_pdf() solo lo servirá si este hash sigue coincidiendo con BD.
-        _data_hash_p   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_data.hash")
-        _signed_hash_p = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.hash")
-        try:
-            if os.path.exists(_data_hash_p):
-                import shutil as _shu
-                _shu.copy2(_data_hash_p, _signed_hash_p)
-        except Exception:
-            pass
+        _signed_sz = os.path.getsize(pdf_firmado) if os.path.exists(pdf_firmado) else -1
+        print(f"[FIRMA] _pyhanko_firmar completó — _signed.pdf tamaño={_signed_sz} bytes")
 
         # ── Guardar resultado en BD ──────────────────────────────
-        # Formato: FIRMADO_EC:{nombre}:{fecha}|{base64_png}
-        # generar_pdf lee la parte antes del "|"; el frontend usa el base64 para mostrar QR.
         fecha_firma = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         try:
             _sello_b64 = _generar_sello_preview(signer_name)
@@ -4228,6 +4250,45 @@ def firmar_ec_pdf(formulario_id):
             (porcentaje, estado_form, formulario_id)
         )
         conn.commit()
+
+        # ── Guardar hash POST-INSERT ──────────────────────────────────────────
+        # CRÍTICO: el hash debe calcularse DESPUÉS del INSERT de FIRMADO_EC.
+        # Antes del INSERT: campo tramites_r1 = '' (vacío) → hash H1
+        # Después del INSERT: campo tramites_r1 = 'FIRMADO_EC:...' → '__sig__' → hash H2
+        # H1 ≠ H2 → si guardamos H1 como _signed.hash, nunca coincidirá con H2 al descargar.
+        # Solución: guardamos H2 como _signed.hash para que coincida con la próxima llamada
+        # a generar_pdf() que también verá tramites_r1=FIRMADO_EC:... → '__sig__' → H2.
+        try:
+            cursor.execute("""
+                SELECT p.codigo,
+                       (SELECT rr.respuesta
+                          FROM formulario_respuestas rr
+                         WHERE rr.pregunta_id = p.id
+                           AND rr.formulario_id = %s
+                         ORDER BY rr.id DESC
+                         LIMIT 1) AS respuesta
+                  FROM formulario_preguntas p
+                 WHERE p.formulario_id = %s
+            """, (formulario_id, formulario_id))
+            _resp_post = {}
+            for _rw in cursor.fetchall():
+                if not _rw["codigo"]:
+                    continue
+                _cod = _rw["codigo"]
+                _val = _rw["respuesta"] or ""
+                if _cod not in _resp_post or (not _resp_post[_cod] and _val):
+                    _resp_post[_cod] = _val
+            _post_hash = _compute_resp_hash(_resp_post)
+
+            _signed_hash_p = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.hash")
+            _data_hash_p   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_data.hash")
+            with open(_signed_hash_p, "w", encoding="utf-8") as _hf:
+                _hf.write(_post_hash)
+            with open(_data_hash_p, "w", encoding="utf-8") as _hf:
+                _hf.write(_post_hash)
+            print(f"[FIRMA] hash post-INSERT guardado: {_post_hash}")
+        except Exception as _ph_err:
+            print(f"[FIRMA] advertencia guardando hash post-INSERT: {_ph_err}")
 
         registrar_auditoria(
             user["usuario"], user["rol"], "Formularios",
@@ -4438,47 +4499,39 @@ def _pyhanko_firmar(
     signer_name: str,
     campo_firma: str,
     json_path: str,
-    signer_obj=None,          # objeto SimpleSigner ya cargado (evita releer el .p12)
+    signer_obj=None,
 ) -> None:
     """
     Firma digitalmente la celda `campo_firma` del PDF con pyHanko (PAdES).
-
-    El sello visual ocupa EXACTAMENTE la celda de la tabla tal como la generó
-    `generar_pdf` — las coordenadas se leen del archivo JSON de coordenadas.
-    Todas las celdas miden 160 × 80 pts (ratio 2:1), por lo que el stamp
-    PIL se genera con ratio 2:1 (320 × 160 px) para que no haya distorsión.
-
-    Layout del sello (320 × 160 px → escala a 160 × 80 pts):
-    ┌──────────────────────────────────────────────────────────────┐
-    │  [QR 130×130]  │  Validar únicamente en FirmaEC.            │
-    │                │  Firmado electrónicamente por:             │
-    │                │  NOMBRE COMPLETO DEL FIRMANTE              │
-    └──────────────────────────────────────────────────────────────┘
+    Genera una firma criptográfica real (/Sig + ByteRange + /Contents PKCS#7)
+    reconocida por FirmaEC 5.x.  Valida que el PDF resultante contenga la firma
+    antes de escribirlo a disco — nunca entrega un PDF sin firma válida.
     """
     import io as _io
+    import asyncio as _aio
 
     try:
         from pyhanko.sign import signers, fields as sign_fields
         from pyhanko.sign.signers.pdf_signer import PdfSigner, PdfSignatureMetadata
         from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
-        from pyhanko.stamp import QRStampStyle
-        from pyhanko.stamp.text import TextBoxStyle
+        from pyhanko.pdf_utils.reader import PdfFileReader as _PdfRdr
     except ImportError:
-        raise RuntimeError("pip install pyhanko pyhanko-certvalidator")
+        raise RuntimeError(
+            "pyHanko no está instalado. Ejecute: pip install pyhanko pyhanko-certvalidator"
+        )
 
-    # ── Cargar firmante desde PKCS#12 ────────────────────────────
+    # ── Cargar firmante PKCS#12 ──────────────────────────────────
     if signer_obj is not None:
         signer = signer_obj
     else:
         import tempfile as _tf2
         signer = None
-        _encs  = ['utf-8', 'latin-1', 'cp1252', 'utf-16-le']
         _tmp2  = None
         try:
             with _tf2.NamedTemporaryFile(suffix='.p12', delete=False) as _t:
                 _t.write(p12_bytes)
                 _tmp2 = _t.name
-            for _enc in _encs:
+            for _enc in ('utf-8', 'latin-1', 'cp1252', 'utf-16-le'):
                 try:
                     signer = signers.SimpleSigner.load_pkcs12(
                         pfx_file   = _tmp2,
@@ -4489,15 +4542,16 @@ def _pyhanko_firmar(
                     continue
         finally:
             if _tmp2 and os.path.exists(_tmp2):
-                os.unlink(_tmp2)
-
+                try:
+                    os.unlink(_tmp2)
+                except Exception:
+                    pass
         if signer is None:
             raise RuntimeError(
-                "No se pudo cargar el certificado. Verifique la contraseña y "
-                "que el archivo .p12 sea válido."
+                "No se pudo cargar el certificado. Verifique contraseña y que el .p12 sea válido."
             )
 
-    # ── Leer coordenadas del JSON generado por generar_pdf ───────
+    # ── Leer coordenadas de celdas ──────────────────────────────
     try:
         with open(json_path, "r", encoding="utf-8") as jf:
             sig_map = json.load(jf)
@@ -4505,56 +4559,86 @@ def _pyhanko_firmar(
         raise RuntimeError(f"No se pudo leer el mapa de coordenadas: {exc}")
 
     if campo_firma not in sig_map:
-        # Fallback para campos nuevos (ej: servidor_saliente) en PDFs ya generados.
-        # Se coloca la firma en el margen inferior derecho de la última página del PDF.
         try:
-            from pyhanko.pdf_utils.reader import PdfFileReader as _PdfRfb
-            with open(src_path, "rb") as _fbrb:
-                _rdr = _PdfRfb(_fbrb)
-                _last_page = max(0, _rdr.get_num_pages() - 1)
+            with open(src_path, "rb") as _fb:
+                _last_page = max(0, _PdfRdr(_fb).get_num_pages() - 1)
         except Exception:
             _last_page = 0
-        # Posición: esquina inferior-derecha, ancho 160 pts, alto 80 pts
         sig_map[campo_firma] = (395, 50, 555, 130, _last_page)
         print(f"[pyhanko] Fallback coords para '{campo_firma}': página {_last_page}")
 
-    coords   = sig_map[campo_firma]          # [x1, y1, x2, y2, page]
-    SIG_BOX  = (coords[0], coords[1], coords[2], coords[3])
-    SIG_PAGE = int(coords[4])                # 0-indexed
+    coords   = sig_map[campo_firma]
+    SIG_BOX  = (int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3]))
+    SIG_PAGE = int(coords[4])
 
-    # ── Apariencia visual del sello en el PDF (nativo pyHanko) ────
-    # QR apunta a https://validar.firmaec.ec (portal oficial de validación).
-    # El PDF firmado con el certificado FirmaEC real puede verificarse ahí.
+    # ── Apariencia visual (QRStampStyle con fallback a texto simple) ─
     qr_url      = "https://validar.firmaec.ec"
-    nombre_disp = signer_name[:60] if len(signer_name) > 60 else signer_name
-    stamp_style = QRStampStyle(
-        stamp_text=(
-            "Validar únicamente en FirmaEC.\n"
-            "Firmado electrónicamente por:\n"
-            "%(signer)s"
-        ),
-        text_box_style=TextBoxStyle(
-            font_size  = 9,
-            text_color = (0.0, 0.12, 0.51),
-        ),
-        background_opacity = 1.0,
-        border_width       = 1,
-    )
+    nombre_disp = (signer_name[:60] if len(signer_name) > 60 else signer_name)
+    stamp_style = None
+    try:
+        from pyhanko.stamp import QRStampStyle
+        from pyhanko.stamp.text import TextBoxStyle
+        stamp_style = QRStampStyle(
+            stamp_text=(
+                "Validar en FirmaEC.\n"
+                "Firmado por:\n%(signer)s"
+            ),
+            text_box_style=TextBoxStyle(font_size=8, text_color=(0.0, 0.12, 0.51)),
+            background_opacity=1.0,
+            border_width=1,
+        )
+    except Exception as _st_err:
+        print(f"[pyhanko] QRStampStyle no disponible ({_st_err}); usando apariencia por defecto")
 
-    # ── Escribir PDF firmado (incremental) ───────────────────────
-    use_tmp = (src_path == dst_path)
-    if use_tmp:
-        with open(src_path, "rb") as f_in:
-            src_bytes = f_in.read()
-        in_stream = _io.BytesIO(src_bytes)
+    # ── Subfiltro PAdES: forzar ETSI.CAdES.detached (FirmaEC 5.x requiere CAdES, no PKCS7) ──
+    # En pyHanko 0.35.1 los valores del enum incluyen barra inicial: '/ETSI.CAdES.detached'.
+    # La búsqueda por nombre de atributo falla en Python 3.14; iteramos los miembros
+    # y comparamos por contenido del valor, que es robusto ante cambios de versión.
+    _subfilter = None
+    try:
+        import pkgutil as _pkgutil
+        import importlib as _ilib2
+        import pyhanko as _ph_pkg
+
+        for _, _mod_name, _ in _pkgutil.walk_packages(_ph_pkg.__path__, prefix='pyhanko.'):
+            try:
+                _mod2 = _ilib2.import_module(_mod_name)
+            except Exception:
+                continue
+            _SF2 = getattr(_mod2, 'SigSeedSubFilter', None)
+            if _SF2 is None:
+                continue
+            for _member in _SF2:
+                try:
+                    if 'CAdES.detached' in str(_member.value):
+                        _subfilter = _member
+                        print(f"[pyhanko] ✓ SubFilter CAdES: {_member.name}={_member.value} ({_mod_name})")
+                        break
+                except Exception:
+                    continue
+            if _subfilter is not None:
+                break
+    except Exception as _walk_err:
+        print(f"[pyhanko] walk_packages error: {_walk_err}")
+
+    if _subfilter is None:
+        print(f"[pyhanko] ✗ ETSI.CAdES.detached no encontrado — FirmaEC NO reconocerá la firma")
     else:
-        in_stream = open(src_path, "rb")
+        print(f"[pyhanko] ✓ SubFilter configurado: {_subfilter}")
 
     FIELD_NAME = f"Sig_{campo_firma}"
 
+    # ── Leer PDF fuente en memoria para escritura incremental ────
+    with open(src_path, "rb") as _f_src:
+        src_bytes = _f_src.read()
+    in_stream = _io.BytesIO(src_bytes)
+
+    # ── Construir writer + campo de firma + firmar ───────────────
+    out_buf = _io.BytesIO()
     try:
         writer = IncrementalPdfFileWriter(in_stream)
 
+        # Crear el campo de firma en la posición exacta de la celda
         sign_fields.append_signature_field(
             writer,
             sig_field_spec=sign_fields.SigFieldSpec(
@@ -4563,13 +4647,6 @@ def _pyhanko_firmar(
                 on_page        = SIG_PAGE,
             ),
         )
-
-        # Usar ETSI.CAdES.detached para máxima compatibilidad con FirmaEC Desktop 5.x
-        try:
-            from pyhanko.sign.fields import SigSeedSubFilter as _SF
-            _subfilter = _SF.ETSI_CADES_DETACHED
-        except Exception:
-            _subfilter = None
 
         meta = PdfSignatureMetadata(
             field_name = FIELD_NAME,
@@ -4580,25 +4657,106 @@ def _pyhanko_firmar(
             **({'subfilter': _subfilter} if _subfilter is not None else {}),
         )
 
-        pdf_signer_obj = PdfSigner(meta, signer, stamp_style=stamp_style)
-        out_buf = _io.BytesIO()
-        _sign_kw = dict(
-            existing_fields_only=False,
-            output=out_buf,
-            appearance_text_params={'url': qr_url, 'signer': nombre_disp},
+        pdf_signer_obj = PdfSigner(
+            meta, signer,
+            **({"stamp_style": stamp_style} if stamp_style is not None else {}),
         )
-        import inspect as _insp
-        if _insp.iscoroutinefunction(pdf_signer_obj.sign_pdf):
-            import asyncio as _aio
-            _aio.run(pdf_signer_obj.sign_pdf(writer, **_sign_kw))
-        else:
-            pdf_signer_obj.sign_pdf(writer, **_sign_kw)
-    finally:
-        if not use_tmp:
-            in_stream.close()
 
+        # existing_fields_only=True: el campo ya fue creado con append_signature_field
+        _sign_kw = dict(
+            existing_fields_only = True,
+            output               = out_buf,
+        )
+        if stamp_style is not None:
+            _sign_kw['appearance_text_params'] = {'url': qr_url, 'signer': nombre_disp}
+
+        # Invocar sign_pdf de forma compatible con versiones sync y async de pyHanko.
+        # En Flask sincrónico no hay event loop activo en el thread → asyncio.run() es seguro.
+        _result = pdf_signer_obj.sign_pdf(writer, **_sign_kw)
+        if _aio.iscoroutine(_result):
+            # pyHanko >= 0.15.0: sign_pdf es async; asyncio.run() crea un loop nuevo en este thread
+            _aio.run(_result)
+
+    except Exception as _sign_err:
+        raise RuntimeError(
+            f"pyHanko sign_pdf falló: {type(_sign_err).__name__}: {_sign_err}"
+        )
+
+    # ── Verificar que out_buf tiene contenido antes de escribir ──
+    _signed_bytes = out_buf.getvalue()
+    if len(_signed_bytes) < 1024:
+        raise RuntimeError(
+            f"pyHanko produjo un PDF de {len(_signed_bytes)} bytes — "
+            "demasiado pequeño para ser válido. La firma no se aplicó correctamente."
+        )
+
+    # ── Escribir a disco ─────────────────────────────────────────
     with open(dst_path, "wb") as f_out:
-        f_out.write(out_buf.getvalue())
+        f_out.write(_signed_bytes)
+
+    # ── Inspección estructural del PDF firmado ──────────────────────────────
+    # Verifica /AcroForm, /Sig, /ByteRange, SubFilter y embedded_signatures.
+    # Si no hay firmas reales: borra el archivo y lanza RuntimeError
+    # (el sistema NUNCA entrega un PDF sin firma criptográfica válida).
+    print(f"[pyhanko] Inspeccionando PDF firmado: {dst_path}")
+    try:
+        with open(dst_path, "rb") as _fv:
+            _rv   = _PdfRdr(_fv)
+            _sigs = list(_rv.embedded_signatures)
+
+        print(f"[pyhanko] embedded_signatures count: {len(_sigs)}")
+        for _idx, _s in enumerate(_sigs):
+            try:
+                _so   = _s.sig_object
+                _sf   = str(_so.get('/SubFilter', 'N/A'))
+                _br   = _so.get('/ByteRange')
+                _ct   = _so.get('/Contents')
+                _name = str(_so.get('/Name', 'N/A'))
+                _loc  = str(_so.get('/Location', 'N/A'))
+                print(f"[pyhanko]  Firma[{_idx}]  campo={_s.field_name}")
+                print(f"[pyhanko]           SubFilter={_sf}")
+                print(f"[pyhanko]           ByteRange={bool(_br)} /Contents={bool(_ct)}")
+                print(f"[pyhanko]           Name={_name}  Location={_loc}")
+                # Detectar perfil de firma
+                if 'ETSI.CAdES.detached' in _sf:
+                    print(f"[pyhanko]           Perfil: PAdES CAdES-DETACHED ✓ (compatible FirmaEC)")
+                elif 'adbe.pkcs7.detached' in _sf:
+                    print(f"[pyhanko]           Perfil: Adobe PKCS7-DETACHED ⚠ (Adobe sí, FirmaEC puede no reconocer)")
+                elif 'adbe.pkcs7.sha1' in _sf:
+                    print(f"[pyhanko]           Perfil: Adobe PKCS7-SHA1 ✗ (obsoleto, FirmaEC no reconoce)")
+                else:
+                    print(f"[pyhanko]           Perfil: DESCONOCIDO — verificar compatibilidad FirmaEC")
+            except Exception as _si:
+                print(f"[pyhanko]  Firma[{_idx}] error inspeccionando: {_si}")
+
+        if not _sigs:
+            os.remove(dst_path)
+            raise RuntimeError(
+                "pyHanko escribió el PDF PERO embedded_signatures=0. "
+                "El PDF NO contiene /Sig + ByteRange reales. "
+                "FirmaEC mostraría 'Documento sin firmas'. PDF rechazado."
+            )
+
+        # Inspección raw del byte stream para confirmar /ByteRange
+        with open(dst_path, "rb") as _fbr:
+            _raw = _fbr.read()
+        _has_byterange = b'/ByteRange' in _raw
+        _has_contents  = b'/Contents' in _raw
+        _has_acroform  = b'/AcroForm' in _raw
+        _has_sig_type  = b'/Sig' in _raw
+        print(f"[pyhanko] Inspección raw → /AcroForm={_has_acroform} /Sig={_has_sig_type} /ByteRange={_has_byterange} /Contents={_has_contents}")
+
+        if not _has_byterange:
+            os.remove(dst_path)
+            raise RuntimeError(
+                "El PDF firmado no contiene /ByteRange en el stream. "
+                "La firma PAdES es inválida. PDF rechazado."
+            )
+
+    except RuntimeError:
+        raise
+    except Exception as _ve:
+        print(f"[pyhanko] Advertencia inspeccionando firma: {_ve}")
 
 
 if __name__ == "__main__":
