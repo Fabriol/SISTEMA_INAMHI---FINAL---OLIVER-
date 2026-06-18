@@ -2425,9 +2425,6 @@ _C_NO    = (220/255, 38/255, 38/255)
 # texto SI/NO oscuro
 _C_SI_T  = (4/255, 120/255, 87/255)
 _C_NO_T  = (185/255, 28/255, 28/255)
-# celda firmada: fondo #dcfce7
-_C_BKGOK = (220/255, 252/255, 231/255)
-_C_OK    = (22/255, 101/255, 52/255)
 _C_PEND  = (0.55, 0.55, 0.55)
 # fila director: fondo muy tenue azul
 _C_DIRFG = (0.95, 0.96, 1.0)
@@ -2733,69 +2730,35 @@ def _compute_resp_hash(resp: dict) -> str:
     return _hl.md5("|".join(_items).encode("utf-8")).hexdigest()
 
 
-def _draw_firma_cell(c, y: float, firma_val: str,
+def _draw_firma_cell(c, y: float,
                      campo: str, sig_coords: dict, page_num: int) -> None:
     """
-    Dibuja la celda de firma en la columna fija (_FX1 → _FX2, altura _FRH).
-    - Firmada:   fondo verde tenue + imagen QR centrada (con padding 3 pts).
-    - Sin firmar: fondo blanco + placeholder centrado.
-    Registra coordenadas exactas en sig_coords para pyHanko (PAdES).
+    Dibuja la celda de firma (siempre vacía) y registra coordenadas para pyHanko.
+    El widget PAdES con QR es la única representación visual de la firma.
     """
     y_bot = y - _FRH
-    PAD   = 3       # padding interno de la imagen
 
-    # ── Registrar coordenadas para pyHanko SIEMPRE (firmada o no) ──────────
+    # ── Registrar coordenadas para pyHanko SIEMPRE ──────────
     sig_coords[campo] = (int(_FX1), int(y_bot), int(_FX2), int(y), page_num)
 
     c.setStrokeColorRGB(*_C_HEAD)
     c.setLineWidth(0.5)
 
-    if firma_val and firma_val.startswith("FIRMADO_EC:"):
-        c.setFillColorRGB(*_C_BKGOK)
-        c.rect(_FX1, y_bot, _FW, _FRH, fill=1, stroke=1)
-        c.setStrokeColorRGB(*_C_OK)
-        c.setLineWidth(0.8)
-        c.rect(_FX1, y_bot, _FW, _FRH, fill=0, stroke=1)
-        c.setStrokeColorRGB(*_C_BLACK)
-        c.setLineWidth(0.4)
-
-        parts    = firma_val.split("|")[0].split(":")
-        firmante = parts[1].strip() if len(parts) > 1 else "FIRMADO"
-        fecha_f  = parts[2][:10]   if len(parts) > 2 else ""
-        MAX_F    = _chars_for_width(_FW - 8, 7.0)
-
-        c.setFillColorRGB(*_C_OK)
-        c.setFont("Helvetica-Bold", 7.0)
-        c.drawString(_FX1 + 4, y - 14, "✓ FIRMADO")
-        c.setFont("Helvetica-Bold", 6.0)
-        c.drawString(_FX1 + 4, y - 23, "ELECTRÓNICAMENTE")
-
-        c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", 6.5)
-        ty = y - 35
-        for ln in _split_text(firmante, MAX_F)[:3]:
-            c.drawString(_FX1 + 4, ty, ln)
-            ty -= 9
-
-        if fecha_f:
-            c.setFillColorRGB(*_C_PEND)
-            c.setFont("Helvetica", 6.0)
-            c.drawString(_FX1 + 4, y_bot + 5, fecha_f)
-    else:
-        # ── Celda vacía — reservada para la firma digital de pyHanko ───────
-        c.setFillColorRGB(*_C_WHITE)
-        c.rect(_FX1, y_bot, _FW, _FRH, fill=1, stroke=1)
-        # Línea punteada de firma (visual como en documentos oficiales)
-        c.setStrokeColorRGB(*_C_PEND)
-        c.setLineWidth(0.5)
-        cx = _FX1 + _FW / 2
-        sign_y = y_bot + _FRH * 0.38
-        c.line(_FX1 + 8, sign_y, _FX2 - 8, sign_y)
-        c.setFillColorRGB(*_C_PEND)
-        c.setFont("Helvetica", 6.5)
-        c.drawCentredString(cx, y_bot + _FRH * 0.55, "Firma Electrónica")
-        c.setFont("Helvetica", 6.0)
-        c.drawCentredString(cx, y_bot + _FRH * 0.42 - 6, "FirmaEC")
+    # Celda siempre vacía — el widget PAdES de pyHanko (QR) es la única
+    # representación visual de la firma. Texto dibujado en ReportLab no es
+    # verificable y genera conflicto con el widget criptográfico real.
+    c.setFillColorRGB(*_C_WHITE)
+    c.rect(_FX1, y_bot, _FW, _FRH, fill=1, stroke=1)
+    c.setStrokeColorRGB(*_C_PEND)
+    c.setLineWidth(0.5)
+    cx = _FX1 + _FW / 2
+    sign_y = y_bot + _FRH * 0.38
+    c.line(_FX1 + 8, sign_y, _FX2 - 8, sign_y)
+    c.setFillColorRGB(*_C_PEND)
+    c.setFont("Helvetica", 6.5)
+    c.drawCentredString(cx, y_bot + _FRH * 0.55, "Firma Electrónica")
+    c.setFont("Helvetica", 6.0)
+    c.drawCentredString(cx, y_bot + _FRH * 0.42 - 6, "FirmaEC")
 
     c.setFillColorRGB(*_C_BLACK)
     c.setStrokeColorRGB(*_C_BLACK)
@@ -2803,7 +2766,7 @@ def _draw_firma_cell(c, y: float, firma_val: str,
 
 
 def _firma_row(c, y: float, xs: list, ws: list, cells: list,
-               campo: str, firma_val: str,
+               campo: str,
                sig_coords: dict, page_num: int) -> float:
     """
     Dibuja una fila completa de tabla de firmas.
@@ -2855,13 +2818,13 @@ def _firma_row(c, y: float, xs: list, ws: list, cells: list,
 
         c.setFillColorRGB(*_C_BLACK)
 
-    _draw_firma_cell(c, y, firma_val, campo, sig_coords, page_num)
+    _draw_firma_cell(c, y, campo, sig_coords, page_num)
     c.setStrokeColorRGB(*_C_BLACK)
     return y - _FRH
 
 
 def _dir_row(c, y: float, texto: str,
-             sig_coords: dict, campo: str, firma_val: str, page_num: int) -> float:
+             sig_coords: dict, campo: str, page_num: int) -> float:
     """
     Fila de Director/Responsable: celda fusionada del ancho de todas las columnas
     de datos (de _ML a _FX1) + celda de firma a la derecha.
@@ -2898,7 +2861,7 @@ def _dir_row(c, y: float, texto: str,
         c.drawString(_ML + PAD, ty, ln)
         ty -= LH
 
-    _draw_firma_cell(c, y, firma_val, campo, sig_coords, page_num)
+    _draw_firma_cell(c, y, campo, sig_coords, page_num)
     c.setStrokeColorRGB(*_C_BLACK)
     return y - _FRH
 
@@ -3112,9 +3075,6 @@ def generar_pdf(formulario_id):
                 return "—"
             return str(val)
 
-        def _f(campo: str) -> str:
-            return resp.get(campo, "")
-
         def _yb(val: str):
             if val == "SI": return _C_SI
             if val == "NO": return _C_NO
@@ -3187,7 +3147,7 @@ def generar_pdf(formulario_id):
                 (d1, _C_WHITE), (yn1, _yb(yn1)),
                 (d2, _C_WHITE), (yn2, _yb(yn2)),
                 (_v(nk), _C_WHITE),
-            ], cam, _f(cam), sig_coords, pg)
+            ], cam, sig_coords, pg)
 
         # Fila condicional: ¿administrador de contrato? (sin firma asociada)
         _admc = resp.get("tramites_admin_contrato", "")
@@ -3227,7 +3187,7 @@ def generar_pdf(formulario_id):
         y = _firma_row(c, y, _T6X, _T6W, [
             (jt, _C_WHITE), ("", _C_WHITE), ("", _C_WHITE),
             ("", _C_WHITE), (_v("tramites_nombre_responsable"), _C_WHITE),
-        ], "tramites_jefe", _f("tramites_jefe"), sig_coords, pg)
+        ], "tramites_jefe", sig_coords, pg)
         y -= 6
 
         # ═══════════════════════════════════════════════════════════════════════
@@ -3254,11 +3214,11 @@ def generar_pdf(formulario_id):
             yn = _v(yk)
             y = _firma_row(c, y, _T5X, _T5W, [
                 (desc, _C_WHITE), (yn, _yb(yn)), (dato, _C_WHITE), (_v(nk), _C_WHITE),
-            ], cam, _f(cam), sig_coords, pg)
+            ], cam, sig_coords, pg)
 
         _need_dir()
         y = _dir_row(c, y, _v("admin_responsable"),
-                     sig_coords, "admin_dir", _f("admin_dir"), pg)
+                     sig_coords, "admin_dir", pg)
         y -= 6
 
         # ═══════════════════════════════════════════════════════════════════════
@@ -3286,11 +3246,11 @@ def generar_pdf(formulario_id):
             yn = _v(yk)
             y = _firma_row(c, y, _T5X, _T5W, [
                 (desc, _C_WHITE), (yn, _yb(yn)), (dato, _C_WHITE), (_v(nk), _C_WHITE),
-            ], cam, _f(cam), sig_coords, pg)
+            ], cam, sig_coords, pg)
 
         _need_dir()
         y = _dir_row(c, y, _v("tic_responsable"),
-                     sig_coords, "tic_r5", _f("tic_r5"), pg)
+                     sig_coords, "tic_r5", pg)
         y -= 6
 
         # ═══════════════════════════════════════════════════════════════════════
@@ -3321,11 +3281,11 @@ def generar_pdf(formulario_id):
             yn = _v(yk)
             y = _firma_row(c, y, _T5X, _T5W, [
                 (desc, _C_WHITE), (yn, _yb(yn)), (dato, _C_WHITE), (_v(nk), _C_WHITE),
-            ], cam, _f(cam), sig_coords, pg)
+            ], cam, sig_coords, pg)
 
         _need_dir()
         y = _dir_row(c, y, _v("fin_director"),
-                     sig_coords, "fin_dir", _f("fin_dir"), pg)
+                     sig_coords, "fin_dir", pg)
         y -= 6
 
         # ═══════════════════════════════════════════════════════════════════════
@@ -3349,12 +3309,12 @@ def generar_pdf(formulario_id):
                 (d1, _C_WHITE), (yn1, _yb(yn1)),
                 (d2, _C_WHITE), (yn2, _yb(yn2)),
                 (_v(nk), _C_WHITE),
-            ], cam, _f(cam), sig_coords, pg)
+            ], cam, sig_coords, pg)
 
         _need_dir()
         y = _dir_row(c, y,
                      f"Oficial de Seg.: {_v('seg_oficial')}  |  Responsable: {_v('seg_responsable')}",
-                     sig_coords, "seg_oficial", _f("seg_oficial"), pg)
+                     sig_coords, "seg_oficial", pg)
         y -= 6
 
         # ═══════════════════════════════════════════════════════════════════════
@@ -3388,7 +3348,7 @@ def generar_pdf(formulario_id):
             yn = _v(yk) if yk != "—" else "—"
             y = _firma_row(c, y, _T5X, _T5W, [
                 (desc, _C_WHITE), (yn, _yb(yn)), (dato, _C_WHITE), (_v(nk), _C_WHITE),
-            ], cam, _f(cam), sig_coords, pg)
+            ], cam, sig_coords, pg)
 
         # Vacaciones: fila separada con valor en días (badge neutral, igual que en el espejo)
         _need(_FRH)
@@ -3399,11 +3359,11 @@ def generar_pdf(formulario_id):
             (_vac_val,                           _C_WHITE),
             (f"N° Cert: {_v('rrhh_num_certificado')}", _C_WHITE),
             (_v("rrhh_resp_vacaciones"),         _C_WHITE),
-        ], "rrhh_r5", _f("rrhh_r5"), sig_coords, pg)
+        ], "rrhh_r5", sig_coords, pg)
 
         _need_dir()
         y = _dir_row(c, y, _v("rrhh_director"),
-                     sig_coords, "rrhh_dir", _f("rrhh_dir"), pg)
+                     sig_coords, "rrhh_dir", pg)
         y -= 6
 
         # ═══════════════════════════════════════════════════════════════════════
@@ -3419,7 +3379,7 @@ def generar_pdf(formulario_id):
         y = _firma_row(c, y, _T5X, _T5W, [
             ("Firma Servidor/a que recibe el Paz y Salvo — RRHH", _C_WHITE),
             ("—", _C_WHITE), ("—", _C_WHITE), ("—", _C_WHITE),
-        ], "recepcion_r1", _f("recepcion_r1"), sig_coords, pg)
+        ], "recepcion_r1", sig_coords, pg)
         y -= 6
 
         # ═══════════════════════════════════════════════════════════════════════
@@ -3456,7 +3416,7 @@ def generar_pdf(formulario_id):
 
         _need(_FRH)
         y = _dir_row(c, y, "FIRMA DE AUTORIZACIÓN — SERVIDOR SALIENTE",
-                     sig_coords, "servidor_saliente", _f("servidor_saliente"), pg)
+                     sig_coords, "servidor_saliente", pg)
 
         # Pie de página
         c.setFillColorRGB(*_C_PEND)
@@ -4182,17 +4142,44 @@ def firmar_ec_pdf(formulario_id):
                 "mensaje": "El PDF no se pudo generar. Use 'Descargar PDF' primero."
             }), 400
 
-        # Eliminar _signed.pdf obsoleto
-        if os.path.exists(pdf_signed):
+        # ── Decidir fuente para firmar: incremental vs. fresco ──────────────────
+        # Si _signed.pdf existe y su hash coincide con el _data.hash que generar_pdf()
+        # acaba de escribir, significa que los datos del formulario no cambiaron desde
+        # la última firma → podemos añadir la nueva firma SOBRE _signed.pdf.
+        # Esto acumula firmas PAdES reales (embedded_signatures++) en lugar de resetearlas.
+        # Si el hash NO coincide (datos cambiaron), firmamos desde el PDF fresco.
+        _use_incremental = False
+        _signed_hash_p   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.hash")
+        _data_hash_p     = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_data.hash")
+
+        if os.path.exists(pdf_signed) and os.path.exists(_signed_hash_p) and os.path.exists(_data_hash_p):
             try:
-                os.remove(pdf_signed)
-                print(f"[FIRMA] _signed.pdf anterior eliminado")
-            except OSError as _rm_err:
-                print(f"[firmar-ec] no se pudo eliminar _signed.pdf anterior: {_rm_err}")
+                with open(_signed_hash_p, encoding="utf-8") as _shf:
+                    _sh = _shf.read().strip()
+                with open(_data_hash_p, encoding="utf-8") as _dhf:
+                    _dh = _dhf.read().strip()
+                if _sh == _dh:
+                    _use_incremental = True
+                    print(f"[FIRMA] Firma INCREMENTAL: hash={_sh[:12]}... — añadiendo sobre _signed.pdf")
+                else:
+                    print(f"[FIRMA] Hash cambió (_signed={_sh[:12]}... vs _data={_dh[:12]}...) — firmando desde cero")
+            except Exception as _hc_err:
+                print(f"[FIRMA] Error comparando hashes: {_hc_err}")
 
-        pdf_src     = pdf_orig
+        if _use_incremental:
+            # _pyhanko_firmar lee src_path en memoria antes de escribir dst_path,
+            # así que src == dst es seguro cuando ya están en distintas etapas.
+            pdf_src = pdf_signed
+        else:
+            if os.path.exists(pdf_signed):
+                try:
+                    os.remove(pdf_signed)
+                    print(f"[FIRMA] _signed.pdf anterior eliminado (datos desactualizados)")
+                except OSError as _rm_err:
+                    print(f"[firmar-ec] no se pudo eliminar _signed.pdf: {_rm_err}")
+            pdf_src = pdf_orig
+
         pdf_firmado = pdf_signed
-
         print(f"[FIRMA] Llamando _pyhanko_firmar: src={pdf_src} → dst={pdf_firmado}")
 
         # ── Firmar con pyHanko ───────────────────────────────────
@@ -4587,44 +4574,20 @@ def _pyhanko_firmar(
             background_opacity=1.0,
             border_width=1,
         )
-    except Exception as _st_err:
-        print(f"[pyhanko] QRStampStyle no disponible ({_st_err}); usando apariencia por defecto")
+    except Exception as e:
+        print("[QR] appearance failed:", e)
+        print(f"[pyhanko] QRStampStyle no disponible; usando apariencia por defecto")
+    print("[QR] stamp_style =", stamp_style)
 
-    # ── Subfiltro PAdES: forzar ETSI.CAdES.detached (FirmaEC 5.x requiere CAdES, no PKCS7) ──
-    # En pyHanko 0.35.1 los valores del enum incluyen barra inicial: '/ETSI.CAdES.detached'.
-    # La búsqueda por nombre de atributo falla en Python 3.14; iteramos los miembros
-    # y comparamos por contenido del valor, que es robusto ante cambios de versión.
-    _subfilter = None
-    try:
-        import pkgutil as _pkgutil
-        import importlib as _ilib2
-        import pyhanko as _ph_pkg
-
-        for _, _mod_name, _ in _pkgutil.walk_packages(_ph_pkg.__path__, prefix='pyhanko.'):
-            try:
-                _mod2 = _ilib2.import_module(_mod_name)
-            except Exception:
-                continue
-            _SF2 = getattr(_mod2, 'SigSeedSubFilter', None)
-            if _SF2 is None:
-                continue
-            for _member in _SF2:
-                try:
-                    if 'CAdES.detached' in str(_member.value):
-                        _subfilter = _member
-                        print(f"[pyhanko] ✓ SubFilter CAdES: {_member.name}={_member.value} ({_mod_name})")
-                        break
-                except Exception:
-                    continue
-            if _subfilter is not None:
-                break
-    except Exception as _walk_err:
-        print(f"[pyhanko] walk_packages error: {_walk_err}")
-
-    if _subfilter is None:
-        print(f"[pyhanko] ✗ ETSI.CAdES.detached no encontrado — FirmaEC NO reconocerá la firma")
-    else:
-        print(f"[pyhanko] ✓ SubFilter configurado: {_subfilter}")
+    # ── Subfiltro PAdES: ETSI.CAdES.detached (FirmaEC 5.x requiere CAdES, no PKCS7) ──
+    # En pyHanko 0.35.1 el enum SigSeedSubFilter tiene TRES miembros:
+    #   ADOBE_PKCS7_DETACHED = NameObject('/adbe.pkcs7.detached')  ← default del sistema
+    #   PADES               = NameObject('/ETSI.CAdES.detached')   ← LO QUE FIRMAEC REQUIERE
+    #   ETSI_RFC3161        = NameObject('/ETSI.RFC3161')
+    # El miembro se llama PADES (no ETSI_CADES_DETACHED).
+    # sign_fields ya importado arriba como: from pyhanko.sign import fields as sign_fields
+    _subfilter = sign_fields.SigSeedSubFilter.PADES
+    print(f"[pyhanko] SubFilter forzado: {_subfilter.name} = {_subfilter.value}")
 
     FIELD_NAME = f"Sig_{campo_firma}"
 
@@ -4654,7 +4617,7 @@ def _pyhanko_firmar(
             location   = "Ecuador",
             name       = signer_name,
             certify    = False,
-            **({'subfilter': _subfilter} if _subfilter is not None else {}),
+            subfilter  = _subfilter,
         )
 
         pdf_signer_obj = PdfSigner(
@@ -4676,6 +4639,7 @@ def _pyhanko_firmar(
         if _aio.iscoroutine(_result):
             # pyHanko >= 0.15.0: sign_pdf es async; asyncio.run() crea un loop nuevo en este thread
             _aio.run(_result)
+        print("[QR] appearance generated")
 
     except Exception as _sign_err:
         raise RuntimeError(
@@ -4705,6 +4669,7 @@ def _pyhanko_firmar(
             _sigs = list(_rv.embedded_signatures)
 
         print(f"[pyhanko] embedded_signatures count: {len(_sigs)}")
+        print("[PDF] embedded_signatures =", len(_sigs))
         for _idx, _s in enumerate(_sigs):
             try:
                 _so   = _s.sig_object
