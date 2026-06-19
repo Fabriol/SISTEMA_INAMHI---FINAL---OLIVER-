@@ -2097,10 +2097,40 @@ export class Formularios implements OnInit, OnDestroy {
       return !!this.firmasEC[campo];
     });
 
-    const total = camposAGuardar.length + firmasAGuardar.length;
+    // ── Persistir draft ahora mismo, antes de cualquier operación de red ──
+    try {
+      if (this.formularioSeleccionado?.id) {
+        localStorage.setItem(this.draftKey(), JSON.stringify(this.formularioPazSalvo.getRawValue()));
+      }
+    } catch { /* silencioso */ }
+
+    // ── Separar campos válidos de inválidos ───────────────────────────────
+    // Los campos inválidos NO bloquean el guardado: se guardan los válidos
+    // y se informa al usuario cuáles debe corregir en un segundo intento.
+    const camposConError: string[] = [];
+    const camposParaEnviar = camposAGuardar.filter(campo => {
+      const ctrl = this.formularioPazSalvo.get(campo);
+      ctrl?.markAsTouched();
+      ctrl?.updateValueAndValidity({ emitEvent: false });
+      if (ctrl?.invalid) {
+        camposConError.push(campo);
+        return false;
+      }
+      return true;
+    });
+
+    const total = camposParaEnviar.length + firmasAGuardar.length;
 
     if (total === 0) {
-      // Si todos los campos asignados ya están bloqueados (guardados), informar éxito
+      if (camposConError.length > 0) {
+        // Solo hay campos inválidos — navegar al primero para que el usuario lo corrija
+        const def = this.camposFormulario.find(c => c.id === camposConError[0]);
+        this.alertaRapida('Validación', `Corrija el campo: "${def?.etiqueta ?? camposConError[0]}"`);
+        this.navegarACampo(camposConError[0]);
+        this.cdr.markForCheck();
+        return;
+      }
+      // Sin campos nuevos y sin errores: todos ya guardados o sin cambios
       const todosYaGuardados =
         this.camposAsignadosUsuario.length > 0 &&
         this.camposAsignadosUsuario.every(c => this.camposBloqueados.includes(c));
@@ -2118,24 +2148,17 @@ export class Formularios implements OnInit, OnDestroy {
       return;
     }
 
-    let hayErrores = false;
-    let primerCampoInvalido = '';
-    camposAGuardar.forEach(campo => {
-      const ctrl = this.formularioPazSalvo.get(campo);
-      ctrl?.markAsTouched();
-      ctrl?.updateValueAndValidity({ emitEvent: false });
-      if (ctrl?.invalid) {
-        hayErrores = true;
-        if (!primerCampoInvalido) primerCampoInvalido = campo;
-      }
-    });
-
-    if (hayErrores) {
-      const def = this.camposFormulario.find(c => c.id === primerCampoInvalido);
-      this.alertaRapida('Validación', `Corrija el campo: "${def?.etiqueta ?? primerCampoInvalido}"`);
-      this.navegarACampo(primerCampoInvalido);
+    if (camposConError.length > 0) {
+      // Hay errores pero también campos válidos: guardar los válidos y avisar los inválidos
+      const etiquetasErr = camposConError
+        .map(c => this.camposFormulario.find(x => x.id === c)?.etiqueta ?? c)
+        .join(', ');
+      this.alertaRapida(
+        'Guardado parcial',
+        `Se guardarán los campos válidos. Corrija luego: ${etiquetasErr}`
+      );
+      if (camposConError[0]) this.navegarACampo(camposConError[0]);
       this.cdr.markForCheck();
-      return;
     }
 
     this.cargando = true;
@@ -2152,7 +2175,7 @@ export class Formularios implements OnInit, OnDestroy {
         this.cargarDetalleFormulario(this.formularioSeleccionado, true);
         // Verificar si el usuario ya completó todos sus campos
         const pendientes = this.camposAsignadosUsuario.filter(
-          c => ![...this.camposBloqueados, ...camposAGuardar, ...firmasAGuardar].includes(c)
+          c => ![...this.camposBloqueados, ...camposParaEnviar, ...firmasAGuardar].includes(c)
         );
         if (pendientes.length === 0) {
           Swal.fire({
@@ -2190,9 +2213,14 @@ export class Formularios implements OnInit, OnDestroy {
           this.camposBloqueados.push(campo);
         }
         guardados++;
-      } else if (err?.status === 403 || err?.status === 404) {
-        // Campo no asignado a este usuario o no encontrado — ignorar silenciosamente
+      } else if (err?.status === 403) {
+        // Campo no asignado a este usuario — contar como OK (no era responsabilidad de este usuario)
         guardados++;
+      } else if (err?.status === 404) {
+        // Campo no encontrado en la BD — registrar como error real (el valor NO fue guardado)
+        console.error(`Campo '${campo}' no encontrado en BD (404) — no guardado`);
+        camposFallidos.push(campo);
+        errores++;
       } else {
         console.error(`Error guardando campo '${campo}':`, err?.error);
         camposFallidos.push(campo);
@@ -2201,7 +2229,7 @@ export class Formularios implements OnInit, OnDestroy {
       onDone();
     };
 
-    camposAGuardar.forEach(campo => {
+    camposParaEnviar.forEach(campo => {
       const ctrl = this.formularioPazSalvo.get(campo);
       this.formulariosService
         .responder({

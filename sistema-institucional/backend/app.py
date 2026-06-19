@@ -1616,9 +1616,12 @@ def ver_formulario(id):
                 ORDER BY p.orden ASC, p.id ASC
             """, (user["id"], user["id"], id))
 
+        preguntas_list = cursor.fetchall()
+        respondidas = sum(1 for p in preguntas_list if p.get('respuesta') not in (None, '', 'null'))
+        print(f"[LOAD] formulario_id={id} total={len(preguntas_list)} respondidas={respondidas} rol='{user['rol']}'")
         return jsonify({
             "formulario": formulario,
-            "preguntas": cursor.fetchall()
+            "preguntas": preguntas_list
         }), 200
 
     except Exception as e:
@@ -1983,6 +1986,8 @@ def responder_formulario():
         if respuesta == "" or respuesta is None:
             return jsonify({"mensaje": "Datos incompletos: respuesta vacía"}), 400
 
+        print(f"[SAVE] campo='{campo}' formulario_id={formulario_id} usuario='{user.get('usuario', user.get('id'))}'")
+
         conn   = get_connection()
         cursor = conn.cursor(dictionary=True)
 
@@ -2098,6 +2103,8 @@ def responder_formulario():
             conn.rollback()
             print(f"[ERROR /responder] DataError campo='{campo}': {de}")
             return jsonify({"mensaje": f"El valor del campo '{campo}' es demasiado largo o tiene formato inválido.", "error": str(de)}), 400
+
+        print(f"[SAVE] guardado OK: campo='{campo}' pregunta_id={pregunta_id} formulario_id={formulario_id}")
 
         # ── 5. Marcar asignación como culminada ──────────────────
         if asignacion_id:
@@ -2407,7 +2414,7 @@ _I4X = [20, 109, 298, 387]
 # ── Alturas ───────────────────────────────────────────────────────────────────
 _BH  = 20    # cabecera de bloque (azul oscuro)
 _CH  = 15    # cabecera de columnas (azul medio)
-_IH  = 16    # fila info (datos personales)
+_IH  = 28    # fila info: ampliada a 28 pts para permitir 2 líneas de valor
 
 # ── Paleta de colores — extraída exactamente del CSS de la hoja espejo ────────
 # ep-bloque__head background: #122d5e
@@ -2662,52 +2669,60 @@ def _info_row(c, y: float, l1: str, v1: str,
     Fila de tabla de información (datos personales, recepción).
     4 columnas: th(16%=89) | td(34%=189) | th(16%=89) | td(34%=188)
     Con span=True: th(16%=89) | td(84%=466)
-    Fuente 7.5 pt para máxima legibilidad.
+    Altura _IH=28 pts — permite hasta 2 líneas de texto en celdas de valor,
+    eliminando truncación de emails (43 ch/línea × 2 = 86 ch) y cargos largos.
     """
-    FS_LBL = 7.5   # fuente etiqueta (th)
-    FS_VAL = 7.5   # fuente valor    (td)
-    PAD    = 4     # padding interior
+    FS_LBL = 7.5
+    FS_VAL = 7.5
+    LH     = 10
+    PAD    = 4
 
     TH1, TD1 = _I4W[0], _I4W[1]
     TH2, TD2 = _I4W[2], _I4W[3]
     X0, X1, X2, X3 = _I4X
 
+    y_bot = y - _IH
+
     c.setStrokeColorRGB(*_C_HEAD)
     c.setLineWidth(0.4)
 
-    # th1
+    # ── helper: dibuja celda de valor con texto multi-línea centrado ──────────
+    def _val_cell(x, w, txt):
+        s = str(txt or "—").strip()
+        c.setFillColorRGB(*_C_WHITE)
+        c.rect(x, y_bot, w, _IH, fill=1, stroke=1)
+        c.setFillColorRGB(*_C_BLACK)
+        c.setFont("Helvetica", FS_VAL)
+        max_ch  = _chars_for_width(w - PAD * 2, FS_VAL)
+        max_lns = max(1, int((_IH - PAD * 2) / LH))
+        lines   = _split_text(s, max_ch)[:max_lns]
+        block_h = len(lines) * LH
+        ty      = y_bot + (_IH + block_h) / 2 - LH + 1
+        for ln in lines:
+            c.drawString(x + PAD, ty, ln)
+            ty -= LH
+
+    # ── th1 — etiqueta izquierda, verticalmente centrada ─────────────────────
     c.setFillColorRGB(*_C_TH)
-    c.rect(X0, y - _IH, TH1, _IH, fill=1, stroke=1)
+    c.rect(X0, y_bot, TH1, _IH, fill=1, stroke=1)
     c.setFillColorRGB(*_C_HEAD)
     c.setFont("Helvetica-Bold", FS_LBL)
-    c.drawString(X0 + PAD, y - _IH + PAD, str(l1 or "")[:_chars_for_width(TH1 - PAD * 2, FS_LBL)])
+    lbl1 = str(l1 or "")[:_chars_for_width(TH1 - PAD * 2, FS_LBL)]
+    c.drawString(X0 + PAD, y_bot + (_IH - FS_LBL) / 2, lbl1)
 
     if span or not l2:
         span_w = TD1 + TH2 + TD2
-        c.setFillColorRGB(*_C_WHITE)
-        c.rect(X1, y - _IH, span_w, _IH, fill=1, stroke=1)
-        c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", FS_VAL)
-        c.drawString(X1 + PAD, y - _IH + PAD, str(v1 or "—")[:_chars_for_width(span_w - PAD * 2, FS_VAL)])
+        _val_cell(X1, span_w, v1)
     else:
-        # td1
-        c.setFillColorRGB(*_C_WHITE)
-        c.rect(X1, y - _IH, TD1, _IH, fill=1, stroke=1)
-        c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", FS_VAL)
-        c.drawString(X1 + PAD, y - _IH + PAD, str(v1 or "—")[:_chars_for_width(TD1 - PAD * 2, FS_VAL)])
+        _val_cell(X1, TD1, v1)
         # th2
         c.setFillColorRGB(*_C_TH)
-        c.rect(X2, y - _IH, TH2, _IH, fill=1, stroke=1)
+        c.rect(X2, y_bot, TH2, _IH, fill=1, stroke=1)
         c.setFillColorRGB(*_C_HEAD)
         c.setFont("Helvetica-Bold", FS_LBL)
-        c.drawString(X2 + PAD, y - _IH + PAD, str(l2 or "")[:_chars_for_width(TH2 - PAD * 2, FS_LBL)])
-        # td2
-        c.setFillColorRGB(*_C_WHITE)
-        c.rect(X3, y - _IH, TD2, _IH, fill=1, stroke=1)
-        c.setFillColorRGB(*_C_BLACK)
-        c.setFont("Helvetica", FS_VAL)
-        c.drawString(X3 + PAD, y - _IH + PAD, str(v2 or "—")[:_chars_for_width(TD2 - PAD * 2, FS_VAL)])
+        lbl2 = str(l2 or "")[:_chars_for_width(TH2 - PAD * 2, FS_LBL)]
+        c.drawString(X2 + PAD, y_bot + (_IH - FS_LBL) / 2, lbl2)
+        _val_cell(X3, TD2, v2)
 
     c.setStrokeColorRGB(*_C_BLACK)
     return y - _IH
@@ -3075,6 +3090,20 @@ def generar_pdf(formulario_id):
                 return "—"
             return str(val)
 
+        def _nombre_firmante(campo: str) -> str:
+            """Devuelve el texto del campo. Si ya fue firmado (FIRMADO_EC:nombre:...),
+            extrae el nombre del firmante en lugar de devolver '—'."""
+            val = resp.get(campo, "")
+            if not val:
+                return "—"
+            if val.startswith("FIRMADO_EC:"):
+                partes = val.split(":", 2)
+                nombre = partes[1].strip() if len(partes) > 1 else ""
+                return nombre if nombre else "—"
+            if val.startswith("data:"):
+                return "—"
+            return str(val)
+
         def _yb(val: str):
             if val == "SI": return _C_SI
             if val == "NO": return _C_NO
@@ -3184,10 +3213,40 @@ def generar_pdf(formulario_id):
         jt = (f"Jefe Inmediato: {_v('tramites_jefe_inmediato')}"
               f"  |  Recibe: {_v('tramites_servidor_recibe')}"
               + (f"  |  Obs: {_obs_t}" if _obs_t not in ("", "—") else ""))
-        y = _firma_row(c, y, _T6X, _T6W, [
-            (jt, _C_WHITE), ("", _C_WHITE), ("", _C_WHITE),
-            ("", _C_WHITE), (_v("tramites_nombre_responsable"), _C_WHITE),
-        ], "tramites_jefe", sig_coords, pg)
+        # Celda fusionada cols 1-4 (300 pts) para jt, igual que HTML colspan="4"
+        _FS_JT, _LH_JT, _PAD_JT = 7.5, 10, 4
+        _jt_x = _T6X[0]              # 20
+        _jt_w = _T6X[4] - _T6X[0]   # 300
+        _nr_x, _nr_w = _T6X[4], _T6W[4]   # 320, 133
+        _yb_jt = y - _FRH
+        c.setStrokeColorRGB(*_C_HEAD)
+        c.setLineWidth(0.4)
+        c.setFillColorRGB(*_C_WHITE)
+        c.rect(_jt_x, _yb_jt, _jt_w, _FRH, fill=1, stroke=1)
+        c.setFillColorRGB(*_C_BLACK)
+        c.setFont("Helvetica", _FS_JT)
+        _jt_maxc  = _chars_for_width(_jt_w - _PAD_JT * 2, _FS_JT)
+        _jt_lines = _split_text(jt, _jt_maxc)[:max(1, int((_FRH - _PAD_JT * 2) / _LH_JT))]
+        _jt_bh    = len(_jt_lines) * _LH_JT
+        _jt_ty    = _yb_jt + (_FRH + _jt_bh) / 2 - _LH_JT + 1
+        for _jt_ln in _jt_lines:
+            c.drawString(_jt_x + _PAD_JT, _jt_ty, _jt_ln)
+            _jt_ty -= _LH_JT
+        _nr_txt = _v("tramites_nombre_responsable")
+        c.setFillColorRGB(*_C_WHITE)
+        c.rect(_nr_x, _yb_jt, _nr_w, _FRH, fill=1, stroke=1)
+        c.setFillColorRGB(*_C_BLACK)
+        c.setFont("Helvetica", _FS_JT)
+        _nr_maxc  = _chars_for_width(_nr_w - _PAD_JT * 2, _FS_JT)
+        _nr_lines = _split_text(_nr_txt, _nr_maxc)[:max(1, int((_FRH - _PAD_JT * 2) / _LH_JT))]
+        _nr_bh    = len(_nr_lines) * _LH_JT
+        _nr_ty    = _yb_jt + (_FRH + _nr_bh) / 2 - _LH_JT + 1
+        for _nr_ln in _nr_lines:
+            c.drawString(_nr_x + _PAD_JT, _nr_ty, _nr_ln)
+            _nr_ty -= _LH_JT
+        c.setStrokeColorRGB(*_C_BLACK)
+        _draw_firma_cell(c, y, "tramites_jefe", sig_coords, pg)
+        y -= _FRH
         y -= 6
 
         # ═══════════════════════════════════════════════════════════════════════
@@ -3313,7 +3372,7 @@ def generar_pdf(formulario_id):
 
         _need_dir()
         y = _dir_row(c, y,
-                     f"Oficial de Seg.: {_v('seg_oficial')}  |  Responsable: {_v('seg_responsable')}",
+                     f"Oficial de Seg.: {_nombre_firmante('seg_oficial')}  |  Responsable: {_v('seg_responsable')}",
                      sig_coords, "seg_oficial", pg)
         y -= 6
 
