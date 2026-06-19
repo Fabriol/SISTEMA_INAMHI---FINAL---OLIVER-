@@ -3462,30 +3462,31 @@ def generar_pdf(formulario_id):
                 print(f"[PDF] error leyendo _firmaec.hash: {_fhe}")
 
         _pdf_signed_dl = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.pdf")
-        _signed_hash   = os.path.join(UPLOAD_FOLDER, f"formulario_{formulario_id}_signed.hash")
-        _signed_existe = os.path.exists(_pdf_signed_dl)
-        _shash_existe  = os.path.exists(_signed_hash)
-        print(f"[PDF] _signed.pdf existe={_signed_existe} | _signed.hash existe={_shash_existe}")
-        if _signed_existe and _shash_existe:
+        if os.path.exists(_pdf_signed_dl):
             try:
-                with open(_signed_hash, encoding="utf-8") as _shf:
-                    _sh = _shf.read().strip()
-                print(f"[PDF] _signed.hash={_sh} | coincide={_sh == _cur_hash}")
-                if _sh == _cur_hash:
-                    _sz = os.path.getsize(_pdf_signed_dl)
-                    print(f"[PDF] PDF DESCARGADO (pyHanko signed): {_pdf_signed_dl} ({_sz} bytes)")
+                from pyhanko.pdf_utils.reader import PdfFileReader as _PdfRdrDL
+                with open(_pdf_signed_dl, "rb") as _f_dl:
+                    _r_dl = _PdfRdrDL(_f_dl)
+                    _n_sigs_dl = len(list(_r_dl.embedded_signatures))
+                print(f"[FIRMA] embedded_signatures = {_n_sigs_dl}")
+                if _n_sigs_dl > 0:
+                    archivo_final = _pdf_signed_dl
+                    print(f"[DESCARGA] archivo servido = {archivo_final}")
                     return send_from_directory(
                         UPLOAD_FOLDER,
                         f"formulario_{formulario_id}_signed.pdf",
                         as_attachment=True,
                         download_name=f"PazSalvo_{formulario_id}_firmado.pdf",
                     )
+                else:
+                    print(f"[DESCARGA] ERROR: _signed.pdf existe pero embedded_signatures=0 — se está enviando el PDF incorrecto")
             except Exception as _she:
-                print(f"[PDF] error leyendo _signed.hash: {_she}")
+                print(f"[DESCARGA] error verificando _signed.pdf: {_she}")
 
-        # PDF fresco — sin firma o firma con datos desactualizados
+        # PDF fresco — sin firmas digitales
         _fresh_path = os.path.join(UPLOAD_FOLDER, filename)
-        print(f"[PDF] PDF DESCARGADO (fresco, SIN FIRMA): {_fresh_path}")
+        print(f"[DESCARGA] archivo servido = {_fresh_path}")
+        print(f"[DESCARGA] ADVERTENCIA: PDF sin firmas digitales (no existe _signed.pdf o embedded_signatures=0)")
         return send_from_directory(
             UPLOAD_FOLDER, filename, as_attachment=True,
             download_name=f"PazSalvo_{formulario_id}.pdf"
@@ -4180,6 +4181,8 @@ def firmar_ec_pdf(formulario_id):
             pdf_src = pdf_orig
 
         pdf_firmado = pdf_signed
+        print(f"[FIRMA] pdf origen = {pdf_src}")
+        print(f"[FIRMA] pdf destino = {pdf_firmado}")
         print(f"[FIRMA] Llamando _pyhanko_firmar: src={pdf_src} → dst={pdf_firmado}")
 
         # ── Firmar con pyHanko ───────────────────────────────────
@@ -4200,6 +4203,20 @@ def firmar_ec_pdf(formulario_id):
 
         _signed_sz = os.path.getsize(pdf_firmado) if os.path.exists(pdf_firmado) else -1
         print(f"[FIRMA] _pyhanko_firmar completó — _signed.pdf tamaño={_signed_sz} bytes")
+
+        # ── Verificar firmas reales en el PDF producido ──────────
+        try:
+            from pyhanko.pdf_utils.reader import PdfFileReader as _PdfRdrV
+            with open(pdf_firmado, "rb") as _fv2:
+                _rv2 = _PdfRdrV(_fv2)
+                _n_sigs_v = len(list(_rv2.embedded_signatures))
+            print(f"[FIRMA] embedded_signatures = {_n_sigs_v}")
+            if _n_sigs_v == 0:
+                print("[FIRMA] ERROR: se está enviando el PDF incorrecto — embedded_signatures=0")
+            else:
+                print(f"[FIRMA] OK: {pdf_firmado} contiene {_n_sigs_v} firma(s) real(es)")
+        except Exception as _fve:
+            print(f"[FIRMA] advertencia verificando embedded_signatures: {_fve}")
 
         # ── Guardar resultado en BD ──────────────────────────────
         fecha_firma = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
